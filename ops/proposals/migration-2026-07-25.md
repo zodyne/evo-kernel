@@ -130,7 +130,7 @@ schema_version: 1
 [PASS]  14. 降级事件近期               无降级
 [WARN]  15. transcript 时效        26/48 哨兵 (54%)
 [PASS]  16. smoke 全量（--full）     ================ PASS=61 FAIL=0 ================
-结果: FAIL (14 PASS / 1 WARN / 1 FAIL)   exit 0
+结果: FAIL (14 PASS / 1 WARN / 1 FAIL)   exit 1（remote FAIL → 非 0，符合 build-spec §2.21；门① open 为预期）
 ```
 
 - **唯一 FAIL = 检查 4（remote）**：可接受，见四门①。
@@ -150,7 +150,7 @@ schema_version: 1
 - clone 成功（45 tracked files，2 commits，完整历史）
 - 检查 4（remote）在 clone 中 **PASS**（origin=bundle 可达）——证明 remote 检查在有 remote 时正常工作
 - 检查 16 smoke **PASS=61 FAIL=0**——内核从 clone 完整可用
-- 检查 6/7/8（hooks/pi-ext/skills）WARN/FAIL：**预期且正确**——clone 在临时路径，live `~/.claude` 仍指向 ~/Dev/evo-kernel，doctor 的 cutover gate 正确报告路径不匹配（正是该检查的职责）。re-wire 到 clone 路径后即 PASS。
+- 检查 6/7/8（hooks/pi-ext/skills）WARN×2/FAIL×1：**预期且正确**——clone 在临时路径，live `~/.claude` 仍指向 ~/Dev/evo-kernel，doctor 的 cutover gate 正确报告路径不匹配（正是该检查的职责）。re-wire 到 clone 路径后即 PASS。
 - **结论：bundle 可恢复，内核自洽，smoke 全绿。**
 
 ### 7.4 四门状态表
