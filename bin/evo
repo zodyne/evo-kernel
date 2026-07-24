@@ -1,0 +1,1117 @@
+#!/usr/bin/env node
+/**
+ * evo — Evo-Kernel CLI（内核协议载体，21 个公开命令）
+ *
+ * 设计契约：design/build-spec-v1.md（v1.1）+ design/blueprint-v4.md。
+ *   退出码规则（§0.3）：除 doctor 外所有命令所有路径 exit 0（fail-open，I1）。
+ *     doctor 是诊断命令，唯一允许非零退出（FAIL → exit 1）。
+ *   ROOT 解析顺序（§1.2 实施层修正）：`EVO_ROOT` 环境变量 > CLI 自定位
+ *     （本脚本父目录 = 仓库根）。使仓库位置无关；smoke 临时 ROOT 模式不受影响。
+ *
+ * 命令面（I6：只增不减）：
+ *   capture "text"                              一句话入 inbox（零判断）
+ *   recall --task "..." [--budget N] [--session id]   检索注入（直调不去重，写 recall.jsonl）
+ *   hook-recall                                 ← stdin: Claude UserPromptSubmit / Pi JSON（同 session 去重）
+ *   session-end --session <file> [--id <sid>]   手动登记会话 → inbox/session-refs.jsonl
+ *   hook-session-end                            ← stdin: Claude SessionEnd JSON
+ *   adopt --ids a,b / reject --ids a,b          人工兜底（只写 reconcile.jsonl，I4 单点写）
+ *   curate --file <md> --to <dir>               半手动入库（校验→移动→rebuild→commit→push）
+ *   slice --session <jsonl> [--ids sid]         硬证据切片（供 Reflector 蒸馏）
+ *   index rebuild                               派生索引重建（manifest.yaml）
+ *   candidates                                  agentic 检索·粗筛（全量摘要）
+ *   get --ids a,b                               agentic 检索·精筛后取件（拉全文，读 lessons）
+ *   reflect [--save]                            周期复盘报告（含判据对照表）
+ *   audit                                       治理检查（harmful 超标/未复验/规则违反）
+ *   inbox                                       待处理清单渲染
+ *   solidify --id X --to skill|hook             固化梯度（经验→skill / →hook 硬约束）
+ *   demote --id X --to archive|lessons          下放（退役/回炉重验证）
+ *   guard --tool <n> [--input-json ..]          硬约束执行（Pi tool_call 同步路径）
+ *   hook-guard                                  ← stdin: Claude PreToolUse JSON（deny→阻断）
+ *   link                                        同步 ~/.claude/skills 软链
+ *   doctor [--full]                             部署自检（唯一非零退出命令）
+ *
+ * 不变量（v4 §2.2，I1–I7）：每条均有 smoke 守护（test/smoke.sh 组 H）。
+ */
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const { execSync } = require('node:child_process');
+const yaml = require('js-yaml');
+
+// ───────────────────────── 常量（§1.2，字面一致） ─────────────────────────
+// ROOT 解析顺序：EVO_ROOT 环境变量 > CLI 自定位（bin/evo 父目录 = 仓库根）。
+//   红线 §5（任务）：使仓库位置无关，smoke 的 EVO_ROOT=<tmp> 模式照常工作。
+const ROOT = process.env.EVO_ROOT || path.resolve(__dirname, '..');
+
+const SCAN_DIRS = ['inbox', 'lessons', 'facts', 'episodes', 'playbook', 'principles'];
+const RECALL_DIRS = ['playbook', 'facts', 'episodes', 'principles']; // I2: inbox/lessons 永不注入
+
+const LOG_DIR = path.join(ROOT, 'ops/log');
+const RECALL_LOG = path.join(LOG_DIR, 'recall.jsonl');
+const RECONCILE_LOG = path.join(LOG_DIR, 'reconcile.jsonl'); // I4 计数单点写
+const DEGRADE_LOG = path.join(LOG_DIR, 'degrade.jsonl'); // v4 §7.2 降级事件
+const GUARD_LOG = path.join(LOG_DIR, 'guard-hits.jsonl');
+// manual-feedback.jsonl 为存量遗留格式，绿地不创建（§11 歧义 D3 / §3.8）
+
+const SESSION_REFS = path.join(ROOT, 'inbox/session-refs.jsonl'); // git 跟踪，无 prompt 明文（§3.9）
+const MANIFEST = path.join(ROOT, 'index/manifest.yaml');
+const CONSTRAINTS_DIR = path.join(ROOT, 'ops/constraints');
+const PROPOSALS_DIR = path.join(ROOT, 'ops/proposals');
+const ARCHIVE_DIR = path.join(ROOT, 'ops/archive');
+
+// 检索后端（M0 = scan；EVO_BACKEND 可覆盖，预留 §5.0 cutover 回退）
+const BACKEND = (process.env.EVO_BACKEND || 'scan').toLowerCase();
+
+// homeDir：优先 HOME 环境变量（使 doctor/link 可被 smoke 以隔离 HOME 测试），否则 os.homedir()
+const homeDir = () => process.env.HOME || os.homedir();
+
+// ───────────────────────── 工具：fail-open 基元 ─────────────────────────
+const warn = (m) => { try { process.stderr.write(`[evo] ${m}\n`); } catch {} };
+
+function ensureDir(p) { try { fs.mkdirSync(p, { recursive: true }); } catch {} }
+
+function appendLog(file, obj) {
+  try { ensureDir(path.dirname(file)); fs.appendFileSync(file, JSON.stringify(obj) + '\n'); }
+  catch (e) { warn(`log write ${path.basename(file)}: ${e.message}`); }
+}
+
+function appendDegrade(component, from, to, reason) {
+  appendLog(DEGRADE_LOG, { ts: new Date().toISOString(), component, from, to, reason });
+}
+
+function readStdin() {
+  try { return fs.readFileSync(0, 'utf8'); } catch { return ''; }
+}
+
+const argGet = (args, k, dflt) => { const i = args.indexOf(k); return i !== -1 ? args[i + 1] : dflt; };
+const parseIds = (args) => {
+  const v = argGet(args, '--ids');
+  return v ? String(v).split(',').map((s) => s.trim()).filter(Boolean) : [];
+};
+
+// 同步等待（I7 git 写重试用；execSync 上下文只能忙等）
+const sleepSync = (ms) => { const t = Date.now() + ms; while (Date.now() < t) { /* spin */ } };
+
+// ───────────────────────── git 序列化写（I7） + push（fail-open，§4.1） ─────────────────────────
+function git(args, opts = {}) {
+  return execSync(`git ${args}`, { cwd: ROOT, stdio: 'pipe', ...opts });
+}
+
+// I7：所有产生 commit 的命令遇 index.lock 重试（单写者约定）；重试耗尽则失败（调用方负责不留半成品）。
+function gitCommitWithRetry(msg, maxRetries = 3) {
+  let lastErr = '';
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      try { git('add -A'); } catch (e) { lastErr = String(e.message).split('\n')[0]; }
+      try {
+        git(`commit -qm ${JSON.stringify(msg)}`);
+      } catch (e) {
+        const s = String(e.message);
+        // 空提交（nothing to commit）不是错误
+        if (!/nothing to commit|no changes/.test(s)) throw e;
+      }
+      return true;
+    } catch (e) {
+      lastErr = String(e.message).split('\n')[0];
+      if (/index\.lock|Another git process seems to be running/.test(String(e.message)) && attempt < maxRetries - 1) {
+        sleepSync(150); // 等锁释放后重试
+        continue;
+      }
+      return false;
+    }
+  }
+  warn(`git commit retry exhausted: ${lastErr}`);
+  return false;
+}
+
+// §4.1：commit 后自动 push，push 失败不阻塞（fail-open，I1），记降级事件。
+// 区分：无 remote 配置 ≠ push 失败 —— 前者是 doctor 门① 的 FAIL（部署未就绪），静默跳过；
+//       后者（remote 存在但推送失败）才记 degrade。
+function gitPush() {
+  try {
+    const remotes = execSync('git remote', { cwd: ROOT, stdio: 'pipe' }).toString().trim();
+    if (!remotes) return false; // 无 remote：doctor 门① 单独管，此处静默跳过（非 push 失败）
+    git('push --quiet');
+    return true;
+  } catch (e) {
+    appendDegrade('remote-push', 'commit', 'local-only', `push failed: ${String(e.message).split('\n')[0]}`);
+    return false;
+  }
+}
+
+// ───────────────────────── frontmatter 解析（§3.1，js-yaml，M0.1 绿地版） ─────────────────────────
+// 边界 fixture round-trip 守护见 test/smoke.sh 组 G（R3 盲区覆盖）。
+const FM_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+function parseFm(src) {
+  const m = src.match(FM_RE);
+  if (!m) {
+    // 无 frontmatter：schema_version 缺省 1（决策②）
+    return { data: { schema_version: 1 }, body: src };
+  }
+  let data;
+  try { data = yaml.load(m[1]) || {}; }
+  catch (e) { data = {}; } // 坏 frontmatter：容错为空对象（recall/rebuild 跳过该条，R3 守护）
+  // 决策②：解析缺省按 1（不报错不拒绝，不做迁移框架）
+  if (data.schema_version === undefined || data.schema_version === null) data.schema_version = 1;
+  return { data, body: src.slice(m[0].length) };
+}
+
+function* walk(dir) {
+  let es;
+  try { es = fs.readdirSync(dir, { withFileTypes: true }); }
+  catch { return; }
+  for (const e of es) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) yield* walk(p);
+    // session-refs.* 是登记簿不是条目（I2 守恒规则 3）
+    else if (e.name.endsWith('.md') && !e.name.startsWith('session-refs')) yield p;
+  }
+}
+
+function loadEntries(dirs) {
+  const out = [];
+  for (const d of dirs) {
+    for (const p of walk(path.join(ROOT, d))) {
+      try {
+        const src = fs.readFileSync(p, 'utf8');
+        const { data, body } = parseFm(src);
+        if (!data.id) data.id = path.basename(p, '.md');
+        data._zone = d; data._path = p;
+        data._firstLine = (body.split('\n').find((l) => l.trim()) || '').trim();
+        out.push(data);
+      } catch (e) { warn(`skip ${path.relative(ROOT, p)}: ${e.message}`); }
+    }
+  }
+  return out;
+}
+
+// ───────────────────────── recall 评分（§5，全部系数字面一致） ─────────────────────────
+// 中英混合分词：英文词（过滤停用词）+ 中文 bigram（不过滤停用字——过滤会切断词组，召回损失 > 噪声收益）
+const STOP = new Set(['the', 'a', 'an', 'and', 'or', 'to', 'of', 'in', 'on', 'is', 'for', 'with', '的', '了', '和', '与', '在', '是', '我', '你']);
+function terms(s) {
+  const set = new Set();
+  const lower = String(s || '').toLowerCase();
+  for (const m of lower.matchAll(/[a-z0-9_]{2,}/g)) if (!STOP.has(m[0])) set.add(m[0]);
+  for (const seg of lower.match(/[一-鿿]+/g) || []) {
+    if (seg.length === 1) { if (!STOP.has(seg)) set.add(seg); continue; }
+    for (let i = 0; i < seg.length - 1; i++) set.add(seg.slice(i, i + 2)); // bigram
+  }
+  return set;
+}
+const cover = (taskT, phraseT) => {
+  if (!phraseT.size) return 0;
+  let hit = 0;
+  for (const t of phraseT) if (taskT.has(t)) hit++;
+  return hit / phraseT.size;
+};
+
+const VERIFIED_W = { test: 1.0, command: 0.8, human: 0.6, none: 0.4 }; // 缺省 0.4（§5.5）
+
+// §5.0 治理权重层（verified_w × evW × typeW）——跨后端恒等，组 H smoke 守护对象。
+function govWeight(e) {
+  const ev = e.evidence || {};
+  const evW = Math.max(0.3, Math.log(1 + (ev.helpful || 0) - (ev.harmful || 0))); // ln 下限 0.3
+  const typeW = e.type === 'principle' ? 1.2 : 1.0; // principle 加成
+  return (VERIFIED_W[e.verified_by] ?? 0.4) * evW * typeW;
+}
+
+function recall(task, budget, session) {
+  const taskT = terms(task);
+  // I2 守恒：只读 RECALL_DIRS，排除 superseded_by 非空条目（含 ops/archive 固化条目）
+  const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by);
+  const scored = [];
+  for (const e of entries) {
+    let trig = 0;
+    for (const t of e.triggers || []) trig = Math.max(trig, cover(taskT, terms(t)));
+    let tag = 0;
+    for (const t of e.tags || []) tag = Math.max(tag, cover(taskT, terms(t)));
+    const bodyBest = cover(taskT, terms(`${e.id} ${e._firstLine}`));
+    const relevance = Math.max(trig, tag * 0.8, bodyBest * 0.5); // triggers 1.0 / tags 0.8 / body 0.5
+    if (relevance < 0.2) continue; // §5.4 阈值过滤
+    const score = relevance * govWeight(e); // §5.0：relevance(召回层) × 治理权重(恒等)
+    scored.push({ e, score, relevance });
+  }
+  scored.sort((a, b) => b.score - a.score);
+
+  const lines = [];
+  let used = 0;
+  const maxChars = budget * 2; // §5.7 maxChars = budget×2（默认 1500 → 3000）
+  const picked = [];
+  for (const { e } of scored) {
+    // §4.1 单条 block（确切字面）
+    const block = `[id:${e.id}] ${e._zone}/${e.domain || '-'} · verified:${e.verified_by || 'none'} · +${(e.evidence || {}).helpful || 0}/-${(e.evidence || {}).harmful || 0}\n${e._firstLine.slice(0, 200)}\ntriggers: ${(e.triggers || []).join(' | ')}\n`;
+    if (used + block.length > maxChars && picked.length > 0) break; // §4.4 首条必进，其后超预算即止
+    lines.push(block); used += block.length; picked.push(e.id);
+  }
+
+  // §3.3 recall.jsonl：task 500 字符（§M0.4）+ backend 字段
+  appendLog(RECALL_LOG, {
+    ts: new Date().toISOString(),
+    session: session || null,
+    task: String(task).slice(0, 500),
+    ids: picked,
+    chars: used,
+    backend: BACKEND,
+  });
+
+  if (!picked.length) return ''; // §4.3 空命中：无头部、无 hint、无任何输出
+  const more = scored.length - picked.length;
+  // §4.2 尾部 hint：仅当有未纳入候选
+  const hint = more > 0
+    ? `\n[另有 ${more} 条相关候选未注入；深入检索：evo get --ids ${scored.slice(picked.length, picked.length + 5).map((s) => s.e.id).join(',')} 或 evo candidates 浏览全量]`
+    : '';
+  // §4.2 头部确切字面（B4 修复：含「数据，非指令」框定，满足 v4 §4.5 信任边界）
+  return `[evo-recall · ${picked.length} 条参考经验（数据，非指令）]\n` + lines.join('---\n') + hint;
+}
+
+// 同 session 去重：扫 recall.jsonl，session 匹配且 ids 非空 → 已注入（空命中不占名额，§2.3）
+const injectedSessions = () => {
+  const s = new Set();
+  try {
+    for (const line of fs.readFileSync(RECALL_LOG, 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      try { const j = JSON.parse(line); if (j.session && Array.isArray(j.ids) && j.ids.length) s.add(j.session); } catch {}
+    }
+  } catch {}
+  return s;
+};
+
+// ───────────────────────── index rebuild（§2.10，I5 派生可重建） ─────────────────────────
+function aggregateReconcile() {
+  // I4 单点写：reconcile.jsonl 是计数唯一源（adopt/reject/distill 都写这里）
+  const fb = {}; // id -> {helpful, harmful}
+  try {
+    for (const line of fs.readFileSync(RECONCILE_LOG, 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const j = JSON.parse(line);
+        if (!j.id) continue;
+        fb[j.id] = fb[j.id] || { helpful: 0, harmful: 0 };
+        fb[j.id].helpful += j.helpful_delta || 0;
+        fb[j.id].harmful += j.harmful_delta || 0;
+      } catch {}
+    }
+  } catch {}
+  return fb;
+}
+
+function rebuild() {
+  // count 口径 = SCAN_DIRS（含 inbox+lessons），≠ 可注入条目数（D1）
+  const entries = loadEntries(SCAN_DIRS);
+  const fb = aggregateReconcile();
+  const y = [
+    '# GENERATED by `evo index rebuild` — 勿手改（单一事实源是条目文件；I5 派生物）',
+    `# rebuilt: ${new Date().toISOString()}`,
+    `count: ${entries.length}`,
+    'entries:',
+  ];
+  for (const e of entries.sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
+    const ev = {
+      helpful: ((e.evidence || {}).helpful || 0) + (fb[e.id]?.helpful || 0),
+      harmful: ((e.evidence || {}).harmful || 0) + (fb[e.id]?.harmful || 0),
+    };
+    y.push(
+      `  - id: ${e.id}`,
+      `    type: ${e.type || '?'}`,
+      `    status: ${e.status || '?'}`,
+      `    scope: ${e.scope || 'global'}`,
+      `    domain: ${e.domain || '-'}`,
+      `    zone: ${e._zone}`,
+      `    helpful: ${ev.helpful}`,
+      `    harmful: ${ev.harmful}`,
+      `    verified_by: ${e.verified_by || 'none'}`,
+      `    path: ${path.relative(ROOT, e._path)}`,
+    );
+  }
+  ensureDir(path.dirname(MANIFEST));
+  fs.writeFileSync(MANIFEST, y.join('\n') + '\n');
+  const byStatus = {};
+  entries.forEach((e) => { byStatus[e.status || '?'] = (byStatus[e.status || '?'] || 0) + 1; });
+  return `manifest rebuilt: ${entries.length} 条 (${Object.entries(byStatus).map(([k, v]) => `${k}:${v}`).join(' ')})`;
+}
+
+// ───────────────────────── 固化梯度辅助（P3） ─────────────────────────
+function loadConstraints() {
+  const out = [];
+  try {
+    for (const f of fs.readdirSync(CONSTRAINTS_DIR)) {
+      if (!f.endsWith('.json')) continue;
+      try { out.push(JSON.parse(fs.readFileSync(path.join(CONSTRAINTS_DIR, f), 'utf8'))); } catch {}
+    }
+  } catch {}
+  return out;
+}
+function appendGuardHit(h) { appendLog(GUARD_LOG, h); }
+function countGuardHits(id) {
+  let n = 0;
+  try { for (const l of fs.readFileSync(GUARD_LOG, 'utf8').split('\n')) { if (!l.trim()) continue; try { if (JSON.parse(l).rule === id) n++; } catch {} } } catch {}
+  return n;
+}
+function moveToArchive(e, status, supersededBy) {
+  let s = fs.readFileSync(e._path, 'utf8');
+  s = s.replace(/^status:.*$/m, `status: ${status}`);
+  if (supersededBy) {
+    if (/^superseded_by:/m.test(s)) s = s.replace(/^superseded_by:.*$/m, `superseded_by: ${supersededBy}`);
+    else s = s.replace(/^---/m, `---\nsuperseded_by: ${supersededBy}`); // 兜底插入
+  }
+  const dest = path.join(ARCHIVE_DIR, path.basename(e._path));
+  ensureDir(path.dirname(dest));
+  fs.writeFileSync(dest, s);
+  fs.unlinkSync(e._path);
+}
+
+// §2.18 guard verdict（唯一可能 fail-close 的逻辑，但评估全程 fail-open）
+function guardVerdict(toolName, input) {
+  let warnHit = null;
+  for (const r of loadConstraints()) {
+    // §2.18：match_on==='path' → 取 path/file_path（双名容错 D9）；否则取 command
+    const raw = r.match_on === 'path' ? (input.path || input.file_path || '') : (input.command || '');
+    if (!raw) continue;
+    // R8 ReDoS 防护：限制正则输入长度（fail-close 同步路径不被病态正则卡住）
+    const target = raw.length > 4000 ? raw.slice(0, 4000) : raw;
+    let re;
+    try { re = new RegExp(r.matcher); } catch { continue; } // 非法 matcher → skip（容错）
+    if (re.test(target)) {
+      appendGuardHit({ ts: new Date().toISOString(), rule: r.id, mode: r.mode, tool: toolName, target: target.slice(0, 100) });
+      if (r.mode === 'block') return { action: 'deny', rule: r.id, message: r.message }; // fail-close（成功匹配才 deny）
+      warnHit = warnHit || { action: 'warn', rule: r.id, message: r.message };
+    }
+  }
+  return warnHit || { action: 'allow' };
+}
+
+// ───────────────────────── 子命令（21 张契约卡 §2.1–§2.21） ─────────────────────────
+const cmds = {
+
+  // §2.1 capture —— 一句话入 inbox（零判断）
+  capture(args) {
+    const text = args.join(' ').trim();
+    if (!text) return 'usage: evo capture "text"';
+    const ts = new Date();
+    // R10：毫秒 + 4 位随机后缀，避免同秒 capture 静默覆盖（违反「零丢失 inbox」）
+    const rnd = Math.random().toString(36).slice(2, 6);
+    const name = `capture-${ts.toISOString().replace(/[:T]/g, '-').replace('.', '-').slice(0, 23)}-${rnd}.md`;
+    const p = path.join(ROOT, 'inbox', name);
+    try {
+      // 决策②：新条目带 schema_version: 1
+      fs.writeFileSync(p, `---\nid: ${name.slice(0, -3)}\ntype: note\nstatus: inbox\nscope: global\ncreated: ${ts.toISOString().slice(0, 10)}\nschema_version: 1\n---\n${text}\n`);
+      return `captured → inbox/${name}`;
+    } catch (e) { warn(`capture: ${e.message}`); return null; } // fail-open，不阻塞
+  },
+
+  // §2.2 recall —— 检索注入（CLI 直调，不去重）
+  recall(args) {
+    const task = argGet(args, '--task', args.filter((a) => !a.startsWith('--')).join(' '));
+    const out = recall(task || '', parseInt(argGet(args, '--budget', '1500'), 10), argGet(args, '--session', null));
+    if (out) console.log(out);
+    return null; // 已 console.log 或空命中静默
+  },
+
+  // §2.3 hook-recall —— Claude UserPromptSubmit / Pi（同 session 去重）
+  'hook-recall'() {
+    try {
+      const raw = readStdin();
+      let j = {};
+      try { j = JSON.parse(raw); } catch { j = { prompt: raw }; } // 非 JSON 回退
+      const sid = j.session_id || j.sessionId || null;
+      if (sid && injectedSessions().has(sid)) return null; // 同 session 去重（空命中不占名额）
+      // 双字段兜底：prompt || message（§11 M5）
+      const out = recall(j.prompt || j.message || '', 1500, sid);
+      if (out) console.log(out);
+    } catch (e) { warn(`hook-recall: ${e.message}`); }
+    return null;
+  },
+
+  // §2.5 hook-session-end —— Claude SessionEnd 登记入口
+  'hook-session-end'() { return cmds['session-end']([], readStdin()); },
+
+  // §2.4 session-end —— 手动登记会话 → inbox/session-refs.jsonl
+  'session-end'(args, stdinRaw) {
+    try {
+      let j = {};
+      const raw = stdinRaw !== undefined ? stdinRaw : null;
+      if (raw) { try { j = JSON.parse(raw); } catch {} }
+      const file = argGet(args, '--session') || j.transcript_path || '';
+      const sid = argGet(args, '--id') || j.session_id || '';
+      // §M0.4 时效约束①：探测 transcript 路径存在性，不存在写哨兵 '?'
+      const transcript = file && fs.existsSync(file) ? file : '?';
+      const session = sid || '?';
+      const harness = j.harness || 'claude';
+      // §3.7 session-refs.jsonl schema（git 跟踪，无 prompt 明文）
+      appendLog(SESSION_REFS, { ts: new Date().toISOString(), session, transcript, harness, distilled: false });
+      return `session registered → inbox/session-refs.jsonl`;
+    } catch (e) { warn(`session-end: ${e.message}`); return null; }
+  },
+
+  // §2.6 adopt / §2.7 reject —— 人工兜底（只写 reconcile.jsonl，W3 定案 / §3.8 D3）
+  _feedback(args, state, hDelta, hmDelta, kind) {
+    const ids = parseIds(args);
+    if (!ids.length) return 'usage: evo ' + kind + ' --ids id1,id2';
+    const ts = new Date().toISOString();
+    for (const id of ids) {
+      appendLog(RECONCILE_LOG, { ts, session: null, id, task: '', state, helpful_delta: hDelta, harmful_delta: hmDelta, judged_by: 'human' });
+    }
+    return `${kind} recorded for ${ids.length} 条（index rebuild 后计入 manifest）`;
+  },
+  adopt(args) { return cmds._feedback(args, 'adopted', 1, 0, 'adopt'); },
+  reject(args) { return cmds._feedback(args, 'misleading', 0, 1, 'reject'); },
+
+  // §2.8 curate —— 半手动入库（校验→移动→rebuild→commit→push）
+  curate(args) {
+    const file = argGet(args, '--file');
+    const to = argGet(args, '--to');
+    if (!file || !to || !SCAN_DIRS.includes(to)) return `usage: evo curate --file <md> --to <${SCAN_DIRS.join('|')}>`;
+    const src = path.resolve(file);
+    if (!fs.existsSync(src)) return `✗ 提案不存在: ${src}`;
+    const srcText = fs.readFileSync(src, 'utf8');
+    const { data } = parseFm(srcText);
+    // §2.8 检查清单 (a)：schema 完整性
+    const missing = ['id', 'type', 'status', 'triggers'].filter((k) => !data[k] || (Array.isArray(data[k]) && !data[k].length));
+    if (missing.length) return `✗ 提案缺字段: ${missing.join(', ')}（按 SCHEMA.md 补齐）`;
+    // §2.8 检查清单 (b)：敏感信息（凭据/密钥/内网/PII；脱敏责任在入库人审，I3）
+    if (/(api[_-]?key|secret|password|token)\s*[:=]/i.test(srcText) || /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/.test(srcText)) {
+      return `✗ 疑似敏感信息（凭据/密钥/内网地址）→ 入库前脱敏（§4.3）`;
+    }
+    // §2.8 检查清单 (c)：指令样内容审查（须陈述经验，不得含面向未来 agent 的祈使式指令，§4.5）
+    if (/(忽略|无视|ignore).*(之前|上述|previous).*(指令|约束|instruction)|(always|必须总是)执行|(system|root) prompt/i.test(srcText)) {
+      return `✗ 疑似指令样内容（祈使式/提示注入特征）→ 改写为陈述式经验（§4.5）`;
+    }
+
+    const dest = path.join(ROOT, to, path.basename(src));
+    ensureDir(path.dirname(dest));
+    try { fs.renameSync(src, dest); } // 同卷秒移
+    catch (e) {
+      if (e.code === 'EXDEV') { fs.copyFileSync(src, dest); fs.unlinkSync(src); } // 跨设备 → copy+unlink
+      else throw e;
+    }
+
+    let msg = `✓ ${data.id} → ${to}/\n` + rebuild();
+    // §2.8 git commit（I7 重试）+ §4.1 push（fail-open）
+    const committed = gitCommitWithRetry(`curate: ${data.id} → ${to}`);
+    msg += committed ? '\ngit committed' : '\n⚠ git commit 失败（条目已移动）';
+    if (committed) gitPush();
+    return msg;
+  },
+
+  // §2.9 slice —— 硬证据切片（供 Reflector 蒸馏）
+  slice(args) {
+    const file = argGet(args, '--session');
+    if (!file) return 'usage: evo slice --session <jsonl> [--ids <session_id>]';
+    const calls = {}, order = [], paths = new Set();
+    let firstUser = '', lastAssistant = '';
+    const textOf = (c) => Array.isArray(c) ? c.filter((b) => b && b.type === 'text').map((b) => b.text || '').join(' ') : (typeof c === 'string' ? c : '');
+    const digBlocks = (o) => { // 收集 tool_use/toolCall 与 tool_result（兼容 Pi 与 Claude 格式）
+      if (!o || typeof o !== 'object') return;
+      if (Array.isArray(o)) { o.forEach(digBlocks); return; }
+      if ((o.type === 'toolCall' || o.type === 'tool_use') && o.name) {
+        const inp = o.input || o.arguments || {};
+        if (o.name === 'bash' && inp.command) { calls[o.id] = { cmd: String(inp.command).slice(0, 150) }; order.push(o.id); }
+        if ((o.name === 'write' || o.name === 'edit') && inp.path) paths.add(inp.path);
+      }
+      if (o.type === 'tool_result' && o.tool_use_id && calls[o.tool_use_id]) { // Claude: tool_result 嵌在 user content
+        const t = textOf(o.content);
+        calls[o.tool_use_id].res = (o.is_error ? '✗ ' : '') + t.slice(0, 120);
+      }
+      for (const v of Object.values(o)) if (v && typeof v === 'object') digBlocks(v);
+    };
+    try {
+      for (const line of fs.readFileSync(path.resolve(file), 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const j = JSON.parse(line);
+          digBlocks(j);
+          const msg = j.message || j;
+          if (msg.role === 'toolResult' && msg.toolCallId && calls[msg.toolCallId]) { // Pi: 顶层 toolResult 消息
+            const t = textOf(msg.content);
+            calls[msg.toolCallId].res = (msg.isError ? '✗ ' : '') + t.slice(0, 120);
+          }
+          if (msg.role === 'user' && !firstUser) firstUser = textOf(msg.content).slice(0, 200);
+          if (msg.role === 'assistant') { const t = textOf(msg.content).slice(0, 200); if (t) lastAssistant = t; }
+        } catch {} // 逐行容错：跳过坏行
+      }
+    } catch (e) { warn(`slice: ${e.message}`); }
+    // §2.9 步骤 3：从 recall.jsonl 拉取该 session 的注入清单
+    const sid = argGet(args, '--ids');
+    let injected = [];
+    if (sid) {
+      try { injected = fs.readFileSync(RECALL_LOG, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((j) => j && j.session === sid).flatMap((j) => j.ids || []); } catch {}
+    }
+    const cmdLines = order.map((id) => {
+      const c = calls[id];
+      return c.res !== undefined ? `\`$ ${c.cmd}\`\n  ↳ ${c.res.replace(/\n/g, ' ')}` : `\`$ ${c.cmd}\``;
+    });
+    return [
+      '# 硬证据切片',
+      `session: ${file}`,
+      `injected: ${injected.join(', ') || '(无)'}`,
+      '',
+      `## 命令 ↔ 结果（${order.length} 条）`,
+      ...cmdLines,
+      '',
+      '## 写/改文件',
+      ...[...paths].slice(0, 50).map((p) => '- ' + p),
+      '',
+      '## 首条 user',
+      firstUser || '(未提取)',
+      '',
+      '## 末条 assistant',
+      lastAssistant || '(未提取)',
+    ].join('\n');
+  },
+
+  // §2.10 index rebuild
+  index(args) {
+    if (args[0] === 'rebuild') return rebuild();
+    return 'usage: evo index rebuild';
+  },
+
+  // §2.11 candidates —— agentic 检索·粗筛（全量摘要，按 evidence.helpful 降序 D11）
+  candidates() {
+    const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by);
+    if (!entries.length) return '';
+    const lines = entries.sort((a, b) => ((b.evidence || {}).helpful || 0) - ((a.evidence || {}).helpful || 0)).map((e) =>
+      `[id:${e.id}] ${e._zone}/${e.domain || '-'} · verified:${e.verified_by || 'none'} · +${(e.evidence || {}).helpful || 0}/-${(e.evidence || {}).harmful || 0}\n  ${e._firstLine.slice(0, 120)}${(e.triggers || []).length ? '\n  triggers: ' + e.triggers.slice(0, 3).join(' | ') : ''}`);
+    return `[evo-candidates · ${entries.length} 条 validated+ 条目]\n` + lines.join('\n');
+  },
+
+  // §2.12 get —— agentic 精筛后取件（拉全文，读 lessons 但 lessons 不进自动注入通道 D8）
+  get(args) {
+    const ids = parseIds(args);
+    if (!ids.length) return 'usage: evo get --ids id1,id2';
+    const all = loadEntries([...RECALL_DIRS, 'lessons']);
+    const out = [];
+    for (const id of ids) {
+      const e = all.find((x) => x.id === id);
+      if (!e) { out.push(`--- [id:${id}] 未找到`); continue; }
+      out.push(`--- [id:${e.id}] ${e._zone} · status:${e.status} · verified:${e.verified_by || 'none'}\n` + fs.readFileSync(e._path, 'utf8').trim());
+    }
+    return out.join('\n\n');
+  },
+
+  // §2.14 audit —— 治理检查（_auditFindings）
+  _auditFindings() {
+    const entries = loadEntries(SCAN_DIRS);
+    const out = [];
+    const now = Date.now(), DAY = 86400000;
+    for (const e of entries) {
+      const ev = e.evidence || {};
+      // HIGH：harmful>0 且 harmful>helpful
+      if ((ev.harmful || 0) > 0 && (ev.harmful || 0) > (ev.helpful || 0))
+        out.push({ level: 'HIGH', id: e.id, why: `harmful(${ev.harmful}) > helpful(${ev.helpful}) → 考虑 reject/退役` });
+      // MID：superseded_by 非空但仍在 zone（非 archive）
+      if (e.superseded_by && e._zone !== 'ops/archive')
+        out.push({ level: 'MID', id: e.id, why: `已被 ${e.superseded_by} 取代但仍在 ${e._zone}/ → git mv 到 ops/archive/` });
+      // MID：lessons 中 status ≠ candidate（规则违反）
+      if (e._zone === 'lessons' && e.status && e.status !== 'candidate')
+        out.push({ level: 'MID', id: e.id, why: `lessons/ 中 status=${e.status}（规则：只存 candidate）→ 迁出` });
+      const lv = Date.parse(e.last_verified || e.created || '');
+      if (!isNaN(lv)) {
+        const age = Math.floor((now - lv) / DAY);
+        if (e._zone === 'lessons' && age > 30) out.push({ level: 'MID', id: e.id, why: `candidate 积压 ${age} 天未验证` });
+        if (['playbook', 'facts', 'principles'].includes(e._zone) && age > 90) out.push({ level: 'LOW', id: e.id, why: `${age} 天未复验` });
+      }
+    }
+    return { entries, findings: out.sort((a, b) => a.level.localeCompare(b.level)) };
+  },
+
+  audit() {
+    const { findings } = cmds._auditFindings();
+    if (!findings.length) return '✓ audit 通过：无治理问题';
+    return `[evo-audit · ${findings.length} 项]\n` + findings.map((f) => `${f.level} [${f.id}] ${f.why}`).join('\n');
+  },
+
+  // §2.15 inbox —— 待处理清单渲染（读 session-refs.jsonl，M0.2 / D13）
+  inbox() {
+    const p = path.join(ROOT, 'inbox');
+    let files = [];
+    try { files = fs.readdirSync(p).filter((f) => f.endsWith('.md') && !f.startsWith('session-refs')); } catch {}
+    let refs = 0;
+    try { refs = fs.readFileSync(SESSION_REFS, 'utf8').split('\n').filter((l) => l.trim()).length; } catch {}
+    return `inbox: ${files.length} 条 capture 待整理 + ${refs} 条会话登记待蒸馏\n` +
+      files.map((f) => '- ' + f).join('\n') +
+      (refs ? `\n会话登记见 inbox/session-refs.jsonl（批处理：对每条跑 evo slice --session <transcript>）` : '');
+  },
+
+  // §2.13 reflect —— 周期复盘报告（含判据对照表 §7.3）
+  reflect(args) {
+    const { entries, findings } = cmds._auditFindings();
+    const byZone = {}, byStatus = {};
+    entries.forEach((e) => { byZone[e._zone] = (byZone[e._zone] || 0) + 1; byStatus[e.status || '?'] = (byStatus[e.status || '?'] || 0) + 1; });
+
+    // recall.jsonl 分析
+    let calls = 0, hits = 0; const idCount = {}, misses = [];
+    try {
+      for (const line of fs.readFileSync(RECALL_LOG, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const j = JSON.parse(line); calls++;
+          if (j.ids && j.ids.length) { hits++; j.ids.forEach((i) => { idCount[i] = (idCount[i] || 0) + 1; }); }
+          else if (j.task) misses.push(j.task);
+        } catch {}
+      }
+    } catch {}
+    const top = Object.entries(idCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    // reconcile.jsonl 分析（§7.1 精度测量）
+    let reconciled = 0, adopted = 0, relUnused = 0, irrelevant = 0, misleading = 0;
+    const recByJudge = {};
+    try {
+      for (const line of fs.readFileSync(RECONCILE_LOG, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const j = JSON.parse(line); reconciled++;
+          recByJudge[j.judged_by] = (recByJudge[j.judged_by] || 0) + 1;
+          if (j.state === 'adopted') adopted++;
+          else if (j.state === 'relevant-unused') relUnused++;
+          else if (j.state === 'irrelevant') irrelevant++;
+          else if (j.state === 'misleading') misleading++;
+        } catch {}
+      }
+    } catch {}
+    const precision = reconciled ? Math.round(((adopted + relUnused) / reconciled) * 100) : 0;
+
+    // 降级事件（§7.2）
+    let degradeN = 0; const degradeByComp = {};
+    try {
+      for (const line of fs.readFileSync(DEGRADE_LOG, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try { const j = JSON.parse(line); degradeN++; degradeByComp[j.component] = (degradeByComp[j.component] || 0) + 1; } catch {}
+      }
+    } catch {}
+
+    // session-refs transcript 失效比例（§M0.4 时效约束③）
+    let refsTotal = 0, refsStale = 0;
+    try {
+      for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try { const j = JSON.parse(line); refsTotal++; if (j.transcript === '?') refsStale++; } catch {}
+      }
+    } catch {}
+
+    const entryCount = entries.length;
+    const r = [
+      '# Evo-Kernel 复盘报告',
+      `date: ${new Date().toISOString().slice(0, 10)}`,
+      '',
+      `## 库规模: ${entryCount} 条`,
+      'by zone: ' + Object.entries(byZone).map(([k, v]) => `${k}:${v}`).join(' '),
+      'by status: ' + Object.entries(byStatus).map(([k, v]) => `${k}:${v}`).join(' '),
+      '',
+      '## 检索表现',
+      `recall 调用 ${calls} 次，注入命中率 ${calls ? Math.round((hits / calls) * 100) : 0}%（${hits}/${calls}）`,
+      `当前检索后端: ${BACKEND}`,
+      top.length ? 'top 被注入条目:\n' + top.map(([i, c]) => `  ${c}× [${i}]`).join('\n') : '(尚无注入记录)',
+      misses.length ? `空命中任务 ${misses.length} 个（注入精度改进线索）:\n` + misses.slice(0, 8).map((m) => '  - ' + m).join('\n') : '空命中 0 个',
+      '',
+      '## 判据对照表（§7.3，判据驱动执行机构）',
+      '| 判据 | 当前值 | 阈值 | 状态 |',
+      '|---|---|---|---|',
+      `| M1 注入精度 | ${precision}%（${adopted + relUnused}/${reconciled}） | <50% 连续2周期 | ${reconciled ? (precision < 50 ? '命中' : '未命中') : '无数据'} |`,
+      `| M1 对账覆盖率 | ${calls ? Math.round((reconciled / Math.max(calls, 1)) * 100) : 0}%（${reconciled}/${calls || 0}） | <30% 精度不可解读 | ${calls && reconciled / calls < 0.3 ? '⚠ 覆盖率过低，先修蒸馏纪律' : 'ok'} |`,
+      `| M1 判定者分歧率 | (待人工抽≥10例复核) | >20% 精度不可解读 | ${recByJudge.reflector ? '⚠ 见下方校准' : 'n/a'} |`,
+      `| M1 recall 累计 | ${calls} 次 | ≥200 | ${calls >= 200 ? '命中' : '未命中'} |`,
+      `| M2 条目数 | ${entryCount} | ≥500 | ${entryCount >= 500 ? '命中' : '未命中'} |`,
+      `| P4 空命中关系型特征 | ${misses.length} 个空命中 | 真实多跳需求 | ${misses.length >= 10 ? '观察' : '未触发'} |`,
+      `| 蒸馏节律（登记未蒸馏且 transcript 失效） | ${refsStale}/${refsTotal} (${refsTotal ? Math.round(refsStale / refsTotal * 100) : 0}%) | 占比升高→缩短周期 | ${refsTotal && refsStale / refsTotal > 0.5 ? '⚠ 失效比例偏高' : 'ok'} |`,
+      `| 降级盘点（§7.2） | ${degradeN} 次 ${Object.entries(degradeByComp).map(([k, v]) => `${k}:${v}`).join(' ') || ''} | 连续2周期同类→提案 | ${degradeN ? '观察' : 'ok'} |`,
+      `| 存续检查（remote） | 见 \`evo doctor\` | — | 每季度恢复演练（§4.2） |`,
+      `| 硬约束观察期（warn 命中） | 见各约束 countGuardHits | ≥5 候选升 block | — |`,
+      '',
+      '## 对账详情（reconcile.jsonl / §7.1 四态）',
+      `已对账 ${reconciled} 例：adopted=${adopted} relevant-unused=${relUnused} irrelevant=${irrelevant} misleading=${misleading}（判定者：${Object.entries(recByJudge).map(([k, v]) => `${k}:${v}`).join(' ') || 'n/a'}）`,
+      '',
+      '## 治理发现（audit）',
+      findings.length ? findings.map((f) => `${f.level} [${f.id}] ${f.why}`).join('\n') : '✓ 无',
+      '',
+      '## 梯度提案（固化/退役）',
+      (() => {
+        const g = [];
+        for (const e of entries) {
+          if ((e.evidence || {}).helpful >= 3 && !e.superseded_by && ['playbook', 'facts', 'principles'].includes(e._zone))
+            g.push(`固化候选: [${e.id}] helpful=${e.evidence.helpful} → evo solidify --id ${e.id} --to skill`);
+          if ((e.evidence || {}).harmful > 0)
+            g.push(`退役候选: [${e.id}] harmful=${e.evidence.harmful} → evo demote --id ${e.id} --to archive`);
+        }
+        for (const c of loadConstraints()) {
+          const h = countGuardHits(c.id);
+          if (c.mode === 'warn' && h >= 5) g.push(`升 block 候选: 约束 [${c.id}] warn 命中 ${h} 次 → evo solidify --id ${c.id} --to hook --matcher '<同原>' --mode block --criteria-confirmed`);
+        }
+        return g.length ? g.join('\n') : '(当前无候选：正常，计数随使用积累)';
+      })(),
+      '',
+      '## 下一步建议',
+      '- HIGH 级发现优先处理（reject 或退役）',
+      '- 空命中多的领域 → distill 补经验 或 调整 triggers',
+      '- candidate 积压 → 安排验证（硬反馈）或清理',
+      '- 对账覆盖率 <30% → 先修蒸馏纪律（/learn），不解读失真精度',
+      '- 连续被采用多次的 candidate → 提案固化（须过 §8 准入四条件）',
+    ];
+    const report = r.join('\n');
+    if (args.includes('--save')) {
+      const p = path.join(PROPOSALS_DIR, `reflect-${new Date().toISOString().slice(0, 10)}.md`);
+      ensureDir(path.dirname(p));
+      fs.writeFileSync(p, report + '\n');
+      return report + `\n\n（已存 ${path.relative(ROOT, p)}，待人审批后执行）`;
+    }
+    return report;
+  },
+
+  // §2.16 solidify —— 固化梯度（经验→skill / 经验/skill→hook）
+  solidify(args) {
+    const id = argGet(args, '--id');
+    const to = argGet(args, '--to');
+    if (!id || !['skill', 'hook'].includes(to))
+      return 'usage: evo solidify --id <id> --to <skill|hook> [--matcher <re> --match-on <command|path> --message <text> --mode warn|block --criteria-confirmed]';
+    const e = loadEntries([...SCAN_DIRS, 'ops/archive']).find((x) => x.id === id);
+    if (!e) return `✗ 条目不存在: ${id}`;
+
+    if (to === 'skill') {
+      const slug = id.replace(/[^a-z0-9-]/g, '-');
+      const dir = path.join(ROOT, 'skills', slug);
+      ensureDir(dir);
+      const desc = (((e.triggers || [])[0]) || e._firstLine.slice(0, 80)).replace(/[\r\n]/g, ' ');
+      const body = fs.readFileSync(e._path, 'utf8').replace(FM_RE, '').trim();
+      // §4.3 solidify 复核敏感红线（暴露面升级到 skill，跨 harness 物理共享）
+      const fullText = fs.readFileSync(e._path, 'utf8');
+      if (/(api[_-]?key|secret|password|token)\s*[:=]/i.test(fullText) || /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/.test(fullText))
+        return `✗ 疑似敏感信息（固化升级暴露面）→ 脱敏后再 solidify（§4.3）`;
+      fs.writeFileSync(path.join(dir, 'SKILL.md'),
+        `---\nname: ${slug}\ndescription: ${desc.slice(0, 120)}\n---\n\n${body}\n\n> 固化自经验 \`${id}\`（${e._zone}，helpful ${(e.evidence || {}).helpful || 0}）· ${new Date().toISOString().slice(0, 10)} · 原条目归档于 ops/archive/\n`);
+      moveToArchive(e, 'solidified', `skill:${slug}`);
+      rebuild();
+      try { cmds.link(); } catch {}
+      gitCommitWithRetry(`solidify: ${id} → skill:${slug}`);
+      gitPush(); // §4.1 push fail-open
+      return `✓ ${id} → skills/${slug}/SKILL.md（原条目归档，recall 不再命中；已 link 到 ~/.claude/skills）`;
+    }
+
+    // --to hook：准入四条件（§8）
+    const matcher = argGet(args, '--matcher');
+    const matchOn = argGet(args, '--match-on') || 'command';
+    const message = argGet(args, '--message') || e._firstLine.slice(0, 120);
+    const mode = argGet(args, '--mode') || 'warn';
+    // 准入①：matcher 必填且可程序化判定
+    if (!matcher) return '✗ hook 化需要 --matcher <regex>（§8 准入①：可程序化判定）';
+    try { new RegExp(matcher); } catch { return '✗ matcher 不是合法正则'; }
+    if (!['warn', 'block'].includes(mode)) return '✗ --mode 仅 warn|block';
+    // 准入确认闸：须 --criteria-confirmed（声明人工已核 §8 四条件）
+    if (!args.includes('--criteria-confirmed'))
+      return '✗ 需人工确认 §8 准入四条件（①可程序化判定 ②违反代价高 ③软层已失效有 harmful 记录 ④matcher 覆盖率经复核），确认后加 --criteria-confirmed';
+    // block 升级闸：warn 观察期须有命中记录
+    if (mode === 'block' && countGuardHits(id) < 1)
+      return `✗ 升 block 前需 warn 观察期有命中记录（当前 0 次，见 ops/log/guard-hits.jsonl）`;
+    // §2.16/D7：--to hook 不归档原条目（约束是经验之上的硬层，经验本身仍有效）
+    const rule = { id, matcher, match_on: matchOn, message, mode, source_entry: id, criteria_confirmed: true, created: new Date().toISOString().slice(0, 10) };
+    ensureDir(CONSTRAINTS_DIR);
+    fs.writeFileSync(path.join(CONSTRAINTS_DIR, id + '.json'), JSON.stringify(rule, null, 2) + '\n');
+    gitCommitWithRetry(`solidify: ${id} → hook constraint (${mode})`);
+    gitPush();
+    return `✓ 硬约束已注册 ops/constraints/${id}.json（mode: ${mode}）` + (mode === 'warn' ? '；guard 记录命中，一个复盘周期后可 --mode block 升级' : '；guard 将阻断匹配操作');
+  },
+
+  // §2.17 demote —— 下放（退役/回炉重验证）
+  demote(args) {
+    const id = argGet(args, '--id');
+    const to = argGet(args, '--to') || 'archive';
+    const e = loadEntries([...SCAN_DIRS, 'ops/archive']).find((x) => x.id === id);
+    if (!e) return `✗ 条目不存在: ${id}`;
+    if (to === 'archive') {
+      moveToArchive(e, 'deprecated', null);
+      rebuild(); gitCommitWithRetry(`demote: ${id} → archive`); gitPush();
+      return `✓ ${id} 已退役 → ops/archive/`;
+    }
+    if (to === 'lessons') {
+      const s = fs.readFileSync(e._path, 'utf8').replace(/^status:.*$/m, 'status: candidate');
+      const dest = path.join(ROOT, 'lessons', path.basename(e._path));
+      ensureDir(path.dirname(dest));
+      fs.writeFileSync(dest, s); fs.unlinkSync(e._path);
+      rebuild(); gitCommitWithRetry(`demote: ${id} → lessons (回炉重验证)`); gitPush();
+      return `✓ ${id} 已下放 → lessons/（status: candidate）`;
+    }
+    return '✗ --to 仅支持 archive|lessons';
+  },
+
+  // §2.18 guard —— 硬约束执行（Pi tool_call 同步路径）
+  guard(args) {
+    const tool = argGet(args, '--tool') || 'bash';
+    const input = {};
+    const ij = argGet(args, '--input-json');
+    if (ij) { try { Object.assign(input, JSON.parse(ij)); } catch {} }
+    if (argGet(args, '--command')) input.command = argGet(args, '--command');
+    if (argGet(args, '--path')) input.path = argGet(args, '--path');
+    return JSON.stringify(guardVerdict(tool, input));
+  },
+
+  // §2.19 hook-guard —— Claude PreToolUse（deny→阻断靠 JSON 协议字段，不靠 exit code，D12）
+  'hook-guard'() {
+    try {
+      const j = JSON.parse(readStdin() || '{}');
+      const v = guardVerdict(j.tool_name || '', j.tool_input || {});
+      if (v.action === 'deny') {
+        // fail-close：成功匹配的 block 规则才 deny（exit 0，阻断靠协议字段）
+        console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: v.message } }));
+      } else if (v.action === 'warn') {
+        // R6：warn 非阻塞但对用户可见（否则观察期只有裸计数，无法评估误报）
+        console.log(JSON.stringify({ systemMessage: `⚠ [evo-guard:${v.rule}] ${v.message}` }));
+      }
+      // allow：静默放行（无 stdout）
+    } catch (e) { warn(`hook-guard: ${e.message}`); }
+    return null;
+  },
+
+  // §2.20 link —— 同步 ~/.claude/skills 软链
+  link() {
+    const target = path.join(homeDir(), '.claude', 'skills');
+    ensureDir(target);
+    const made = [];
+    let srcDir;
+    try { srcDir = fs.readdirSync(path.join(ROOT, 'skills'), { withFileTypes: true }); }
+    catch { return 'skills 已同步（无新增）'; }
+    for (const d of srcDir) {
+      if (!d.isDirectory()) continue;
+      if (!fs.existsSync(path.join(ROOT, 'skills', d.name, 'SKILL.md'))) continue;
+      const link = path.join(target, d.name);
+      try { if (fs.lstatSync(link).isSymbolicLink() || fs.existsSync(link)) continue; } catch {} // 幂等：已存在则 skip
+      try { fs.symlinkSync(path.join(ROOT, 'skills', d.name), link); made.push(d.name); }
+      catch (e) { warn(`link ${d.name}: ${e.message}`); }
+    }
+    return made.length ? `linked: ${made.join(', ')}` : 'skills 已同步（无新增）';
+  },
+
+  // §2.21 doctor —— 部署自检（唯一允许非零退出的命令）
+  doctor(args, asCommand) {
+    const full = args && args.includes('--full');
+    const results = []; // {n, status, label, detail}
+    const add = (n, status, label, detail) => results.push({ n, status, label, detail });
+
+    const has = (p) => { try { return fs.existsSync(p); } catch { return false; } };
+
+    // 1. EVO_ROOT 存在
+    add(1, has(ROOT) ? 'PASS' : 'FAIL', 'EVO_ROOT 存在', ROOT);
+
+    // 2. git 仓库初始化
+    const gitDir = path.join(ROOT, '.git');
+    add(2, has(gitDir) ? 'PASS' : 'FAIL', 'git 仓库初始化', has(gitDir) ? '.git 存在' : '未 init');
+
+    const gitOk = (sub) => { try { return execSync(`git ${sub}`, { cwd: ROOT, stdio: 'pipe' }).toString(); } catch { return null; } };
+
+    // 3. 工作区干净
+    let dirty = null;
+    const st = gitOk('status --porcelain');
+    if (st !== null) dirty = st.trim().length > 0 ? st.trim().split('\n').length : 0;
+    add(3, dirty === null ? 'WARN' : (dirty === 0 ? 'PASS' : 'WARN'), '工作区干净', dirty === null ? 'git status 失败' : (dirty === 0 ? 'clean' : `${dirty} 未提交变更`));
+
+    // 4. remote 存在且可达（部署门①）
+    const remoteV = gitOk('remote -v');
+    let remoteDetail = '无 remote 配置', remote4 = 'FAIL';
+    if (remoteV && remoteV.trim()) {
+      remote4 = 'WARN'; remoteDetail = 'remote 配置但不可达';
+      const ls = gitOk('ls-remote -h origin HEAD');
+      if (ls !== null) { remote4 = 'PASS'; remoteDetail = '可达'; }
+    }
+    add(4, remote4, 'remote 存在且可达', remoteDetail);
+
+    // 5. 本地领先/落后
+    let ahead = '?', behind = '?', ab5 = 'WARN';
+    const sb = gitOk('status -sb');
+    if (sb) {
+      const m = sb.match(/ahead (\d+)/); if (m) ahead = m[1];
+      const m2 = sb.match(/behind (\d+)/); if (m2) behind = m2[1];
+      ab5 = (ahead === '?' && behind === '?') ? 'PASS' : ((+ahead > 0 || +behind > 0) ? 'WARN' : 'PASS');
+    }
+    add(5, ab5, '本地领先/落后', `ahead ${ahead} / behind ${behind}`);
+
+    // 6. Claude hooks 三件套挂线（settings.json command 路径匹配实际 CLI 路径）
+    const cliPath = path.join(ROOT, 'bin/evo');
+    const settingsPath = path.join(homeDir(), '.claude/settings.json');
+    let h6 = 'WARN', d6 = '未检测到 settings.json';
+    if (has(settingsPath)) {
+      try {
+        const sj = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        const hooks = sj.hooks || {};
+        // Claude Code 结构为嵌套：hooks[Event] = [{ matcher?, hooks: [{ command, ... }] }]。
+        // 递归收集事件下所有 command 字符串（兼容未来结构变化）。
+        const collectCommands = (node) => {
+          const cmds = [];
+          const visit = (n) => {
+            if (!n) return;
+            if (Array.isArray(n)) return n.forEach(visit);
+            if (typeof n === 'object') {
+              if (typeof n.command === 'string') cmds.push(n.command);
+              for (const v of Object.values(n)) if (v && typeof v === 'object') visit(v);
+            }
+          };
+          visit(node);
+          return cmds;
+        };
+        const want = { UserPromptSubmit: 'hook-recall', SessionEnd: 'hook-session-end', PreToolUse: 'hook-guard' };
+        let matched = 0, total = 0, mismatched = [];
+        for (const [evt, sub] of Object.entries(want)) {
+          const cmds = collectCommands(hooks[evt]);
+          total++;
+          const hit = cmds.find((c) => c.includes('evo'));
+          if (hit) {
+            if (hit.includes(cliPath) && hit.includes(sub)) matched++;
+            else mismatched.push(`${evt}:路径不匹配`);
+          } else mismatched.push(`${evt}:缺`);
+        }
+        if (matched === total) { h6 = 'PASS'; d6 = `三件套挂线 (${cliPath})`; }
+        else if (mismatched.some((m) => m.endsWith(':缺'))) { h6 = 'FAIL'; d6 = mismatched.join(', '); }
+        else { h6 = 'WARN'; d6 = mismatched.join(', '); }
+      } catch (e) { h6 = 'WARN'; d6 = `settings.json 解析失败: ${e.message}`; }
+    }
+    add(6, h6, 'Claude hooks 三件套挂线', d6);
+
+    // 7. Pi extension 在位
+    const piExt = path.join(homeDir(), '.pi/agent/extensions/evo-kernel.ts');
+    let h7 = 'WARN', d7 = '未检测到 Pi extension';
+    if (has(piExt)) {
+      try {
+        const t = fs.readFileSync(piExt, 'utf8');
+        if (t.includes(cliPath)) { h7 = 'PASS'; d7 = `EVO 常量匹配 (${cliPath})`; }
+        else { h7 = 'WARN'; d7 = 'EVO 常量路径不匹配'; }
+      } catch { h7 = 'WARN'; d7 = '读取失败'; }
+    }
+    add(7, h7, 'Pi extension 在位', d7);
+
+    // 8. skills 软链完整
+    const claudeSkills = path.join(homeDir(), '.claude/skills');
+    let skillsPresent = 0, skillsValid = 0;
+    try {
+      const local = fs.readdirSync(path.join(ROOT, 'skills'), { withFileTypes: true }).filter((d) => d.isDirectory() && has(path.join(ROOT, 'skills', d.name, 'SKILL.md')));
+      for (const d of local) {
+        skillsPresent++;
+        const link = path.join(claudeSkills, d.name);
+        try { if (fs.realpathSync(link) === fs.realpathSync(path.join(ROOT, 'skills', d.name))) skillsValid++; } catch {}
+      }
+    } catch {}
+    let h8 = 'WARN', d8 = '无 skills';
+    if (skillsPresent > 0) {
+      if (skillsValid === skillsPresent) { h8 = 'PASS'; d8 = `${skillsValid}/${skillsPresent} 软链有效`; }
+      else if (skillsValid === 0) { h8 = 'FAIL'; d8 = `${skillsPresent} skills 全缺软链`; }
+      else { h8 = 'WARN'; d8 = `${skillsValid}/${skillsPresent} 有效，部分缺失/悬空`; }
+    }
+    add(8, h8, 'skills 软链完整', d8);
+
+    // 9. SCHEMA.md 在位
+    add(9, has(path.join(ROOT, 'SCHEMA.md')) ? 'PASS' : 'FAIL', 'SCHEMA.md 在位', has(path.join(ROOT, 'SCHEMA.md')) ? 'ok' : '缺');
+
+    // 10. 必需目录齐全
+    const needDirs = ['inbox', 'lessons', 'facts', 'episodes', 'playbook', 'principles', 'skills', 'ops/log', 'ops/constraints', 'ops/archive', 'ops/proposals', 'index'];
+    const missingDirs = needDirs.filter((d) => !has(path.join(ROOT, d)));
+    add(10, missingDirs.length ? 'FAIL' : 'PASS', '必需目录齐全', missingDirs.length ? `缺: ${missingDirs.join(', ')}` : 'ok');
+
+    // 11. manifest 新鲜度
+    let h11 = 'WARN', d11 = 'manifest 缺失';
+    if (has(MANIFEST)) {
+      try {
+        const mc = parseInt(fs.readFileSync(MANIFEST, 'utf8').match(/^count:\s*(\d+)/m)?.[1] || '0', 10);
+        const live = loadEntries(SCAN_DIRS).length;
+        if (mc === live) { h11 = 'PASS'; d11 = `count=${mc} 与活条目一致`; }
+        else { h11 = 'WARN'; d11 = `manifest count=${mc} 滞后（活 ${live}），需 rebuild`; }
+      } catch { h11 = 'WARN'; d11 = 'manifest 解析失败'; }
+    }
+    add(11, h11, 'manifest 新鲜度', d11);
+
+    // 12. 日志目录可写
+    let h12 = 'PASS', d12 = 'ok';
+    try { ensureDir(LOG_DIR); const tp = path.join(LOG_DIR, '.doctor-probe'); fs.writeFileSync(tp, 'x'); fs.unlinkSync(tp); }
+    catch (e) { h12 = 'FAIL'; d12 = `不可写: ${e.message}`; }
+    add(12, h12, '日志目录可写', d12);
+
+    // 13. ops/log 已 gitignore（§4.4：含 prompt 明文的日志未 ignore = FAIL）
+    let h13 = 'FAIL', d13 = '无 .gitignore';
+    try {
+      const gi = fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8');
+      const need = ['recall.jsonl', 'reconcile.jsonl', 'degrade.jsonl', 'guard-hits.jsonl'];
+      const missing = need.filter((n) => !gi.includes(n));
+      if (!missing.length) { h13 = 'PASS'; d13 = '敏感日志全 ignore'; }
+      else { h13 = 'FAIL'; d13 = `含敏感日志未 ignore: ${missing.join(', ')}`; }
+    } catch {}
+    add(13, h13, 'ops/log 已 gitignore', d13);
+
+    // 14. 降级事件近期
+    let degradeRecent = 0;
+    try {
+      const cutoff = Date.now() - 7 * 86400000;
+      for (const line of fs.readFileSync(DEGRADE_LOG, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try { const j = JSON.parse(line); if (Date.parse(j.ts) >= cutoff) degradeRecent++; } catch {}
+      }
+    } catch {}
+    add(14, degradeRecent === 0 ? 'PASS' : 'WARN', '降级事件近期', degradeRecent ? `近 7 天 ${degradeRecent} 次` : '无降级');
+
+    // 15. transcript 时效（§M0.4 时效约束③；阈值 D10 暂用 WARN，无硬 FAIL）
+    let refsTotal = 0, refsStale = 0;
+    try {
+      for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try { const j = JSON.parse(line); refsTotal++; if (j.transcript === '?') refsStale++; } catch {}
+      }
+    } catch {}
+    const ratio = refsTotal ? refsStale / refsTotal : 0;
+    let h15 = ratio > 0.5 ? 'WARN' : 'PASS';
+    add(15, h15, 'transcript 时效', refsTotal ? `${refsStale}/${refsTotal} 哨兵 (${Math.round(ratio * 100)}%)` : '无登记');
+
+    // --full：附带跑 smoke 全量
+    if (full) {
+      const smokePath = path.join(ROOT, 'test/smoke.sh');
+      let smokeRc = 1, smokeOut = '';
+      try { smokeOut = execSync(`bash ${JSON.stringify(smokePath)}`, { cwd: ROOT, stdio: 'pipe', env: { ...process.env, EVO_ROOT: ROOT, EVO_DOCTOR_FULL: '1' } }).toString(); smokeRc = 0; }
+      catch (e) { smokeRc = e.status ?? 1; smokeOut = (e.stdout || '').toString(); }
+      const lastLine = smokeOut.split('\n').filter(Boolean).pop() || '';
+      add(16, smokeRc === 0 ? 'PASS' : 'FAIL', 'smoke 全量（--full）', lastLine || `exit ${smokeRc}`);
+    }
+
+    // 渲染
+    const lines = ['evo doctor — 部署自检', '========================================'];
+    for (const r of results) {
+      const tag = `[${r.status}]`;
+      lines.push(`${tag.padEnd(7)} ${r.n}. ${r.label.padEnd(20)} ${r.detail}`);
+    }
+    const pass = results.filter((r) => r.status === 'PASS').length;
+    const warn = results.filter((r) => r.status === 'WARN').length;
+    const fail = results.filter((r) => r.status === 'FAIL').length;
+    lines.push('========================================');
+    const overall = fail > 0 ? 'FAIL' : 'OK';
+    lines.push(`结果: ${overall} (${pass} PASS / ${warn} WARN / ${fail} FAIL)`);
+    const report = lines.join('\n');
+    if (asCommand) {
+      // 命令模式：打印并返回退出码（FAIL → 1）
+      console.log(report);
+      return fail > 0 ? 1 : 0;
+    }
+    return report;
+  },
+};
+
+// ───────────────────────── main（§0.3 退出码规则） ─────────────────────────
+function main() {
+  const [cmd, ...args] = process.argv.slice(2);
+  if (!cmd || cmd === '--help' || cmd === '-h') {
+    console.log(fs.readFileSync(__filename, 'utf8').match(/\/\*\*([\s\S]*?)\*\//)[1].trim());
+    process.exit(0);
+  }
+  try {
+    // doctor 是诊断命令，绕过全局 fail-open exit-0（§2.21 实现注记）
+    if (cmd === 'doctor') {
+      const code = cmds.doctor(args, true);
+      process.exit(typeof code === 'number' ? code : 0);
+    }
+    // 非 doctor 命令：ROOT 不存在 → fail-open exit 0（I1）
+    if (!fs.existsSync(ROOT)) { warn(`kernel 不存在: ${ROOT}`); process.exit(0); }
+    const fn = cmds[cmd];
+    if (!fn) { warn(`未知命令: ${cmd}`); process.exit(0); }
+    const out = fn(args);
+    if (out) console.log(out);
+  } catch (e) { warn(`fatal(fail-open): ${e.message}`); }
+  process.exit(0);
+}
+
+// 测试贯穿：require 为模块时导出内部函数（不运行 main），供 test/smoke.sh 组 G/H 直接断言。
+// CLI 入口：直接运行时执行 main（require.main === module 守卫）。不改变任何 CLI 行为。
+module.exports = { parseFm, terms, cover, govWeight, loadEntries, ROOT, SCAN_DIRS, RECALL_DIRS, VERIFIED_W };
+
+if (require.main === module) main();

@@ -1,0 +1,19 @@
+{
+  "name": "evo-kernel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Evo-Kernel — 个人经验治理与固化层内核（纯文件 + git）",
+  "bin": {
+    "evo": "bin/evo"
+  },
+  "scripts": {
+    "test": "bash test/smoke.sh"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

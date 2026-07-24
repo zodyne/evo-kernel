@@ -1,0 +1,10 @@
+# 运行日志（含 prompt 明文，永不上 remote —— §4.4 红线）
+ops/log/recall.jsonl
+ops/log/reconcile.jsonl
+ops/log/degrade.jsonl
+ops/log/guard-hits.jsonl
+ops/log/manual-feedback.jsonl
+
+# 系统
+.DS_Store
+node_modules/
