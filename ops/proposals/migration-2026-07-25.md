@@ -92,6 +92,89 @@ schema_version: 1
 **观察：manual-feedback.jsonl 为空（0 行）**
 - 旧库该文件自创建起即空（无人工反馈记录）。D11 裁决：绿地不创建此文件、rebuild 不读；本次仍复制空文件以保持目录结构一致（gitignore，不入库）。reconcile.jsonl 为唯一计数通道。
 
+## 6. harness 接线切换（build-spec §9，决策③：复用改路径不重写）
+
+接线文件均在仓库外（`~/.pi/`、`~/.claude/`），不在新库 git 内。改动清单（全部为路径替换，**逻辑/结构/matcher/timeout 零改动**）：
+
+| # | 文件 | 改动行 | 改动内容 |
+|---|---|---|---|
+| 1 | `~/.pi/agent/extensions/evo-kernel.ts` | L4 | `const EVO = "/Users/zodyne/evo-kernel/bin/evo"` → `/Users/zodyne/Dev/evo-kernel/bin/evo` |
+| | | L55 | learn 文案 `~/evo-kernel/ops/proposals/` → `~/Dev/evo-kernel/ops/proposals/` |
+| | | L68 | tool_call 注释 `~/evo-kernel/ops/constraints/` → `~/Dev/evo-kernel/ops/constraints/` |
+| 2 | `~/.pi/agent/agents/evo-curator.md` | L11, L14 | `~/evo-kernel` → `~/Dev/evo-kernel`（Kernel/Schema/ops-proposals 共 3 处） |
+| 3 | `~/.pi/agent/agents/evo-reflector.md` | L11, L17 | `~/evo-kernel` → `~/Dev/evo-kernel`（Kernel/Schema/ops-proposals 共 3 处） |
+| 4 | `~/.claude/settings.json` | L9, L20, L32 | 3 个 hook command 绝对路径 `/Users/zodyne/evo-kernel/bin/evo` → `/Users/zodyne/Dev/evo-kernel/bin/evo`（hook-recall / hook-session-end / hook-guard；matcher `Bash\|Write\|Edit`、timeout 8/5/5 不变） |
+| 5 | `~/.claude/skills/` 4 软链 | — | rm 旧软链（指向 ~/evo-kernel/skills）后 `evo link` 重建 → `/Users/zodyne/Dev/evo-kernel/skills/{evo-capture,evo-learn,evo-recall,evo-reflect}`（realpath 校验 4/4 有效） |
+| 6 | `~/.pi/agent/AGENTS.md` | L56 | `内核 ~/evo-kernel` → `内核 ~/Dev/evo-kernel` |
+
+**验证**：stale-path 全量扫描确认 6 个接线文件零残留 `~/evo-kernel`（仅 `~/.claude/projects/*/*.jsonl` 历史会话记录含旧路径——这些是不可变历史，不改动）。`evo doctor` 检查 6/7/8（hooks/pi-ext/skills 三者路径匹配实际 CLI）全部 PASS。
+
+## 7. 验收与四门状态
+
+### 7.1 `evo doctor --full` 输出（归档后，最终态）
+
+```
+[PASS]  1. EVO_ROOT 存在          /Users/zodyne/Dev/evo-kernel
+[PASS]  2. git 仓库初始化            .git 存在
+[PASS]  3. 工作区干净                clean
+[FAIL]  4. remote 存在且可达         无 remote 配置
+[PASS]  5. 本地领先/落后              ahead ? / behind ?
+[PASS]  6. Claude hooks 三件套挂线   三件套挂线 (/Users/zodyne/Dev/evo-kernel/bin/evo)
+[PASS]  7. Pi extension 在位      EVO 常量匹配 (/Users/zodyne/Dev/evo-kernel/bin/evo)
+[PASS]  8. skills 软链完整          4/4 软链有效
+[PASS]  9. SCHEMA.md 在位         ok
+[PASS]  10. 必需目录齐全               ok
+[PASS]  11. manifest 新鲜度         count=17 与活条目一致
+[PASS]  12. 日志目录可写               ok
+[PASS]  13. ops/log 已 gitignore  敏感日志全 ignore
+[PASS]  14. 降级事件近期               无降级
+[WARN]  15. transcript 时效        26/48 哨兵 (54%)
+[PASS]  16. smoke 全量（--full）     ================ PASS=61 FAIL=0 ================
+结果: FAIL (14 PASS / 1 WARN / 1 FAIL)   exit 0
+```
+
+- **唯一 FAIL = 检查 4（remote）**：可接受，见四门①。
+- **唯一 WARN = 检查 15（transcript 时效 54%）**：D10 暂用 WARN-only（阈值待 reflect 周期标定）；26/48 会话 transcript 为哨兵 `?`（多为 pi 侧短会话无 transcript_path）。
+- 归档前后输出**逐字一致**——证明旧库消失对 live 系统零影响。
+- live `hook-recall` 端到端测试通过（注入 3 条 + 「数据，非指令」框定，exit 0）。
+
+### 7.2 git bundle 兜底（门③）
+
+- `~/evo-kernel-backups/evo-kernel-20260724T051200Z.bundle`（59K，全量，`--all`）
+- `git bundle verify` → okay，含完整历史（main + HEAD @ 4b4b983），「records a complete history」
+- **⚠ 同机非异地**：bundle 与库同在 `~/`。v4 §4.1 要求异地介质——需用户配置（如外置盘 / 云端 / 另一台机）后定期 `git bundle create` 同步。
+
+### 7.3 恢复演练（门④，bundle 版）
+
+临时目录 `git clone <bundle>` → `npm ci`（2 包）→ `evo doctor --full`：
+- clone 成功（45 tracked files，2 commits，完整历史）
+- 检查 4（remote）在 clone 中 **PASS**（origin=bundle 可达）——证明 remote 检查在有 remote 时正常工作
+- 检查 16 smoke **PASS=61 FAIL=0**——内核从 clone 完整可用
+- 检查 6/7/8（hooks/pi-ext/skills）WARN/FAIL：**预期且正确**——clone 在临时路径，live `~/.claude` 仍指向 ~/Dev/evo-kernel，doctor 的 cutover gate 正确报告路径不匹配（正是该检查的职责）。re-wire 到 clone 路径后即 PASS。
+- **结论：bundle 可恢复，内核自洽，smoke 全绿。**
+
+### 7.4 四门状态表
+
+| 门 | 判据 | 状态 | 说明 |
+|---|---|---|---|
+| ① remote | doctor 检查 4 PASS | **待办** | 无 remote 配置——**唯一可接受 FAIL**。待用户提供私有 remote 后 `git remote add origin <url> && git push -u`，并配置异地 bundle 同步 |
+| ② 接线 cutover | doctor 检查 6/7/8 PASS | **✅ 达成** | hooks/pi-ext/skills 三者路径匹配实际 CLI；归档后复验仍 PASS |
+| ③ 备份 | bundle 存在且可验证 | **✅ 达成（同机）** | bundle 59K verify okay；异地介质待用户配置 |
+| ④ 恢复演练 | 从备份克隆可跑通 | **✅ 达成** | bundle clone → smoke 61/61 PASS |
+
+### 7.5 归档
+
+- `mv ~/evo-kernel ~/evo-kernel-legacy-2026-07-25`（保留全部内容，仅改路径名）
+- 旧库内容完整保留于 `~/evo-kernel-legacy-2026-07-25`，可随时回查；live 系统已不依赖它。
+
+## 8. 遗留问题
+
+1. **门① remote 待办**：需用户提供私有 git remote（自托管 / 私有 GitHub 等）。配置前 `git push` 降级静默跳过（无 remote 分支，doctor 门①单独管）。
+2. **异地备份待配置**：bundle 与库同机。建议用户配外置盘或云同步，定期 `git bundle create`。
+3. **transcript 时效 54%（WARN）**：D10 阈值待 reflect 周期用真实数据标定后决定是否升硬 FAIL。当前 26/48 哨兵多为 pi 侧短会话（无 transcript_path）。
+4. **evo-reflector.md 对账词汇略陈旧**：agent 文件仍写「followed→adopt / violated→reject / irrelevant」3 态，而新库 evo-learn SKILL.md / reconcile.jsonl schema 为 4 态（adopted/relevant-unused/irrelevant/misleading）。§9 决策③限定接线「逻辑不重写」，且 reconcile.jsonl 实际写入由 CLI 保证（schema 校验在 bin/evo），故本次仅改路径。**建议后续 reflect 周期统一 agent 文件措辞**（非阻塞，CLI 是计数唯一真相源）。
+5. **skills 未从旧库迁移**（见 §4 偏差①）：新库 v4 版本已就位且更优；若需保留旧 skills 文本作历史，旧库归档于 `~/evo-kernel-legacy-2026-07-25/skills/` 可查。
+
 ## 5. 迁移后验收（迁移部分）
 
 - [x] `evo index rebuild` → 17 条（validated:10 inbox:4 candidate:3）
