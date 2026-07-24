@@ -8,3 +8,11 @@ ops/log/manual-feedback.jsonl
 # 系统
 .DS_Store
 node_modules/
+
+# LaTeX 中间产物
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+docs/*.lof
+docs/*.lot

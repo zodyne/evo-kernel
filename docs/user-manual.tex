@@ -1,0 +1,618 @@
+\documentclass[12pt,a4paper]{ctexart}
+
+% 页面设置
+\usepackage[margin=2.5cm,headheight=14pt]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% 颜色与样式
+\usepackage{xcolor}
+\definecolor{evogreen}{RGB}{34,139,34}
+\definecolor{evoyellow}{RGB}{218,165,32}
+\definecolor{evored}{RGB}{178,34,34}
+\definecolor{evogray}{RGB}{100,100,100}
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{linkblue}{RGB}{30,90,150}
+
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=linkblue,
+  urlcolor=linkblue,
+  citecolor=linkblue,
+  pdftitle={Evo-Kernel 用户手册},
+  pdfauthor={zodyne}
+}
+
+% 图表
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc, shadows}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
+
+% 代码块
+\usepackage{listings}
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{evogray!30},
+  keywordstyle=\color{linkblue}\bfseries,
+  commentstyle=\color{evogray},
+  stringstyle=\color{evogreen},
+  showstringspaces=false,
+  xleftmargin=1em,
+  xrightmargin=1em,
+  aboveskip=1em,
+  belowskip=1em
+}
+
+% 提示框
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\newtcolorbox{tipbox}[1][]{
+  colback=evogreen!5,
+  colframe=evogreen!70,
+  fonttitle=\bfseries,
+  title=提示,
+  #1
+}
+\newtcolorbox{warnbox}[1][]{
+  colback=evoyellow!5,
+  colframe=evoyellow!80!black,
+  fonttitle=\bfseries,
+  title=注意,
+  #1
+}
+\newtcolorbox{redbox}[1][]{
+  colback=evored!5,
+  colframe=evored!80!black,
+  fonttitle=\bfseries,
+  title=红线,
+  #1
+}
+
+% 页眉页脚
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Evo-Kernel 用户手册}
+\fancyhead[R]{\small \nouppercase{\leftmark}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% 标题
+\title{
+  \vspace{-2cm}
+  \textbf{Evo-Kernel}\\[0.3em]
+  \Large 个人经验治理与固化层\\[0.2em]
+  \large 使用手册
+}
+\author{zodyne}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+Evo-Kernel 是位于通用记忆框架之上的「经验治理与固化层」。它以纯文件 + git 作为单一事实源，通过捕获、蒸馏、人审、固化四个环节，把零散的工作经验转化为可检索、可审计、可硬化的约束与技能。
+
+本手册面向日常使用者，覆盖：快速开始、核心工作流、周期维护、备份恢复、以及使用中的红线与注意事项。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%======================================================================
+\section{Evo-Kernel 是什么}
+%======================================================================
+
+\subsection{一句话定位}
+
+通用记忆框架（Mem0 / Zep / Letta 等）解决的是经验的「存储与检索」；Evo-Kernel 解决的是其上没人解决的「治理、固化、可审计」问题。二者是叠加而非替代。
+
+\subsection{核心能力}
+
+\begin{itemize}
+  \item \textbf{捕获}：零判断入口，任何想法先丢进 inbox。
+  \item \textbf{检索注入}：按任务自动从 playbook / facts / episodes / principles 召回相关经验。
+  \item \textbf{离线蒸馏}：session 结束后对 transcript 切片，由 Reflector 生成提案，人审后入库。
+  \item \textbf{技能固化}：经验 $\rightarrow$ SKILL.md，可直接被 Claude Code / Pi 挂载。
+  \item \textbf{硬约束硬化}：经验 $\rightarrow$ guard / hook，对危险工具调用进行 warn / block。
+  \item \textbf{git 可审计}：每一次 curate / solidify / demote 都是一次可 diff、可 revert 的 commit。
+\end{itemize}
+
+\subsection{架构分层}
+
+图 \ref{fig:architecture} 展示了 Evo-Kernel 的层次结构。上层是 harness（Claude Code / Pi），下层是纯文件 + git 的内核，中间通过 hooks 与 CLI 交互。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  box/.style={rectangle, rounded corners, draw, minimum width=3.2cm, minimum height=0.9cm, align=center, font=\small},
+  layer/.style={rectangle, rounded corners, draw=evogray, dashed, inner sep=0.4cm},
+  arrow/.style={-{Stealth[length=2mm]}, thick},
+  label/.style={font=\footnotesize\bfseries, color=evogray}
+]
+
+% Harness 层
+\node[box, fill=evogreen!15] (cc) {Claude Code};
+\node[box, fill=evogreen!15, right=1.2cm of cc] (pi) {Pi};
+
+% 适配层
+\node[box, fill=evoyellow!15, below=1.2cm of cc] (hook1) {UserPromptSubmit\\SessionEnd\\PreToolUse};
+\node[box, fill=evoyellow!15, below=1.2cm of pi] (hook2) {before\_agent\_start\\session\_shutdown\\tool\_call};
+
+% 协议层
+\node[box, fill=linkblue!10, below=1.5cm of hook1] (proto) {evo CLI\\21 个命令};
+
+% 内核层
+\node[box, fill=evored!10, below=1.2cm of proto] (kernel) {内核层\\目录即状态机};
+
+% 外挂层
+\node[box, fill=evogray!15, right=2.5cm of kernel] (ext) {可选外挂\\Mem0 / Cognee / LightRAG};
+
+% 箭头
+\draw[arrow] (cc) -- (hook1);
+\draw[arrow] (pi) -- (hook2);
+\draw[arrow] (hook1) -- (proto);
+\draw[arrow] (hook2) -- (proto);
+\draw[arrow] (proto) -- (kernel);
+\draw[arrow, dashed, color=evogray] (kernel) -- (ext) node[midway, above, font=\scriptsize] {MCP / opt-in};
+
+\end{tikzpicture}
+\caption{Evo-Kernel 架构分层}
+\label{fig:architecture}
+\end{figure}
+
+%======================================================================
+\section{目录与状态机}
+%======================================================================
+
+\subsection{目录角色}
+
+Evo-Kernel 的每个目录都有明确的角色，这是「目录即状态机」的体现：文件在不同目录间移动，即代表经验状态的变化。
+
+\begin{table}[H]
+\centering
+\caption{目录角色与注入权限}
+\begin{tabular}{@{}llc@{}}
+\toprule
+\textbf{目录} & \textbf{角色} & \textbf{是否注入} \\
+\midrule
+\texttt{inbox/} & capture 暂存 + 会话登记 & \textcolor{evored}{否} \\
+\texttt{lessons/} & candidate 经验暂存 & \textcolor{evored}{否} \\
+\texttt{facts/} & 事实/偏好/环境 & \textcolor{evogreen}{是} \\
+\texttt{episodes/} & 情景记忆：一次任务一份 & \textcolor{evogreen}{是} \\
+\texttt{playbook/} & 策略库，带 helpful/harmful 计数 & \textcolor{evogreen}{是} \\
+\texttt{principles/} & 跨域普适原则 & \textcolor{evogreen}{是} \\
+\texttt{skills/} & SKILL.md 包（agentskills.io） & 经 skill 注入 \\
+\texttt{ops/archive/} & 退役/固化存档 & \textcolor{evored}{否} \\
+\texttt{ops/constraints/} & 硬约束规则（JSON） & guard 执行 \\
+\texttt{ops/log/} & 运行日志（全部 \texttt{gitignore}） & — \\
+\texttt{ops/proposals/} & reflect/distill 提案 & 待人审 \\
+\texttt{index/manifest.yaml} & 派生索引（可重建） & — \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{redbox}
+\textbf{不变量 I2：} \texttt{inbox/} 与 \texttt{lessons/} 中的条目永远不会被自动注入 context。只有经过人审 curate 进入 playbook / facts / episodes / principles 的条目，才有资格被 recall。否则 capture 这个零审查入口就成了绕过人审的后门。
+\end{redbox}
+
+\subsection{经验生命周期}
+
+图 \ref{fig:lifecycle} 展示了一条经验从捕获到固化或退役的完整路径。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  state/.style={rectangle, rounded corners, draw, minimum width=2.8cm, minimum height=0.9cm, align=center, font=\small},
+  arrow/.style={-{Stealth[length=2mm]}, thick},
+  annot/.style={font=\footnotesize, color=evogray}
+]
+
+\node[state, fill=evogreen!10] (capture) {inbox\\捕获};
+\node[state, fill=evoyellow!10, right=1.5cm of capture] (slice) {ops/proposals\\提案};
+\node[state, fill=linkblue!10, right=1.5cm of slice] (curate) {playbook/facts/...\\入库};
+\node[state, fill=evored!10, above right=0.8cm and 1.5cm of curate] (skill) {skills/\\SKILL 固化};
+\node[state, fill=evored!10, below right=0.8cm and 1.5cm of curate] (hook) {ops/constraints/\\hook 硬化};
+\node[state, fill=evogray!20, below=1.5cm of curate] (archive) {ops/archive/\\退役};
+
+\draw[arrow] (capture) -- (slice) node[midway, above, annot] {slice / reflect};
+\draw[arrow] (slice) -- (curate) node[midway, above, annot] {人审 curate};
+\draw[arrow] (curate) -- (skill) node[midway, above, sloped, annot] {solidify skill};
+\draw[arrow] (curate) -- (hook) node[midway, below, sloped, annot] {solidify hook};
+\draw[arrow] (curate) -- (archive) node[midway, right, annot] {demote};
+\draw[arrow, dashed] (skill) -- (archive) node[midway, right, annot] {superseded};
+
+\end{tikzpicture}
+\caption{经验生命周期状态机}
+\label{fig:lifecycle}
+\end{figure}
+
+%======================================================================
+\section{快速开始}
+%======================================================================
+
+\subsection{日常检查命令}
+
+每天开始工作前，先检查系统健康：
+
+\begin{lstlisting}[language=bash]
+cd ~/Dev/evo-kernel
+./bin/evo doctor
+\end{lstlisting}
+
+期望输出是 \texttt{OK (N PASS / 1 WARN / 0 FAIL)}。唯一常见的 WARN 是 transcript 哨兵比，这是已知飞轮状态，由 reflect 周期跟踪。
+
+\subsection{捕获一个想法}
+
+任何时候想到一个值得记录的经验、坑或偏好，直接 capture：
+
+\begin{lstlisting}[language=bash]
+./bin/evo capture "遇到 Claude Code 权限拦截时，先用 AskUserQuestion 或明确授权，不要偷偷绕过"
+\end{lstlisting}
+
+这会在 \texttt{inbox/} 下生成一个带时间戳的 markdown 文件。capture 是零判断入口，不需要结构化，不需要 frontmatter。
+
+\begin{tipbox}
+capture 的目标不是写完美条目，而是不错过任何一闪而过的经验。结构化和人审留给后面的 curate。
+\end{tipbox}
+
+\subsection{主动召回经验}
+
+如果你在写代码或调试，想主动看看有没有相关经验：
+
+\begin{lstlisting}[language=bash]
+./bin/evo recall --task "如何安全地删除远程 git 分支"
+\end{lstlisting}
+
+这会输出一段可注入的文本（如果命中）。更常见的场景是 Claude Code / Pi 自动在每次输入时调用 \texttt{hook-recall}，你不需要手动跑。
+
+%======================================================================
+\section{核心工作流}
+%======================================================================
+
+\subsection{工作流一：从 capture 到 curate}
+
+这是最常见的单条经验入库路径。
+
+\textbf{Step 1：把 inbox 里的 raw 文本整理成提案}
+
+\begin{lstlisting}[language=bash]
+./bin/evo inbox
+# 看到一条 capture，打开编辑
+# 把它改写成符合 SCHEMA.md 的提案文件，放到 ops/proposals/
+\end{lstlisting}
+
+一个最小提案示例：
+
+\begin{lstlisting}[language=Markdown]
+---
+id: avoid-silent-bypass
+name: 权限拦截不绕过
+type: principle
+status: candidate
+scope: [workflow]
+domains: [claude-code]
+triggers:
+  - 权限拦截
+  - Claude Code 拒绝
+  - bypass
+evidence:
+  helpful: 0
+  harmful: 0
+verified_by: human
+---
+
+当 Claude Code 的权限系统拦截一个操作（如删除远程分支、修改系统配置）时，
+正确动作是：
+1. 用 AskUserQuestion 向用户明确请求授权；
+2. 或把命令贴给用户，让用户用 `!` 前缀自己执行。
+
+错误动作是：
+- 用其他工具绕过权限拦截；
+- 把破坏性操作伪装成无害命令。
+\end{lstlisting}
+
+\textbf{Step 2：人审并入库}
+
+\begin{lstlisting}[language=bash]
+./bin/evo curate --file ops/proposals/avoid-silent-bypass.md --to principles
+\end{lstlisting}
+
+curate 会做三件事：
+\begin{enumerate}
+  \item schema 校验（id / type / status / triggers 必填）。
+  \item 敏感信息检查（凭据、密钥、内网地址、PII 不得入库）。
+  \item 指令样内容审查（正文必须是陈述式经验，不能是面向未来 agent 的祈使指令）。
+\end{enumerate}
+
+通过后，文件被移动到 \texttt{principles/}，自动 rebuild manifest、commit、并 push 到 remote。
+
+\begin{warnbox}
+curate 是唯一的入库口（不变量 I3）。不要手动把文件拖进 \texttt{playbook/} 或 \texttt{facts/}，否则绕过了敏感信息和指令样审查。
+\end{warnbox}
+
+\subsection{工作流二：会话蒸馏}
+
+一次完整工作会话结束后，把 transcript 中的经验提炼出来。
+
+\textbf{Step 1：确认 session 已登记}
+
+Claude Code / Pi 的 session-end hook 会自动写 \texttt{inbox/session-refs.jsonl}。你也可以手动登记：
+
+\begin{lstlisting}[language=bash]
+./bin/evo session-end --session /path/to/transcript.jsonl --id <session-id>
+\end{lstlisting}
+
+\textbf{Step 2：切片}
+
+\begin{lstlisting}[language=bash]
+./bin/evo slice --session /path/to/transcript.jsonl --ids <session-id>
+\end{lstlisting}
+
+这会输出一个 Markdown 报告，包含：命令 ↔ 结果对照、写/改文件列表、首条 user、末条 assistant，以及该 session 被注入了哪些经验条目。
+
+\textbf{Step 3：生成 reflect 提案}
+
+\begin{lstlisting}[language=bash]
+./bin/evo reflect --save
+\end{lstlisting}
+
+reflect 会：
+\begin{itemize}
+  \item 统计库状态（按 zone、status 分桶）；
+  \item 分析 recall.jsonl（调用数、命中数、空命中任务）；
+  \item 跑 audit，列出治理问题；
+  \item 输出判据对照表（M1/M2/P4 判据、transcript 时效、降级盘点等）；
+  \item \texttt{--save} 时把报告写入 \texttt{ops/proposals/reflect-<日期>.md}。
+\end{itemize}
+
+\textbf{Step 4：人审并 curate}
+
+打开 \texttt{ops/proposals/reflect-<日期>.md}，把认可的经验改写成标准提案文件，然后：
+
+\begin{lstlisting}[language=bash]
+./bin/evo curate --file ops/proposals/<proposal>.md --to <playbook|facts|episodes|principles>
+\end{lstlisting}
+
+\subsection{工作流三：技能固化}
+
+当一条经验反复有用、值得变成可挂载的技能时：
+
+\begin{lstlisting}[language=bash]
+./bin/evo solidify --id avoid-silent-bypass --to skill
+\end{lstlisting}
+
+这会：
+\begin{enumerate}
+  \item 在 \texttt{skills/avoid-silent-bypass/SKILL.md} 创建技能包；
+  \item 把原条目标记为 \texttt{solidified}，写入 \texttt{superseded\_by: skill:avoid-silent-bypass}，移到 \texttt{ops/archive/}；
+  \item 自动 rebuild manifest、调用 \texttt{evo link} 同步软链、commit、push。
+\end{enumerate}
+
+之后，该 skill 会出现在 \texttt{\textasciitilde/.claude/skills/} 软链中，Claude Code 可以加载。
+
+\subsection{工作流四：硬约束硬化}
+
+当某条经验涉及「会造成实际损失的危险操作」，且 skill/提示层已失效时，可以升为 hook。
+
+\begin{lstlisting}[language=bash]
+./bin/evo solidify --id no-rm-rf-root --to hook \\
+  --matcher "rm\\s+-rf\\s+/" \\
+  --match-on command \\
+  --mode warn \\
+  --message "检测到针对根目录的 rm -rf，请人工确认" \\
+  --criteria-confirmed
+\end{lstlisting}
+
+\begin{redbox}
+\textbf{hook 准入四条件（缺一不可）：}
+\begin{enumerate}
+  \item \textbf{可程序化判定}：matcher 写得出来、无歧义；
+  \item \textbf{违反代价高昂}：不是风格问题，是会造成实际损失的操作；
+  \item \textbf{软层已失效}：skill/提示层存在但仍被反复违反（有 harmful 记录佐证）；
+  \item \textbf{matcher 覆盖率经复核}：明列覆盖/未覆盖的形态与误报语境。
+\end{enumerate}
+新 hook 必须先 \texttt{warn} 运行一个 reflect 周期，评估误报率后才能升 \texttt{block}。
+\end{redbox}
+
+%======================================================================
+\section{周期维护}
+%======================================================================
+
+\subsection{每周/每两周做一次}
+
+\begin{lstlisting}[language=bash]
+cd ~/Dev/evo-kernel
+./bin/evo index rebuild   # 如果 curate/solidify 已经自动 rebuild，可跳过
+./bin/evo audit           # 检查治理问题
+./bin/evo reflect --save  # 生成周期报告
+\end{lstlisting}
+
+\subsection{对账与计数}
+
+helpful/harmful 只能由离线对账单点写（不变量 I4）。主要通道是：
+
+\begin{itemize}
+  \item \textbf{自动}：reflect/distill 过程中，Reflector 对每个 session 的注入清单判定四态（adopted / relevant-unused / irrelevant / misleading），写入 \texttt{ops/log/reconcile.jsonl}。
+  \item \textbf{人工兜底}：如果你明确知道某条经验被采用或误导了，可以手动标记：
+\end{itemize}
+
+\begin{lstlisting}[language=bash]
+./bin/evo adopt --ids avoid-silent-bypass        # helpful +1
+./bin/evo reject --ids outdated-command-pattern  # harmful +1
+\end{lstlisting}
+
+之后需要 \texttt{evo index rebuild} 把计数汇总进 manifest。
+
+\subsection{治理动作}
+
+audit 发现的问题通常对应以下动作：
+
+\begin{table}[H]
+\centering
+\caption{audit findings 与对应动作}
+\begin{tabular}{@{}lp{3.8cm}p{6.2cm}@{}}
+\toprule
+\textbf{级别} & \textbf{含义} & \textbf{动作} \\
+\midrule
+HIGH & harmful > helpful & \texttt{evo reject --ids <id>} 或 \texttt{evo demote --id <id> --to archive} \\
+MID & superseded 但未归档 & \texttt{evo demote --id <id> --to archive} \\
+MID & lessons 中 status 非 candidate & 迁出到正确 zone \\
+MID & lessons 条目超过 30 天 & 决定 curate 或 archive \\
+LOW & playbook / facts / principles 超过 90 天 & 复验内容是否仍有效 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%======================================================================
+\section{硬约束执行原理}
+%======================================================================
+
+\subsection{guard 与 hook-guard}
+
+\texttt{guard} 是 Pi 的同步调用路径；\texttt{hook-guard} 是 Claude Code PreToolUse hook 的封装。二者共用 \texttt{ops/constraints/*.json} 中的规则。
+
+图 \ref{fig:guard} 展示了 guard 的决策流程。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.8cm,
+  startstop/.style={rectangle, rounded corners, minimum width=2.5cm, minimum height=0.8cm, text centered, draw, fill=evogray!20},
+  process/.style={rectangle, rounded corners, minimum width=4cm, minimum height=0.8cm, text centered, align=center, draw, fill=linkblue!10},
+  decision/.style={diamond, aspect=2, draw, fill=evoyellow!10, align=center, font=\small},
+  arrow/.style={-{Stealth[length=2mm]}, thick}
+]
+
+\node[startstop] (start) {工具调用发生};
+\node[process, below=of start] (load) {加载 ops/constraints/*.json};
+\node[decision, below=of load] (match) {有规则命中？};
+\node[decision, below left=0.6cm and 1cm of match] (mode) {mode = block？};
+\node[process, below=of mode] (deny) {deny\\阻断调用};
+\node[process, right=2.5cm of mode] (warn) {warn\\浮现提示但放行};
+\node[process, right=2.5cm of match] (allow) {allow\\静默放行};
+
+\draw[arrow] (start) -- (load);
+\draw[arrow] (load) -- (match);
+\draw[arrow] (match) -- node[left, font=\scriptsize] {命中} (mode);
+\draw[arrow] (match) -- node[above, font=\scriptsize] {未命中} (allow);
+\draw[arrow] (mode) -- node[left, font=\scriptsize] {是} (deny);
+\draw[arrow] (mode) -- node[above, font=\scriptsize] {否} (warn);
+
+\end{tikzpicture}
+\caption{guard 决策流程}
+\label{fig:guard}
+\end{figure}
+
+\begin{warnbox}
+\textbf{fail-open 原则：} guard 自身异常（约束文件损坏、正则非法等）时，一律按 allow 处理。只有「规则正确匹配且 mode=block」才会 deny。这是为了保证经验治理层不会反过来阻塞正常工作。
+\end{warnbox}
+
+%======================================================================
+\section{备份与恢复}
+%======================================================================
+
+\subsection{备份机制}
+
+Evo-Kernel 有两层备份：
+
+\begin{enumerate}
+  \item \textbf{主备份}：每次 \texttt{curate} / \texttt{solidify} / \texttt{demote} 自动 \texttt{git push} 到私有 remote（RPO = 一次提交）。
+  \item \textbf{兜底备份}：定期生成 git bundle 到本地异地介质：
+\end{enumerate}
+
+\begin{lstlisting}[language=bash]
+cd ~/Dev/evo-kernel
+git bundle create ~/evo-kernel-$(date +%Y%m%d).bundle --all
+\end{lstlisting}
+
+\begin{redbox}
+\textbf{原始日志不备份：} \texttt{ops/log/*.jsonl} 含 prompt 明文，已 \texttt{gitignore}，永不入 remote/bundle。盘损时原始判据数据会丢失，只有 reflect 聚合后的历史保留。这是 §4.4 的诚实权衡。
+\end{redbox}
+
+\subsection{恢复演练}
+
+每季度做一次：
+
+\begin{lstlisting}[language=bash]
+TMPDIR=$(mktemp -d)
+cd "$TMPDIR"
+git clone git@github.com:zodyne/evo-kernel.git
+cd evo-kernel
+npm install
+./bin/evo doctor   # 此时 harness 挂线项会 WARN/FAIL，属预期
+./test/smoke.sh    # 必须 PASS=61 FAIL=0
+rm -rf "$TMPDIR"
+\end{lstlisting}
+
+%======================================================================
+\section{红线与注意事项}
+%======================================================================
+
+\begin{redbox}
+\begin{enumerate}
+  \item \textbf{remote 必须私有。} 经验条目含工作语境，公开 remote 直接违反 §4.3 红线。
+  \item \textbf{inbox / lessons 永不注入。} 只有 curate 后的分区才有资格进入 recall 通道（不变量 I2）。
+  \item \textbf{helpful/harmful 只由 reconcile 单点写。} 禁止实时反馈回路（不变量 I4）。
+  \item \textbf{curate 必须人审。} 这是唯一入库口，负脱敏与指令样审查责任（不变量 I3）。
+  \item \textbf{原始日志不入 git。} \texttt{ops/log/*.jsonl} 全部 \texttt{gitignore}（不变量 I4 / §4.4）。
+  \item \textbf{hook 升 block 前必须过 warn 观察期。} 且需人工复核 matcher 覆盖率（§8）。
+  \item \textbf{不要多机并写。} remote 仅备份，第二台机器只读消费；多机并写会 ID 碰撞、计数合并未定义（§4.1）。
+\end{enumerate}
+\end{redbox}
+
+\subsection{常见误区}
+
+\begin{itemize}
+  \item \textbf{「我把文件拖进 playbook/ 就行了吧？」} 不行。curate 是唯一能写入 playbook/facts/episodes/principles 的入口。
+  \item \textbf{「recall 空命中很多，是不是该上 M1 FTS5？」} M1 判据是「注入精度连续 2 周期 <50\% 且 recall $\geq$ 200 次」。现在 recall 才约 50 次，数据不足，做了也是过早优化。
+  \item \textbf{「transcript 哨兵比高，是不是 bug？」} 不是 bug。Claude Code 会按策略清理 transcript 文件，登记与蒸馏之间存在腐烂窗口。由 reflect 周期跟踪，不是靠实施解决。
+  \item \textbf{「我想在另一台机器上也 curate。」} 暂时不要。多机并写未设计，只读消费可以。
+\end{itemize}
+
+%======================================================================
+\section{命令速查表}
+%======================================================================
+
+\begin{table}[H]
+\centering
+\caption{Evo-Kernel 21 命令速查}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{命令} & \textbf{用途} & \textbf{典型场景} \\
+\midrule
+\texttt{capture "..."} & 零判断捕获 & 随时记录想法 \\
+\texttt{recall --task "..."} & 主动检索 & 手动查经验 \\
+\texttt{hook-recall} & harness 注入入口 & 由 hooks 自动调用 \\
+\texttt{session-end} & 手动登记会话 & hook 未触发时 \\
+\texttt{hook-session-end} & 自动登记入口 & 由 hooks 自动调用 \\
+\texttt{adopt --ids} & 人工 +helpful & 明确知道某条被采用 \\
+\texttt{reject --ids} & 人工 +harmful & 明确知道某条误导 \\
+\texttt{curate --file --to} & 人审入库 & 核心流程 \\
+\texttt{slice --session} & transcript 切片 & 蒸馏前准备 \\
+\texttt{index rebuild} & 重建 manifest & curate 后自动做 \\
+\texttt{candidates} & 列出候选条目 & agentic 粗筛 \\
+\texttt{get --ids} & 取全文 & agentic 精筛 \\
+\texttt{reflect --save} & 周期复盘 & 每周/每两周 \\
+\texttt{audit} & 治理检查 & 配合 reflect \\
+\texttt{inbox} & 待处理清单 & 查看 capture 和 refs \\
+\texttt{solidify --id --to skill} & 技能固化 & 经验变 SKILL.md \\
+\texttt{solidify --id --to hook} & 硬约束注册 & 危险操作防护 \\
+\texttt{demote --id --to archive} & 退役 & 经验过期/有害 \\
+\texttt{guard / hook-guard} & 约束执行 & 由 harness 调用 \\
+\texttt{link} & 同步 skills 软链 & solidify 后自动做 \\
+\texttt{doctor [--full]} & 部署自检 & 每日/每次重大变更后 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}
