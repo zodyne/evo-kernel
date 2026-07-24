@@ -400,7 +400,147 @@ reflect 会：
 
 之后，该 skill 会出现在 \texttt{\textasciitilde/.claude/skills/} 软链中，Claude Code 可以加载。
 
-\subsection{工作流四：硬约束硬化}
+\subsection{工作流四：批量导入外部资料与技术资料}
+
+如果你已经有大量技术笔记、文档摘录、会议记录或项目沉淀（例如从 Obsidian、Notion、Markdown 仓库导出），不要直接拖进 \texttt{facts/} 或 \texttt{playbook/}——那样会绕过 curate 的人审、敏感信息检查和指令样审查（违反不变量 I3）。
+
+\subsubsection{导入的两阶段模型}
+
+借鉴 Zettelkasten 的 ``fleeting note → literature note → permanent note'' 流程，以及 RAG ingestion pipeline 的 ``extract → clean → chunk → enrich → index'' 模式，Evo-Kernel 推荐采用 \textbf{机器预处理 + 人工审查} 的两阶段模型：
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  stage/.style={rectangle, rounded corners, draw, minimum width=3cm, minimum height=0.9cm, align=center, font=\small},
+  arrow/.style={-{Stealth[length=2mm]}, thick},
+  annot/.style={font=\footnotesize, color=evogray}
+]
+
+\node[stage, fill=evogreen!10] (raw) {原始资料\\Obsidian/Notion/MD};
+\node[stage, fill=evoyellow!10, right=1.5cm of raw] (prep) {预处理\\frontmatter/atomize/link};
+\node[stage, fill=linkblue!10, right=1.5cm of prep] (proposal) {ops/proposals/\\提案池};
+\node[stage, fill=evored!10, right=1.5cm of proposal] (curate) {人审 curate\\playbook/facts/...};
+
+\draw[arrow] (raw) -- (prep) node[midway, above, annot] {脚本/LLM};
+\draw[arrow] (prep) -- (proposal) node[midway, above, annot] {生成提案};
+\draw[arrow] (proposal) -- (curate) node[midway, above, annot] {人工};
+
+\end{tikzpicture}
+\caption{外部资料导入的两阶段模型}
+\label{fig:import}
+\end{figure}
+
+\textbf{第一阶段：机器预处理}（可自动化）
+
+\begin{itemize}
+  \item \textbf{格式规范化}：补全 YAML frontmatter（id、type、status、triggers、domains、scope），统一文件名；
+  \item \textbf{原子化}：把长文档拆成一条一条原子经验（一个知识点/一个检查清单/一个案例一条）；
+  \item \textbf{链接转换}：把 wikilink、Notion link 转成 Evo-Kernel 的 id 引用或普通 Markdown link；
+  \item \textbf{元数据提取}：用 LLM 或规则自动生成 triggers、domains、scope；
+  \item \textbf{暂存提案池}：所有预处理结果放到 \texttt{ops/proposals/import-<批次>/}，不进注入通道。
+\end{itemize}
+
+\textbf{第二阶段：人工审查入库}（不可跳过）
+
+\begin{itemize}
+  \item 逐条阅读提案，删除噪音、重复、过时的资料；
+  \item 把认可的内容改写成 Evo-Kernel 的陈述式经验；
+  \item 运行 \texttt{evo curate} 进入 \texttt{facts/}、\texttt{playbook/} 或 \texttt{episodes/}。
+\end{itemize}
+
+\begin{redbox}
+\textbf{为什么不要一轮直接导入？}
+\begin{enumerate}
+  \item 绕过 curate 的敏感信息检查，可能把凭据、内网地址、客户信息推入 git；
+  \item 绕过指令样审查，可能把祈使式指令（``总是执行 X''）固化成持久化提示注入；
+  \item 未经原子化的长文档会降低 recall 精度，大段无关文本稀释 triggers；
+  \item 噪音和重复条目直接进入 \texttt{playbook/}，会污染注入集、拉低 helpful/harmful 计数质量。
+\end{enumerate}
+\end{redbox}
+
+\subsubsection{技术资料进哪个区}
+
+根据资料性质选择目标目录：
+
+\begin{table}[H]
+\centering
+\caption{技术资料的目标分区}
+\begin{tabular}{@{}lp{4.5cm}p{5.5cm}@{}}
+\toprule
+\textbf{目录} & \textbf{适合内容} & \textbf{示例} \\
+\midrule
+\texttt{facts/} & 知识点、API 行为、环境配置 & ``Next.js 15 Server Actions 必须 async'' \\
+\texttt{playbook/} & 可复用步骤、检查清单、最佳实践 & ``排查 TypeScript 类型错误三步法'' \\
+\texttt{episodes/} & 某次具体问题的完整解决过程 & ``2025-07 部署失败排查实录'' \\
+\texttt{principles/} & 跨项目/跨技术的通用原则 & ``优先显式类型而非 any'' \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{示例：从 Markdown 仓库批量导入}
+
+假设你有一个 \texttt{~/Notes/} 目录，里面是一堆 Markdown 技术笔记：
+
+\begin{lstlisting}[language=bash]
+# 1. 创建提案池
+mkdir -p ~/Dev/evo-kernel/ops/proposals/import-2026-07-24
+
+# 2. 用脚本预处理（这里仅示意，实际根据你的笔记结构写）
+python3 scripts/import-notes.py \
+  --source ~/Notes \
+  --target ~/Dev/evo-kernel/ops/proposals/import-2026-07-24 \
+  --format evo-kernel
+\end{lstlisting}
+
+预处理后的一个提案文件示例：
+
+\begin{lstlisting}[language=Markdown]
+---
+id: ts-type-error-three-steps
+name: TypeScript 类型错误排查三步法
+type: playbook
+status: candidate
+scope: [debugging]
+domains: [typescript]
+triggers:
+  - TypeScript 类型错误
+  - type error
+  - 类型排查
+evidence:
+  helpful: 0
+  harmful: 0
+verified_by: human
+---
+
+遇到 TypeScript 类型错误时，按以下顺序排查：
+
+1. 先看错误位置的上下文，确认是「声明错误」还是「使用错误」；
+2. 检查最近的类型断言、泛型参数、`as` 和 `satisfies`；
+3. 若仍无法定位，临时用 `// @ts-expect-error` 标注并附带原因，而不是 `any`。
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash]
+# 3. 人审并 curate（逐条或分批）
+cd ~/Dev/evo-kernel
+./bin/evo curate --file ops/proposals/import-2026-07-24/ts-type-error-three-steps.md --to playbook
+\end{lstlisting}
+
+\subsubsection{研究与借鉴}
+
+Evo-Kernel 的导入模型参考了两种成熟方案：
+
+\begin{itemize}
+  \item \textbf{Zettelkasten}：强调 ``fleeting note → literature note → permanent note'' 的多阶段处理。临时捕获的笔记应在 24--48 小时内处理，大部分被丢弃，只有经过自己语言重写的原子思想才进入永久库。
+  \item \textbf{RAG ingestion pipeline}：典型的生产级流程包括 extraction → cleaning → chunking → metadata enrichment → embedding → indexing。其中最影响检索质量的不是 chunk 大小，而是 chunk 的语义完整性、上下文线索和元数据治理。
+\end{itemize}
+
+这两种方案的共同点是：\textbf{不直接吞入原始资料}，而是经过一个「消化层」——Zettelkasten 靠人工重写，RAG 靠机器分段+元数据+人工校验。Evo-Kernel 的 \texttt{ops/proposals/} + \texttt{evo curate} 就是这个消化层。
+
+\begin{tipbox}
+如果资料量很大，可以先用 LLM 批量生成提案草稿，但 \texttt{evo curate} 这一步不要批量自动执行。把 curate 当作 ``最终发布按钮''，保证进入注入通道的每一条都经过人眼确认。
+\end{tipbox}
+
+\subsection{工作流五：硬约束硬化}
 
 当某条经验涉及「会造成实际损失的危险操作」，且 skill/提示层已失效时，可以升为 hook。
 
