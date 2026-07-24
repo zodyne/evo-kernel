@@ -15,7 +15,6 @@ verified_by: command
 source: session:agent-evo-research
 last_verified: 2026-07-23
 superseded_by: null
-schema_version: 1
 ---
 网传或模型记忆里的 arXiv id 错误率不容忽视（一次任务给的候选 id 错 3 个：LightRAG、Gödel Agent、记忆综述，其中 2410.12829 实为电商论文）。
 

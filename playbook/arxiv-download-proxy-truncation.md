@@ -16,7 +16,6 @@ verified_by: command
 source: session:agent-evo-research
 last_verified: 2026-07-23
 superseded_by: null
-schema_version: 1
 ---
 本机代理（127.0.0.1:7897）会间歇性截断大文件下载（11MB 级 PDF 多次损坏：无 %%EOF、XRef 表缺失但 `file` 仍误判为 PDF）。
 

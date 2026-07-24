@@ -15,7 +15,6 @@ verified_by: human
 source: session:blueprint-review
 last_verified: 2026-07-23
 superseded_by: null
-schema_version: 1
 ---
 种子即模板：经验库的种子条目会被后续蒸馏当作文体范例模仿。种子若全是"最佳实践"体，distill 就只产成功经验，违背"失败经验一等公民"（ReasoningBank）。
 **做法**：首批种子必须含 30-40% 失败经验（本库首批 11 条含 4 条失败）。

@@ -15,7 +15,6 @@ verified_by: command
 source: session:agent-evo-research
 last_verified: 2026-07-23
 superseded_by: null
-schema_version: 1
 ---
 arXiv API 对连续请求限流严格：并发 ≥3 即触发 HTTP 429。
 
