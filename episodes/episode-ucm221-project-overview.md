@@ -43,7 +43,7 @@ created: '2026-04-02'
 
 - 算法开发工作区：`workspace/projects/ucm221-pointcloud-filter/`
 - 上游原始数据：`~/Dev/ucm221/`
-- GitLab：`http://192.168.43.44:55211/tangfuqiang/ucm221-pointcloud-filter`（私有，v1.0.0）
+- GitLab：私有仓库（内网地址略，见 OpenClaw 原记录）
 
 ## 当前热点（截至 2026-07-24）
 
