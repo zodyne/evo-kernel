@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * evo — Evo-Kernel CLI（内核协议载体，25 个公开命令）
+ * evo — Evo-Kernel CLI（内核协议载体，26 个公开命令）
  *
  * 设计契约：~/Dev/agent-evo/design/build-spec-v1.md（v1.1）+ 同目录 blueprint-v4.md（另一仓库）。
  *   退出码规则（§0.3）：除 doctor 外所有命令所有路径 exit 0（fail-open，I1）。
@@ -21,6 +21,7 @@
  *   curate --file <md> --to <dir>               半手动入库（校验→移动→rebuild→commit→push）
  *   slice --session <jsonl> [--ids sid]         硬证据切片（供 Reflector 蒸馏）
  *   index rebuild                               派生索引重建（manifest.yaml）
+ *   primer [--install]                          K0a 常驻背景块（装到 CLAUDE.md / AGENTS.md）
  *   candidates                                  agentic 检索·粗筛（全量摘要）
  *   catalog                                     查重清单 TSV：已入库+待审提案的 id×triggers
  *   get --ids a,b                               agentic 检索·精筛后取件（拉全文，读 lessons）
@@ -242,6 +243,13 @@ const VERIFIED_W = { test: 1.0, command: 0.8, human: 0.6, none: 0.4 }; // 缺省
 // §5.4 relevance 阈值。0.2 → 0.25：配合 tag 并集改动，用 12 条真实查询实测标定
 // （目标条目 top1 命中 4/7 → 7/7，无关注入 8 条 → 1 条）。EVO_RELEVANCE_MIN 可覆盖。
 const RELEVANCE_MIN = Number(process.env.EVO_RELEVANCE_MIN || 0.25);
+
+// K0a primer 安装点：Claude 走 ~/.claude/CLAUDE.md；pi 走 ~/AGENTS.md
+// （pi 的 AGENTS.md/CLAUDE.md 发现是从 cwd 向上走，够不到 ~/.claude/ 里面）。
+const PRIMER_TARGETS = [
+  path.join(os.homedir(), '.claude/CLAUDE.md'),
+  path.join(os.homedir(), 'AGENTS.md'),
+];
 
 // §5.0 治理权重层（verified_w × evW × typeW）——跨后端恒等，组 H smoke 守护对象。
 function govWeight(e) {
@@ -710,6 +718,33 @@ const cmds = {
     return 'usage: evo index rebuild';
   },
 
+  // §K0a primer —— 常驻背景块（L1 去锚定：静态背景交给 harness 原生常驻通道，不由 recall 每次注入）
+  //   权威副本 primer.md，安装到 ~/.claude/CLAUDE.md（Claude）与 ~/AGENTS.md（pi 向上查找得到）。
+  //   用 HTML 注释做标记而非整文件覆盖——这两个文件是用户自己的配置，只能换我们那一块。
+  primer(args) {
+    const src = path.join(ROOT, 'primer.md');
+    let block;
+    try {
+      const m = fs.readFileSync(src, 'utf8').match(/<!-- PRIMER:BEGIN -->\n([\s\S]*?)<!-- PRIMER:END -->/);
+      if (!m) return '✗ primer.md 缺 PRIMER:BEGIN/END 标记';
+      block = m[0];
+    } catch { return '✗ primer.md 不存在'; }
+    if (!args.includes('--install')) return block;
+    const out = [];
+    for (const t of PRIMER_TARGETS) {
+      try {
+        let cur = fs.existsSync(t) ? fs.readFileSync(t, 'utf8') : '';
+        const next = /<!-- PRIMER:BEGIN -->/.test(cur)
+          ? cur.replace(/<!-- PRIMER:BEGIN -->\n[\s\S]*?<!-- PRIMER:END -->/, block)
+          : (cur.trimEnd() + (cur.trim() ? '\n\n' : '') + block + '\n');
+        if (next === cur) { out.push(`= ${t}（已是最新）`); continue; }
+        fs.writeFileSync(t, next);
+        out.push(`✓ ${t}`);
+      } catch (e) { out.push(`✗ ${t}: ${e.message}`); } // fail-open：一处失败不挡另一处
+    }
+    return out.join('\n');
+  },
+
   // §2.11 candidates —— agentic 检索·粗筛（全量摘要，按 evidence.helpful 降序 D11）
   // §M0.4 catalog —— 查重清单（蒸馏端输入）：已入库 + 待审提案的 id×triggers，一条一行。
   //   Reflector 写提案前先读它，主张已被覆盖就跳过。带上 ops/proposals 是因为未 curate 的
@@ -1175,6 +1210,26 @@ const cmds = {
       }
     }
     add(16, h16, 'Pi extension 仓库副本', d16);
+
+    // 17. K0a primer 装载与新鲜度（§8.2#1 头号失败模式：primer 变陈旧、常驻错误前提）
+    //     两处安装点各自会漂移，且 primer 本身会过期——两件事都查。
+    let h17 = 'WARN', d17 = 'primer.md 不存在';
+    try {
+      const pm = fs.readFileSync(path.join(ROOT, 'primer.md'), 'utf8');
+      const blk = pm.match(/<!-- PRIMER:BEGIN -->\n[\s\S]*?<!-- PRIMER:END -->/);
+      if (!blk) { d17 = 'primer.md 缺 BEGIN/END 标记'; }
+      else {
+        const miss = PRIMER_TARGETS.filter((t) => {
+          try { return !fs.readFileSync(t, 'utf8').includes(blk[0]); } catch { return true; }
+        });
+        const ra = (pm.match(/review_after:\s*(\d{4}-\d{2}-\d{2})/) || [])[1];
+        const expired = ra && ra < new Date().toISOString().slice(0, 10);
+        if (miss.length) { h17 = 'WARN'; d17 = `${miss.length}/${PRIMER_TARGETS.length} 处未装或已漂移 → evo primer --install`; }
+        else if (expired) { h17 = 'WARN'; d17 = `已装但 review_after ${ra} 过期 → 复核内容后更新日期`; }
+        else { h17 = 'PASS'; d17 = `两处已装${ra ? `，review_after ${ra}` : ''}`; }
+      }
+    } catch { d17 = 'primer.md 读取失败'; }
+    add(17, h17, 'K0a primer 装载', d17);
 
     // 8. skills 软链完整
     const claudeSkills = path.join(homeDir(), '.claude/skills');

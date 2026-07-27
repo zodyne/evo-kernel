@@ -137,6 +137,27 @@ for i in 1 2 3 4 5 6; do $EVO guard --tool bash --input-json '{"command":"git co
 { $EVO reflect 2>&1 | grep -q "不建议升 block: 约束 \[t-fp\]"; } \
   && ok "F: 全引号内提及的约束不得进升 block 候选" || bad "F: 升 block 判据" "(裸命中被当证据)"
 rm -f "$EVO_ROOT/ops/constraints/t-fp.json"
+# K0a primer：安装是替换标记块而非覆盖用户配置——必须保住目标文件里的原有内容。
+# 这两个文件是用户自己的全局配置，写坏了影响每一次会话。
+PT="$TMP/primer-target.md"
+printf '# 我自己的配置\n\n## 重要章节\n不能被覆盖\n' > "$PT"
+node -e "
+const fs=require('fs');
+const pm=fs.readFileSync('$SRC/primer.md','utf8');
+const blk=pm.match(/<!-- PRIMER:BEGIN -->\n[\s\S]*?<!-- PRIMER:END -->/)[0];
+let cur=fs.readFileSync('$PT','utf8');
+// 复刻 primer --install 的拼接语义：无标记则追加
+const next=/<!-- PRIMER:BEGIN -->/.test(cur)?cur.replace(/<!-- PRIMER:BEGIN -->\n[\s\S]*?<!-- PRIMER:END -->/,blk):(cur.trimEnd()+'\n\n'+blk+'\n');
+fs.writeFileSync('$PT',next);
+// 二次安装应幂等
+let c2=fs.readFileSync('$PT','utf8');
+const n2=c2.replace(/<!-- PRIMER:BEGIN -->\n[\s\S]*?<!-- PRIMER:END -->/,blk);
+fs.writeFileSync('$PT',n2);
+"
+{ grep -q '不能被覆盖' "$PT" && grep -q '用户画像与活跃领域' "$PT" \
+  && [ "$(grep -c 'PRIMER:BEGIN' "$PT")" = "1" ]; } \
+  && ok "primer 安装保留原有内容且幂等（不重复插块）" || bad "primer 安装" "(覆盖了用户配置或重复插块)"
+t "primer 输出含标记块"    "PRIMER:BEGIN" $EVO primer
 t "solidify 缺参数提示"    "usage" $EVO solidify
 t "solidify 无matcher拒绝" "matcher" $EVO solidify --id arxiv-api-rate-limit --to hook
 t "demote 未知条目"        "✗" $EVO demote --id not-exist --to archive
