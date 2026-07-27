@@ -1160,6 +1160,22 @@ const cmds = {
     }
     add(7, h7, 'Pi extension 在位', d7);
 
+    // 16. Pi extension 仓库副本同步（§4.2 存续）：扩展装在仓库外，丢了 git 恢复不了；
+    //     留副本还不够——副本会悄悄过期，所以这里比对内容而不只是比对存在性。
+    const piVendor = path.join(ROOT, 'ops/integrations/pi-evo-kernel.ts');
+    let h16 = 'WARN', d16 = '仓库无副本（ops/integrations/pi-evo-kernel.ts）→ 扩展丢失即不可恢复';
+    if (has(piVendor)) {
+      if (!has(piExt)) { h16 = 'WARN'; d16 = '有副本但未实装'; }
+      else {
+        try {
+          const same = fs.readFileSync(piVendor, 'utf8') === fs.readFileSync(piExt, 'utf8');
+          h16 = same ? 'PASS' : 'WARN';
+          d16 = same ? '副本与实装一致' : '副本已过期 → cp ~/.pi/agent/extensions/evo-kernel.ts ops/integrations/pi-evo-kernel.ts';
+        } catch { d16 = '比对失败'; }
+      }
+    }
+    add(16, h16, 'Pi extension 仓库副本', d16);
+
     // 8. skills 软链完整
     const claudeSkills = path.join(homeDir(), '.claude/skills');
     let skillsPresent = 0, skillsValid = 0;

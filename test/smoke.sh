@@ -324,6 +324,14 @@ HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" link >/dev/null 2>&1
 # K1: 全绿 → exit 0 + 无 [FAIL]
 DOC=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1); DRC=$?
 { [ $DRC -eq 0 ] && ! echo "$DOC" | grep -q '\[FAIL\]'; } && ok "K: doctor 全绿（exit0 + 无 FAIL）" || bad "K: doctor 全绿" "(rc=$DRC; $(echo "$DOC" | grep '\[FAIL\]' | tr '\n' ';'))"
+# K4: pi 扩展仓库副本漂移检测（§4.2 存续）——留副本不够，副本会悄悄过期，必须比对内容
+{ echo "$DOC" | grep -q '16. Pi extension 仓库副本'; } \
+  && ok "K: doctor 含 pi 扩展副本检查" || bad "K: 副本检查缺失" "(doctor 无第 16 项)"
+printf 'const EVO = "%s/bin/evo";\n// 实装侧漂移\n' "$KROOT" > "$KHOME/.pi/agent/extensions/evo-kernel.ts"
+DOC4=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+{ echo "$DOC4" | grep -q '副本已过期'; } \
+  && ok "K: 实装与副本不一致时报漂移" || bad "K: 漂移检测失效" "(改了实装仍报一致)"
+printf 'const EVO = "%s/bin/evo";\n' "$KROOT" > "$KHOME/.pi/agent/extensions/evo-kernel.ts"
 # K2: 删 remote → exit≠0 + 含 FAIL 行
 ( cd "$KROOT" && git remote remove origin )
 DOC2=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1); DRC2=$?
