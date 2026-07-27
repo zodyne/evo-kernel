@@ -1,7 +1,7 @@
 ---
 id: backup-untracked-file-before-edit
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: workflow
 tags: [git, backup, untracked, pre-edit-safety, large-file-edit, rollback]
