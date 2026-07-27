@@ -1,7 +1,7 @@
 ---
 id: vim-fs-normalize-expands-tilde
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: nvim
 tags: [neovim, vim-fs, path-handling, tilde-expansion, lua]
