@@ -1,7 +1,7 @@
 ---
 id: macos-no-timeout-command
 type: fact
-status: candidate
+status: validated
 scope: global
 domain: shell
 tags: [macos, shell, timeout, command-not-found, gtimeout, coreutils, bsd-userland]
