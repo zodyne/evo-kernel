@@ -64,6 +64,9 @@ const CONSTRAINTS_DIR = path.join(ROOT, 'ops/constraints');
 const PROPOSALS_DIR = path.join(ROOT, 'ops/proposals');
 const ARCHIVE_DIR = path.join(ROOT, 'ops/archive');
 
+// 空转退役阈值（§7.2）：注入 ≥N 次且 adopted=0 → reflect 列退役候选。
+const DEAD_MIN = Number(process.env.EVO_DEAD_MIN || 5);
+
 // §7.1 四态对账 → (helpful_delta, harmful_delta)。adopt/reject 是其中两态的人工兜底入口。
 const RECONCILE_STATES = { adopted: [1, 0], 'relevant-unused': [0, 0], irrelevant: [0, 0], misleading: [0, 1] };
 
@@ -739,12 +742,23 @@ const cmds = {
     // reconcile.jsonl 分析（§7.1 精度测量）
     let reconciled = 0, adopted = 0, relUnused = 0, irrelevant = 0, misleading = 0;
     const recByJudge = {};
+    // 按 id 累计四态：irrelevant / relevant-unused 的 delta 都是 (0,0)，在 evidence 汇总里
+    // 完全惰性——一条被注入 N 次、N 次都判 irrelevant 的条目，其 evidence 与新条目无异，
+    // 永远够不着 harmful>0 的退役线。这里直接读日志原始四态，把出口补上。
+    const recById = {};
     try {
       for (const line of fs.readFileSync(RECONCILE_LOG, 'utf8').split('\n')) {
         if (!line.trim()) continue;
         try {
           const j = JSON.parse(line); reconciled++;
           recByJudge[j.judged_by] = (recByJudge[j.judged_by] || 0) + 1;
+          if (j.id) {
+            const t = recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0 };
+            t.n++;
+            if (j.state === 'adopted') t.adopted++;
+            // dead = 注入了却没产生价值（无关 + 相关但没用上）
+            else if (j.state === 'irrelevant' || j.state === 'relevant-unused') t.dead++;
+          }
           if (j.state === 'adopted') adopted++;
           else if (j.state === 'relevant-unused') relUnused++;
           else if (j.state === 'irrelevant') irrelevant++;
@@ -815,6 +829,10 @@ const cmds = {
             g.push(`固化候选: [${e.id}] helpful=${e.evidence.helpful} → evo solidify --id ${e.id} --to skill`);
           if ((e.evidence || {}).harmful > 0)
             g.push(`退役候选: [${e.id}] harmful=${e.evidence.harmful} → evo demote --id ${e.id} --to archive`);
+          // 空转退役：注入够多次却一次没被采用。EVO_DEAD_MIN 可调（默认 5）。
+          const t = recById[e.id];
+          if (t && t.adopted === 0 && t.dead >= DEAD_MIN && !e.superseded_by)
+            g.push(`退役候选（空转）: [${e.id}] 注入 ${t.n} 次 adopted=0（irrelevant/relevant-unused ${t.dead}）→ evo demote --id ${e.id} --to lessons`);
         }
         for (const c of loadConstraints()) {
           const h = countGuardHits(c.id);

@@ -3,6 +3,7 @@
 # 设计原则（§7.3 绿地重解释）：smoke 按「建立不变量守护」组织，I1–I7 每条至少一条断言。
 # 组织：A=14 / B=4 / C=1 / D=3 / E=2(+1清理) / F=15 = 39（§8.1）
 #        + G(YAML fixture) / H(不变量守护 I1–I7) / I(session-refs JSONL) / J(reconcile) / K(doctor)
+#        + J 追加空转退役（库的唯一自动出口）
 #        + L(后台飞轮：queue / mark-distilled / reconcile / hook-recall 噪声门槛)
 # 全绿 exit 0。在临时 ROOT 副本中运行，零污染真实库。
 set -u
@@ -220,6 +221,20 @@ for(const l of lines){const j=JSON.parse(l);if(!j.id||!(j.helpful_delta>=0)||!(j
 if(bad===0) console.log('✓ J: reconcile.jsonl schema 合法（I4 单点写）');
 process.exit(bad===0?0:1);
 " && PASS=$((PASS+1)) || FAIL=$((FAIL+1))
+
+# 空转退役（§7.2）：注入够多次却 adopted=0 → reflect 列退役候选。
+# 这是库的唯一自动出口——irrelevant/relevant-unused 的 delta 都是 (0,0)，在 evidence
+# 汇总里惰性，够不着 harmful>0 那条线，所以判据必须直接读 reconcile.jsonl 原始四态。
+# 必须挑 J 组上面没 seed 过 adopted 的 id，否则第一条断言恒假、第二条恒真（空过）
+DEADID=seed-failure-lessons-as-templates
+for i in 1 2 3 4 5; do $EVO reconcile --ids $DEADID --state irrelevant >/dev/null 2>&1; done
+RF=$($EVO reflect 2>&1)
+{ echo "$RF" | grep -q "退役候选（空转）: \[$DEADID\]"; } \
+  && ok "J: 空转条目进退役候选（adopted=0 且注入≥5）" || bad "J: 空转退役" "(reflect 无该候选)"
+# 有采用记录的条目不能被误判退役：同 id 补一条 adopted 后应立即移出候选
+$EVO reconcile --ids $DEADID --state adopted >/dev/null 2>&1
+{ ! $EVO reflect 2>&1 | grep -q "退役候选（空转）: \[$DEADID\]"; } \
+  && ok "J: adopted≥1 即豁免空转退役（不误杀活条目）" || bad "J: 空转退役误杀" "(adopted 后仍在候选)"
 
 # ════════════ K. doctor（M0.4，唯一非零退出命令） ════════════
 echo "——— K. doctor（部署自检） ———"
