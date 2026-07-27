@@ -232,10 +232,19 @@ const cover = (taskT, phraseT) => {
 
 const VERIFIED_W = { test: 1.0, command: 0.8, human: 0.6, none: 0.4 }; // 缺省 0.4（§5.5）
 
+// §5.4 relevance 阈值。0.2 → 0.25：配合 tag 并集改动，用 12 条真实查询实测标定
+// （目标条目 top1 命中 4/7 → 7/7，无关注入 8 条 → 1 条）。EVO_RELEVANCE_MIN 可覆盖。
+const RELEVANCE_MIN = Number(process.env.EVO_RELEVANCE_MIN || 0.25);
+
 // §5.0 治理权重层（verified_w × evW × typeW）——跨后端恒等，组 H smoke 守护对象。
 function govWeight(e) {
   const ev = e.evidence || {};
-  const evW = Math.max(0.3, Math.log(1 + (ev.helpful || 0) - (ev.harmful || 0))); // ln 下限 0.3
+  const net = (ev.helpful || 0) - (ev.harmful || 0);
+  // net ≤ -1 时 log 的参数 ≤ 0。log(0)=-Infinity 还能被 max 兜住，但 log(负数)=NaN 会击穿：
+  // Math.max(0.3, NaN) === NaN → score=NaN → 排序比较器返回 NaN 被当 0，条目既不被过滤
+  // 也不排到末尾，而是落在任意位置。被判定有害最多的条目反而可能靠前，治理意图整个反转。
+  // 触发路径很正常：evo reject 两次，或 Reflector 两次 misleading。
+  const evW = net <= -1 ? 0.3 : Math.max(0.3, Math.log(1 + net)); // ln 下限 0.3
   const typeW = e.type === 'principle' ? 1.2 : 1.0; // principle 加成
   return (VERIFIED_W[e.verified_by] ?? 0.4) * evW * typeW;
 }
@@ -248,11 +257,14 @@ function recall(task, budget, session) {
   for (const e of entries) {
     let trig = 0;
     for (const t of e.triggers || []) trig = Math.max(trig, cover(taskT, terms(t)));
-    let tag = 0;
-    for (const t of e.tags || []) tag = Math.max(tag, cover(taskT, terms(t)));
+    // tag 通道对**全部 tag 的并集**算 cover，不取单 tag 最大值：cover 按短语自身长度归一，
+    // 单词 tag（git / bash / design）只要任务里出现该词就是 1.0，×0.8 直接压过真实 triggers 匹配。
+    // 实测库内 64% 的 tag 是单 term，"git rebase 冲突"曾因此注入 backup-untracked-file-before-edit。
+    // 并集后单 tag 命中只占 1/N，triggers 通道完全不受影响。
+    const tag = cover(taskT, terms((e.tags || []).join(' ')));
     const bodyBest = cover(taskT, terms(`${e.id} ${e._firstLine}`));
     const relevance = Math.max(trig, tag * 0.8, bodyBest * 0.5); // triggers 1.0 / tags 0.8 / body 0.5
-    if (relevance < 0.2) continue; // §5.4 阈值过滤
+    if (relevance < RELEVANCE_MIN) continue; // §5.4 阈值过滤
     const score = relevance * govWeight(e); // §5.0：relevance(召回层) × 治理权重(恒等)
     scored.push({ e, score, relevance });
   }

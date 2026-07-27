@@ -70,6 +70,39 @@ SID2="retry-$RANDOM"
 echo "{\"session_id\":\"$SID2\",\"prompt\":\"今天天气如何\"}" | $EVO hook-recall >/dev/null 2>&1
 t "空命中后仍重试"         "arxiv" bash -c "echo '{\"session_id\":\"$SID2\",\"prompt\":\"批量下载 arXiv 论文\"}' | $EVO hook-recall"
 
+# ════════════ D2. 检索打分不变量（§5 治理权重 + tag 通道） ════════════
+echo "——— D2. 检索打分不变量 ———"
+# govWeight：harmful-helpful ≥ 2 时 log(负数)=NaN，Math.max(0.3,NaN)===NaN 会击穿下限。
+# score 变 NaN 后排序比较器失效，最有害的条目落到任意位置而非末尾。
+node -e "
+const { govWeight } = require('$SRC/bin/evo');
+let bad = 0;
+for (const [h, hm] of [[0,0],[3,0],[0,1],[0,2],[1,3],[2,5],[0,9]]) {
+  const w = govWeight({ verified_by: 'command', evidence: { helpful: h, harmful: hm } });
+  if (!Number.isFinite(w) || w <= 0) { console.log('✗ D2: govWeight 非有限正数 h='+h+' hm='+hm+' → '+w); bad++; }
+}
+if (bad === 0) console.log('✓ D2: govWeight 对任意 helpful/harmful 恒为有限正数（NaN 击穿守护）');
+process.exit(bad === 0 ? 0 : 1);
+" && PASS=$((PASS+1)) || FAIL=$((FAIL+1))
+# tag 通道：单词 tag 不得单独把无关条目顶进注入（cover 按短语长度归一 → 1 term 恒 1.0）。
+# 探针条目只有单词 tag、triggers 与查询完全无关；查询命中该 tag 词但与条目主张无关。
+cat > "$EVO_ROOT/playbook/zz-tagprobe.md" << 'MD'
+---
+id: zz-tagprobe
+type: lesson
+status: validated
+verified_by: command
+tags: [kubernetes, helm, istio, envoy]
+triggers:
+  - "完全无关的触发词 qqzz-unrelated-trigger"
+evidence: {helpful: 0, harmful: 0}
+---
+探针正文与 kubernetes 无关
+MD
+{ ! $EVO recall --task "kubernetes 集群怎么扩容" 2>&1 | grep -q 'zz-tagprobe'; } \
+  && ok "D2: 单词 tag 不足以单独注入（tag 并集归一）" || bad "D2: tag 过匹配" "(无关条目被顶进注入)"
+rm -f "$EVO_ROOT/playbook/zz-tagprobe.md"
+
 # ════════════ E. R3 守护：坏 frontmatter 跳过不崩（2 + 1 清理） ════════════
 echo "——— E. R3 守护：坏 frontmatter 跳过不崩 ———"
 printf -- '---\nbad: [unclosed\n---\nbody\n' > "$EVO_ROOT/inbox/bad-entry.md"
