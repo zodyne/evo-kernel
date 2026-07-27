@@ -1,7 +1,7 @@
 ---
 id: bash-loop-child-steals-stdin
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: shell-scripting
 tags: [bash, stdin, while-read, batch-driver, silent-failure]

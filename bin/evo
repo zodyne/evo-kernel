@@ -564,13 +564,20 @@ const cmds = {
       return `✗ 疑似指令样内容（祈使式/提示注入特征）→ 改写为陈述式经验（§4.5）`;
     }
 
+    // §2.8 状态机（SCHEMA 状态机节）：入 validated 区即置 status: validated，入 lessons 保持 candidate。
+    // 不改写会让 status 与所在区脱节——条目照样被注入（recall 只看区不看 status），但 reflect 的
+    // by-status 统计与 audit 的状态规则会读到假数据。只在 frontmatter 块内替换，不碰正文里的 status:。
+    const wantStatus = to === 'lessons' ? 'candidate' : to === 'inbox' ? 'inbox' : 'validated';
+    let outText = srcText;
+    if (data.status !== wantStatus) {
+      const fm = srcText.match(/^---\n[\s\S]*?\n---/);
+      if (fm) outText = fm[0].replace(/^status:.*$/m, `status: ${wantStatus}`) + srcText.slice(fm[0].length);
+    }
+
     const dest = path.join(ROOT, to, path.basename(src));
     ensureDir(path.dirname(dest));
-    try { fs.renameSync(src, dest); } // 同卷秒移
-    catch (e) {
-      if (e.code === 'EXDEV') { fs.copyFileSync(src, dest); fs.unlinkSync(src); } // 跨设备 → copy+unlink
-      else throw e;
-    }
+    fs.writeFileSync(dest, outText); // 写而非 rename：状态改写后内容已变，且天然跨设备安全
+    fs.unlinkSync(src);
 
     let msg = `✓ ${data.id} → ${to}/\n` + rebuild();
     // §2.8 git commit（I7 重试）+ §4.1 push（fail-open）

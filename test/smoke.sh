@@ -98,6 +98,17 @@ t "solidify 缺参数提示"    "usage" $EVO solidify
 t "solidify 无matcher拒绝" "matcher" $EVO solidify --id arxiv-api-rate-limit --to hook
 t "demote 未知条目"        "✗" $EVO demote --id not-exist --to archive
 t "curate 缺字段拒绝"      "✗" bash -c "printf -- '---\nid: bad\n---\nx\n' > $TMP/bad.md && $EVO curate --file $TMP/bad.md --to lessons"
+# 状态机：curate 到 validated 区必须置 status: validated（SCHEMA 状态机节）。
+# 不改写的话 status 与所在区脱节，reflect 的 by-status 统计与 audit 状态规则读到假数据。
+printf -- '---\nid: zz-status-probe\ntype: lesson\nstatus: candidate\ntriggers: ["状态机探针"]\n---\n正文\n' > "$TMP/statusprobe.md"
+$EVO curate --file "$TMP/statusprobe.md" --to playbook >/dev/null 2>&1
+{ grep -q '^status: validated' "$EVO_ROOT/playbook/statusprobe.md"; } \
+  && ok "curate 入 validated 区改写 status" || bad "curate status 改写" "(实得: $(grep -m1 '^status:' "$EVO_ROOT/playbook/statusprobe.md" 2>&1))"
+printf -- '---\nid: zz-status-probe2\ntype: lesson\nstatus: candidate\ntriggers: ["状态机探针2"]\n---\n正文\n' > "$TMP/statusprobe2.md"
+$EVO curate --file "$TMP/statusprobe2.md" --to lessons >/dev/null 2>&1
+{ grep -q '^status: candidate' "$EVO_ROOT/lessons/statusprobe2.md"; } \
+  && ok "curate 入 lessons 保持 candidate（不误升级）" || bad "curate lessons status" "(实得: $(grep -m1 '^status:' "$EVO_ROOT/lessons/statusprobe2.md" 2>&1))"
+rm -f "$EVO_ROOT/playbook/statusprobe.md" "$EVO_ROOT/lessons/statusprobe2.md"
 t "curate 文件缺失"        "✗ 提案不存在" $EVO curate --file /nonexistent.md --to lessons
 t "slice 命令↔结果对齐"    "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session.jsonl"
 t "slice Claude 命令↔结果"  "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session-claude.jsonl"
