@@ -1,7 +1,7 @@
 ---
 id: lua-gsub-multireturn-pitfall-in-fn-args
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: lua
 tags: [lua, string, gsub, multiple-return-values, debugging, neovim]
