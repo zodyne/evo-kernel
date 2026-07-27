@@ -1,7 +1,7 @@
 ---
 id: xelatex-rerun-loop-on-aux-cleanup
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: latex
 tags: [latex, xelatex, build, rerunfilecheck, cross-reference, aux-files]
