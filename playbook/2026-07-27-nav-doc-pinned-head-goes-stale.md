@@ -1,7 +1,7 @@
 ---
 id: nav-doc-pinned-head-goes-stale
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: session-handoff
 tags: [compass, context-doc, git, head, handoff, navigation]
