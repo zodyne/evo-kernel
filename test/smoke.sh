@@ -305,6 +305,40 @@ RAFTER=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
 { [ "$RBEFORE" = "$RMID" ] && [ "$RAFTER" -gt "$RMID" ]; } \
   && ok "L: hook-recall 噪声门槛（噪声不记账，实义 prompt 照常）" || bad "L: 噪声门槛" "(计数 $RBEFORE→$RMID→$RAFTER)"
 
+# catalog：蒸馏端查重清单。必须盖住 candidates 看不见的两处——lessons/inbox 与 ops/proposals，
+# 后者是当前最大重复源（未 curate 的提案彼此也会撞）。格式必须一条一行、无内嵌换行，
+# 否则 Reflector 只能整份读进上下文，库一大就爆。
+cat > "$EVO_ROOT/ops/proposals/zz-dedup-probe.md" << 'MD'
+---
+id: zz-dedup-probe
+type: lesson
+status: candidate
+triggers: ["查重探针唯一词 xyzzy-probe"]
+---
+探针正文
+MD
+cat > "$EVO_ROOT/lessons/zz-superseded-probe.md" << 'MD'
+---
+id: zz-superseded-probe
+type: lesson
+status: candidate
+triggers: ["已取代探针 plugh-probe"]
+superseded_by: some-newer-entry
+---
+探针正文
+MD
+CAT=$($EVO catalog 2>&1)
+{ printf '%s' "$CAT" | grep -q 'zz-dedup-probe	ops/proposals	' \
+  && printf '%s' "$CAT" | grep -q 'xyzzy-probe'; } \
+  && ok "L: catalog 覆盖 ops/proposals 待审提案（candidates 盲区）" || bad "L: catalog 漏 proposals" "(未见探针)"
+{ ! printf '%s' "$CAT" | grep -q 'zz-superseded-probe'; } \
+  && ok "L: catalog 排除 superseded_by 条目（已取代不算覆盖）" || bad "L: catalog superseded" "(不该出现却出现)"
+# 一条一行：行数 == 非空条目数，且每行恰好 2 个 tab（id/zone/triggers）
+BADLINES=$(printf '%s\n' "$CAT" | awk -F'\t' 'NF!=3' | grep -c . || true)
+{ [ "$BADLINES" = "0" ]; } \
+  && ok "L: catalog 每条一行 3 字段（可 grep，不必整份读）" || bad "L: catalog 行格式" "($BADLINES 行字段数≠3)"
+rm -f "$EVO_ROOT/ops/proposals/zz-dedup-probe.md" "$EVO_ROOT/lessons/zz-superseded-probe.md"
+
 echo
 echo "================ PASS=$PASS FAIL=$FAIL ================"
 [ $FAIL -eq 0 ]

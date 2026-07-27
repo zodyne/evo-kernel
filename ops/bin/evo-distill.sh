@@ -84,14 +84,24 @@ session_id：${SID}
    判据：adopted=切片里有证据显示这条被遵循；relevant-unused=与任务相关但证据里没用上；irrelevant=与任务无关；misleading=导致返工或错误结论。
    \`injected: (无)\` 时跳过本步。
 
-3. 从切片中提炼**有硬证据支撑**的经验。每条一个提案文件：${ROOT}/ops/proposals/<YYYY-MM-DD>-<slug>.md
+3. 先定主张，再查重。把切片里**有硬证据支撑**的经验各归纳成一句话主张，然后对每条主张查重：
+   \`${EVO} catalog | grep -i -E '<主张里的关键词1|关键词2>'\`
+   catalog 是 TSV（id / 区 / triggers），一条一行，涵盖**已入库条目和 ops/proposals 里待审的提案**。
+   **不要整份读它**——只 grep 你要查的关键词；库会长到几百条，全读会挤爆上下文。
+   多试几个词：技术名（pandoc / gsub / launchd）、失败现象（乱码 / 挂死 / 静默）、领域（nvim / latex）。
+   - 命中且**主张相同** → 不写提案。已有条目更全面就直接跳过；你的证据更硬或edge case 更明确，
+     也不要另起一条，在输出里写一行 \`DUP <已有id> <你本来想写的slug>\` 让人去决定要不要补强原条目。
+   - 命中但**主张不同**（同工具不同坑）→ 照写，这不是重复。
+   - 没命中 → 照写。
+
+4. 写提案。每条一个文件：${ROOT}/ops/proposals/<YYYY-MM-DD>-<slug>.md
    - frontmatter 严格按 ${ROOT}/SCHEMA.md 的 14 字段；**triggers 必填 3-5 条**（面向未来任务的措辞 + 失败信号）；
    - status: candidate；evidence: {helpful: 0, harmful: 0}；source: session:${SID}；
    - verified_by 如实标：切片里有命令+结果佐证 → command；只有人的判断 → human；都没有 → 不要写这条提案；
    - 一条提案一个原子主张，禁止把多条揉进一个文件；失败教训与成功经验同等蒸馏。
    **没有够硬的证据就不写提案——宁可零产出，不要编造。**
 
-4. 最后一行输出：\`DISTILL_OK <提案数>\`
+5. 最后一行输出：\`DISTILL_OK <实际写出的提案数>\`（被查重跳过的不计入）
 
 禁止：运行 \`${EVO} curate\`（入库必须人审）；修改 ops/proposals/ 与 ops/log/ 以外的任何文件；git commit / git push。"
 
@@ -111,7 +121,10 @@ session_id：${SID}
 
   if [ "$RC" = 0 ] && grep -q 'DISTILL_OK' "$OUT"; then
     "$EVO" mark-distilled --ids "$SID" >/dev/null 2>&1
-    log "done $SID — $(grep -o 'DISTILL_OK.*' "$OUT" | tail -1)"
+    # DUP 行留档：查重跳过的主张也是信息（可能该去补强已有条目），别随 .out 一起删掉
+    DUPS=$(grep -o '^DUP .*' "$OUT" | sed 's/^/  /')
+    log "done $SID — $(grep -o 'DISTILL_OK.*' "$OUT" | tail -1)${DUPS:+ | 查重跳过 $(printf '%s' "$DUPS" | grep -c .) 条}"
+    [ -n "$DUPS" ] && printf '%s\n' "$DUPS" >> "$LOG"
     rm -f "$OUT"
     DONE=$((DONE + 1))
   else

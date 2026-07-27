@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * evo — Evo-Kernel CLI（内核协议载体，24 个公开命令）
+ * evo — Evo-Kernel CLI（内核协议载体，25 个公开命令）
  *
  * 设计契约：design/build-spec-v1.md（v1.1）+ design/blueprint-v4.md。
  *   退出码规则（§0.3）：除 doctor 外所有命令所有路径 exit 0（fail-open，I1）。
@@ -22,6 +22,7 @@
  *   slice --session <jsonl> [--ids sid]         硬证据切片（供 Reflector 蒸馏）
  *   index rebuild                               派生索引重建（manifest.yaml）
  *   candidates                                  agentic 检索·粗筛（全量摘要）
+ *   catalog                                     查重清单 TSV：已入库+待审提案的 id×triggers
  *   get --ids a,b                               agentic 检索·精筛后取件（拉全文，读 lessons）
  *   reflect [--save]                            周期复盘报告（含判据对照表）
  *   audit                                       治理检查（harmful 超标/未复验/规则违反）
@@ -653,6 +654,23 @@ const cmds = {
   },
 
   // §2.11 candidates —— agentic 检索·粗筛（全量摘要，按 evidence.helpful 降序 D11）
+  // §M0.4 catalog —— 查重清单（蒸馏端输入）：已入库 + 待审提案的 id×triggers，一条一行。
+  //   Reflector 写提案前先读它，主张已被覆盖就跳过。带上 ops/proposals 是因为未 curate 的
+  //   提案彼此也会撞——一轮里多个会话常蒸馏出同一主题，而它们都还没进库、candidates 看不见。
+  //   只出 id/zone/triggers 不出正文：triggers 是检索面，覆盖判断看它就够，且每条一行可控。
+  catalog() {
+    const seen = new Set();
+    const out = [];
+    for (const e of loadEntries([...SCAN_DIRS, 'ops/proposals'])) {
+      if (e.superseded_by) continue; // 已被取代的不算覆盖
+      const key = `${e.id}\t${e._zone}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(`${key}\t${(e.triggers || []).join(' | ')}`);
+    }
+    return out.sort().join('\n');
+  },
+
   candidates() {
     const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by);
     if (!entries.length) return '';
