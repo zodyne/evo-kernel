@@ -1,7 +1,7 @@
 ---
 id: pyside6-old-version-fails-on-new-python
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: python-packaging
 tags: [pyside6, python-3.14, pip, wheel-compatibility, homebrew-python]
