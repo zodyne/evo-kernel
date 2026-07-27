@@ -1,7 +1,7 @@
 ---
 id: bytes-exact-oracle-gate-for-pipeline-port
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: verification
 tags: [oracle, regression, byte-exact, signal-pipeline, freertos, refactor]
