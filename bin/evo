@@ -123,11 +123,18 @@ function git(args, opts = {}) {
 }
 
 // I7：所有产生 commit 的命令遇 index.lock 重试（单写者约定）；重试耗尽则失败（调用方负责不留半成品）。
-function gitCommitWithRetry(msg, maxRetries = 3) {
+// paths 必填：只暂存本次命令真正动过的文件。原先用 `git add -A`，会把工作区里一切无关改动
+// （别人正在改的代码、后台蒸馏刚写出的提案、临时探针文件）一并提交并 push——提交边界失守，
+// 且 curate 的自动 push 会把半成品推到远端。实际发生过两次：一次卷入 5 个后台提案，
+// 一次把未完成的重构 + 测试探针挂在 "curate: zz-fmprobe" 消息下推了出去。
+// git add <path> 本身是删除感知的，所以移动（源删+目标增）传两端路径即可。
+function gitCommitWithRetry(msg, paths, maxRetries = 3) {
+  const specs = (paths || []).filter(Boolean).map((p) => JSON.stringify(path.relative(ROOT, p)));
+  if (!specs.length) { warn('gitCommitWithRetry: 未指定 paths，跳过提交（拒绝 add -A）'); return false; }
   let lastErr = '';
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      try { git('add -A'); } catch (e) { lastErr = String(e.message).split('\n')[0]; }
+      try { git(`add -- ${specs.join(' ')}`); } catch (e) { lastErr = String(e.message).split('\n')[0]; }
       try {
         git(`commit -qm ${JSON.stringify(msg)}`);
       } catch (e) {
@@ -600,7 +607,7 @@ const cmds = {
 
     let msg = `✓ ${data.id} → ${to}/\n` + rebuild();
     // §2.8 git commit（I7 重试）+ §4.1 push（fail-open）
-    const committed = gitCommitWithRetry(`curate: ${data.id} → ${to}`);
+    const committed = gitCommitWithRetry(`curate: ${data.id} → ${to}`, [src, dest, MANIFEST]);
     msg += committed ? '\ngit committed' : '\n⚠ git commit 失败（条目已移动）';
     if (committed) gitPush();
     return msg;
@@ -926,7 +933,7 @@ const cmds = {
       moveToArchive(e, 'solidified', `skill:${slug}`);
       rebuild();
       try { cmds.link(); } catch {}
-      gitCommitWithRetry(`solidify: ${id} → skill:${slug}`);
+      gitCommitWithRetry(`solidify: ${id} → skill:${slug}`, [e._path, dir, path.join(ARCHIVE_DIR, path.basename(e._path)), MANIFEST]);
       gitPush(); // §4.1 push fail-open
       return `✓ ${id} → skills/${slug}/SKILL.md（原条目归档，recall 不再命中；已 link 到 ~/.claude/skills）`;
     }
@@ -950,7 +957,7 @@ const cmds = {
     const rule = { id, matcher, match_on: matchOn, message, mode, source_entry: id, criteria_confirmed: true, created: new Date().toISOString().slice(0, 10) };
     ensureDir(CONSTRAINTS_DIR);
     fs.writeFileSync(path.join(CONSTRAINTS_DIR, id + '.json'), JSON.stringify(rule, null, 2) + '\n');
-    gitCommitWithRetry(`solidify: ${id} → hook constraint (${mode})`);
+    gitCommitWithRetry(`solidify: ${id} → hook constraint (${mode})`, [path.join(CONSTRAINTS_DIR, id + '.json')]);
     gitPush();
     return `✓ 硬约束已注册 ops/constraints/${id}.json（mode: ${mode}）` + (mode === 'warn' ? '；guard 记录命中，一个复盘周期后可 --mode block 升级' : '；guard 将阻断匹配操作');
   },
@@ -963,7 +970,7 @@ const cmds = {
     if (!e) return `✗ 条目不存在: ${id}`;
     if (to === 'archive') {
       moveToArchive(e, 'deprecated', null);
-      rebuild(); gitCommitWithRetry(`demote: ${id} → archive`); gitPush();
+      rebuild(); gitCommitWithRetry(`demote: ${id} → archive`, [e._path, path.join(ARCHIVE_DIR, path.basename(e._path)), MANIFEST]); gitPush();
       return `✓ ${id} 已退役 → ops/archive/`;
     }
     if (to === 'lessons') {
@@ -971,7 +978,7 @@ const cmds = {
       const dest = path.join(ROOT, 'lessons', path.basename(e._path));
       ensureDir(path.dirname(dest));
       fs.writeFileSync(dest, s); fs.unlinkSync(e._path);
-      rebuild(); gitCommitWithRetry(`demote: ${id} → lessons (回炉重验证)`); gitPush();
+      rebuild(); gitCommitWithRetry(`demote: ${id} → lessons (回炉重验证)`, [e._path, dest, MANIFEST]); gitPush();
       return `✓ ${id} 已下放 → lessons/（status: candidate）`;
     }
     return '✗ --to 仅支持 archive|lessons';

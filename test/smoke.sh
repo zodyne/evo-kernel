@@ -142,6 +142,15 @@ $EVO curate --file "$TMP/statusprobe2.md" --to lessons >/dev/null 2>&1
 { grep -q '^status: candidate' "$EVO_ROOT/lessons/statusprobe2.md"; } \
   && ok "curate 入 lessons 保持 candidate（不误升级）" || bad "curate lessons status" "(实得: $(grep -m1 '^status:' "$EVO_ROOT/lessons/statusprobe2.md" 2>&1))"
 rm -f "$EVO_ROOT/playbook/statusprobe.md" "$EVO_ROOT/lessons/statusprobe2.md"
+# 提交边界：curate 只能暂存自己动过的文件。原先 git add -A 会把工作区里一切无关改动
+# （后台蒸馏刚写的提案、别人在改的代码、临时探针）一并提交并 push。
+( cd "$EVO_ROOT" && git init -q 2>/dev/null; git add -A >/dev/null 2>&1; git -c user.email=t@t -c user.name=t commit -qm base >/dev/null 2>&1 ) || true
+echo "无关的脏文件" > "$EVO_ROOT/UNRELATED-DIRTY.txt"
+printf -- '---\nid: zz-scope-probe\ntype: lesson\nstatus: candidate\ntriggers: ["提交边界探针"]\n---\n正文\n' > "$TMP/scopeprobe.md"
+( cd "$EVO_ROOT" && $EVO curate --file "$TMP/scopeprobe.md" --to playbook >/dev/null 2>&1 )
+{ ( cd "$EVO_ROOT" && git status --porcelain UNRELATED-DIRTY.txt 2>/dev/null | grep -q '??' ); } \
+  && ok "curate 不卷入无关文件（提交边界）" || bad "curate 提交边界" "(无关脏文件被一起提交)"
+rm -f "$EVO_ROOT/UNRELATED-DIRTY.txt" "$EVO_ROOT/playbook/scopeprobe.md"
 t "curate 文件缺失"        "✗ 提案不存在" $EVO curate --file /nonexistent.md --to lessons
 t "slice 命令↔结果对齐"    "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session.jsonl"
 t "slice Claude 命令↔结果"  "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session-claude.jsonl"
