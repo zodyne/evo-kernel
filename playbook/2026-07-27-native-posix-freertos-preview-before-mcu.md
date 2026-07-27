@@ -1,7 +1,7 @@
 ---
 id: native-posix-freertos-preview-before-mcu
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: embedded
 tags: [freertos, native-posix, host-target, mcu, portability, debuggability]
