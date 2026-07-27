@@ -1,7 +1,7 @@
 ---
 id: test-fixture-id-poisoned-by-upstream-seed
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: testing
 tags: [testing, fixture, shared-state, vacuous-assertion, smoke, false-green]
