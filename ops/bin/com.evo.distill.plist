@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  每日兜底：清 SessionEnd 触发器漏掉的积压（会话结束时机器休眠、pi 超时、锁冲突）。
+  安装：
+    cp ops/bin/com.evo.distill.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.evo.distill.plist
+  卸载：launchctl unload ~/Library/LaunchAgents/com.evo.distill.plist
+  注意：PATH 必须含 pi 所在目录，否则脚本会 fail-open 直接退出（日志会记 "skip: pi 不在 PATH"）。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.evo.distill</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/zodyne/Dev/evo-kernel/ops/bin/evo-distill.sh</string>
+    <string>--max</string>
+    <string>3</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>3</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+  <key>StandardErrorPath</key>
+  <string>/Users/zodyne/Dev/evo-kernel/ops/log/distill-launchd.err</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

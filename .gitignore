@@ -4,6 +4,9 @@ ops/log/reconcile.jsonl
 ops/log/degrade.jsonl
 ops/log/guard-hits.jsonl
 ops/log/manual-feedback.jsonl
+ops/log/distill.log
+ops/log/distill-launchd.err
+ops/log/.distill*
 
 # 系统
 .DS_Store

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * evo — Evo-Kernel CLI（内核协议载体，21 个公开命令）
+ * evo — Evo-Kernel CLI（内核协议载体，24 个公开命令）
  *
  * 设计契约：design/build-spec-v1.md（v1.1）+ design/blueprint-v4.md。
  *   退出码规则（§0.3）：除 doctor 外所有命令所有路径 exit 0（fail-open，I1）。
@@ -15,6 +15,9 @@
  *   session-end --session <file> [--id <sid>]   手动登记会话 → inbox/session-refs.jsonl
  *   hook-session-end                            ← stdin: Claude SessionEnd JSON
  *   adopt --ids a,b / reject --ids a,b          人工兜底（只写 reconcile.jsonl，I4 单点写）
+ *   reconcile --ids a,b --state <四态>          Reflector 对账写入（judged_by: reflector）
+ *   queue [--min-bytes N] [--limit N]           待蒸馏队列 TSV（后台驱动器输入）
+ *   mark-distilled --ids sid1,sid2              蒸馏完成回写 distilled:true
  *   curate --file <md> --to <dir>               半手动入库（校验→移动→rebuild→commit→push）
  *   slice --session <jsonl> [--ids sid]         硬证据切片（供 Reflector 蒸馏）
  *   index rebuild                               派生索引重建（manifest.yaml）
@@ -61,6 +64,9 @@ const CONSTRAINTS_DIR = path.join(ROOT, 'ops/constraints');
 const PROPOSALS_DIR = path.join(ROOT, 'ops/proposals');
 const ARCHIVE_DIR = path.join(ROOT, 'ops/archive');
 
+// §7.1 四态对账 → (helpful_delta, harmful_delta)。adopt/reject 是其中两态的人工兜底入口。
+const RECONCILE_STATES = { adopted: [1, 0], 'relevant-unused': [0, 0], irrelevant: [0, 0], misleading: [0, 1] };
+
 // 检索后端（M0 = scan；EVO_BACKEND 可覆盖，预留 §5.0 cutover 回退）
 const BACKEND = (process.env.EVO_BACKEND || 'scan').toLowerCase();
 
@@ -84,6 +90,19 @@ function appendDegrade(component, from, to, reason) {
 function readStdin() {
   try { return fs.readFileSync(0, 'utf8'); } catch { return ''; }
 }
+
+// 噪声门槛（M1 分母保护）：hook 每条 prompt 都触发，"提交"/"中文回复"/斜杠命令这类
+// 零信息量输入既检索不出东西、又把命中率分母灌水，导致判据读不准。只在 hook 路径生效，
+// 直调 `evo recall` 不受限（人明确要检索时必须照做）。EVO_RECALL_MIN_WEIGHT 可调。
+const noisyPrompt = (p) => {
+  const s = String(p || '').trim();
+  if (!s) return true;
+  if (s.startsWith('/')) return true; // 斜杠命令：意图在命令本身，不是任务描述
+  // CJK 单字信息量约等于一个西文词，按 2 计权；西文按字符计
+  let w = 0;
+  for (const ch of s) w += /[㐀-鿿぀-ヿ]/.test(ch) ? 2 : (/\s/.test(ch) ? 0 : 1);
+  return w < Number(process.env.EVO_RECALL_MIN_WEIGHT || 12);
+};
 
 const argGet = (args, k, dflt) => { const i = args.indexOf(k); return i !== -1 ? args[i + 1] : dflt; };
 const parseIds = (args) => {
@@ -417,6 +436,7 @@ const cmds = {
       try { j = JSON.parse(raw); } catch { j = { prompt: raw }; } // 非 JSON 回退
       const sid = j.session_id || j.sessionId || null;
       if (sid && injectedSessions().has(sid)) return null; // 同 session 去重（空命中不占名额）
+      if (noisyPrompt(j.prompt || j.message || '')) return null; // 噪声门槛：不检索也不记 recall.jsonl（护住 M1 分母）
       // 双字段兜底：prompt || message（§11 M5）
       const out = recall(j.prompt || j.message || '', 1500, sid);
       if (out) console.log(out);
@@ -457,6 +477,67 @@ const cmds = {
   },
   adopt(args) { return cmds._feedback(args, 'adopted', 1, 0, 'adopt'); },
   reject(args) { return cmds._feedback(args, 'misleading', 0, 1, 'reject'); },
+
+  // §7.1 reconcile —— Reflector 四态对账写入（I4 单点写；adopt/reject 是人工兜底的两态子集）
+  reconcile(args) {
+    const ids = parseIds(args);
+    const state = argGet(args, '--state');
+    const delta = RECONCILE_STATES[state];
+    if (!ids.length || !delta) return `usage: evo reconcile --ids a,b --state <${Object.keys(RECONCILE_STATES).join('|')}> [--session sid] [--task "..."]`;
+    const ts = new Date().toISOString();
+    const session = argGet(args, '--session') || null;
+    const task = argGet(args, '--task') || '';
+    for (const id of ids) {
+      appendLog(RECONCILE_LOG, { ts, session, id, task, state, helpful_delta: delta[0], harmful_delta: delta[1], judged_by: 'reflector' });
+    }
+    return `reconcile: ${ids.length} 条记为 ${state}（judged_by: reflector）`;
+  },
+
+  // §M0.4 queue —— 待蒸馏队列（后台驱动器的输入）：未蒸馏 ∧ transcript 未失效 ∧ 体量达标
+  //   输出 TSV（session/transcript/harness/bytes），供脚本消费；体量门槛挡掉零信息量短会话。
+  queue(args) {
+    const minBytes = Number(argGet(args, '--min-bytes') || 50000);
+    const limit = Number(argGet(args, '--limit') || 0);
+    const bySession = new Map(); // 同 session 多次登记取最后一条（distilled 回写后仍为单行）
+    try {
+      for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try { const j = JSON.parse(line); if (j.session && j.session !== '?') bySession.set(j.session, j); } catch {}
+      }
+    } catch { return ''; }
+    const out = [];
+    for (const j of bySession.values()) {
+      if (j.distilled) continue;
+      if (!j.transcript || j.transcript === '?') continue;
+      let size = 0;
+      try { size = fs.statSync(j.transcript).size; } catch { continue; } // 登记后被清理 → 跳过（哨兵化由 doctor 计数）
+      if (size < minBytes) continue;
+      out.push(`${j.session}\t${j.transcript}\t${j.harness || 'claude'}\t${size}`);
+    }
+    return (limit > 0 ? out.slice(-limit) : out).join('\n');
+  },
+
+  // §M0.4 mark-distilled —— 蒸馏完成回写（原地重写，保持 session-refs.jsonl 单一事实源、一会话一行）
+  'mark-distilled'(args) {
+    const ids = parseIds(args);
+    if (!ids.length) return 'usage: evo mark-distilled --ids sid1,sid2';
+    const want = new Set(ids);
+    let lines;
+    try { lines = fs.readFileSync(SESSION_REFS, 'utf8').split('\n'); } catch { return '✗ session-refs.jsonl 不存在'; }
+    let n = 0;
+    const out = lines.map((line) => {
+      if (!line.trim()) return line;
+      try {
+        const j = JSON.parse(line);
+        if (want.has(j.session) && !j.distilled) { j.distilled = true; n++; return JSON.stringify(j); }
+      } catch {} // 坏行原样保留，绝不丢数据
+      return line;
+    });
+    const tmp = SESSION_REFS + '.tmp';
+    fs.writeFileSync(tmp, out.join('\n'));
+    fs.renameSync(tmp, SESSION_REFS); // 原子替换，避免驱动器并发时读到半截文件
+    return `mark-distilled: ${n} 条已标记`;
+  },
 
   // §2.8 curate —— 半手动入库（校验→移动→rebuild→commit→push）
   curate(args) {
@@ -507,8 +588,9 @@ const cmds = {
       if (Array.isArray(o)) { o.forEach(digBlocks); return; }
       if ((o.type === 'toolCall' || o.type === 'tool_use') && o.name) {
         const inp = o.input || o.arguments || {};
-        if (o.name === 'bash' && inp.command) { calls[o.id] = { cmd: String(inp.command).slice(0, 150) }; order.push(o.id); }
-        if ((o.name === 'write' || o.name === 'edit') && inp.path) paths.add(inp.path);
+        const name = String(o.name).toLowerCase();   // Claude 工具名首字母大写（Bash/Write/Edit），Pi 全小写
+        if (name === 'bash' && inp.command) { calls[o.id] = { cmd: String(inp.command).slice(0, 150) }; order.push(o.id); }
+        if ((name === 'write' || name === 'edit') && (inp.path || inp.file_path)) paths.add(inp.path || inp.file_path); // Claude 用 file_path
       }
       if (o.type === 'tool_result' && o.tool_use_id && calls[o.tool_use_id]) { // Claude: tool_result 嵌在 user content
         const t = textOf(o.content);

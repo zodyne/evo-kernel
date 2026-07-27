@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # evo-kernel 冒烟测试 — 建立不变量守护（A–K 组，build-spec-v1.md §8）
 # 设计原则（§7.3 绿地重解释）：smoke 按「建立不变量守护」组织，I1–I7 每条至少一条断言。
-# 组织：A=14 / B=4 / C=1 / D=3 / E=2(+1清理) / F=13 = 37（§8.1）
+# 组织：A=14 / B=4 / C=1 / D=3 / E=2(+1清理) / F=15 = 39（§8.1）
 #        + G(YAML fixture) / H(不变量守护 I1–I7) / I(session-refs JSONL) / J(reconcile) / K(doctor)
+#        + L(后台飞轮：queue / mark-distilled / reconcile / hook-recall 噪声门槛)
 # 全绿 exit 0。在临时 ROOT 副本中运行，零污染真实库。
 set -u
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
@@ -98,6 +99,8 @@ t "demote 未知条目"        "✗" $EVO demote --id not-exist --to archive
 t "curate 缺字段拒绝"      "✗" bash -c "printf -- '---\nid: bad\n---\nx\n' > $TMP/bad.md && $EVO curate --file $TMP/bad.md --to lessons"
 t "curate 文件缺失"        "✗ 提案不存在" $EVO curate --file /nonexistent.md --to lessons
 t "slice 命令↔结果对齐"    "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session.jsonl"
+t "slice Claude 命令↔结果"  "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session-claude.jsonl"
+t "slice Claude 写文件"     "/tmp/evo-slice-demo.txt" $EVO slice --session "$SRC/test/fixtures/sample-session-claude.jsonl"
 
 # ════════════ G. YAML 边界 fixture（M0.1，R3 盲区 round-trip） ════════════
 echo "——— G. YAML 边界 fixture（parseFm round-trip） ———"
@@ -183,7 +186,8 @@ const sent=lines.find(l=>l.session==='sess-sentinel');
 let bad=0;
 if(!real||real.transcript!=='$REALF'){console.log('✗ I: 写JSONL 真实路径缺失/错误');bad++;}
 if(!sent||sent.transcript!=='?'){console.log('✗ I: 哨兵保留（transcript=?）失败');bad++;}
-if(!lines.every(l=>l.harness&&l.distilled===false)){console.log('✗ I: schema 字段不全');bad++;}
+// 只校刚写的两行：distilled 是可变字段（mark-distilled 回写 true），不能拿全文件断言
+if(![real,sent].every(l=>l&&l.harness&&l.distilled===false)){console.log('✗ I: schema 字段不全');bad++;}
 if(bad===0) console.log('✓ I: session-refs.jsonl 写入/哨兵/schema 全部正确');
 process.exit(bad===0?0:1);
 " && PASS=$((PASS+1)) || FAIL=$((FAIL+1))
@@ -254,6 +258,37 @@ if [ -z "${EVO_DOCTOR_FULL:-}" ]; then
 else
   ok "K: doctor --full（嵌套运行跳过，防递归）"
 fi
+
+# ════════════ L. 后台飞轮（queue / mark-distilled / reconcile / 噪声门槛） ════════════
+echo "——— L. 后台飞轮驱动（后台蒸馏输入输出） ———"
+# 大 transcript（过体量门槛）+ 小 transcript（组 I 的 sess-real，6 bytes）+ 哨兵（sess-sentinel）
+BIGF="$TMP/big-session.jsonl"; head -c 60000 /dev/zero | tr '\0' 'x' > "$BIGF"
+$EVO session-end --session "$BIGF" --id sess-big >/dev/null 2>&1
+Q=$($EVO queue --min-bytes 50000 2>&1)
+{ echo "$Q" | grep -q '^sess-big	' && ! echo "$Q" | grep -q 'sess-real' && ! echo "$Q" | grep -q 'sess-sentinel'; } \
+  && ok "L: queue 体量门槛 + 哨兵/小会话排除" || bad "L: queue 过滤" "(实得: ${Q:0:100})"
+# mark-distilled 回写 → 出队，且不新增行（原地重写，一会话一行）
+LBEFORE=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
+$EVO mark-distilled --ids sess-big >/dev/null 2>&1
+LAFTER=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
+Q2=$($EVO queue --min-bytes 50000 2>&1)
+{ [ "$LBEFORE" = "$LAFTER" ] && ! echo "$Q2" | grep -q 'sess-big'; } \
+  && ok "L: mark-distilled 回写出队（原地重写不增行）" || bad "L: mark-distilled" "(行数 $LBEFORE→$LAFTER; 队列: ${Q2:0:60})"
+# reconcile 四态：judged_by 必须是 reflector（与 adopt/reject 的 human 区分）
+$EVO reconcile --ids arxiv-api-rate-limit --state relevant-unused --session sess-big >/dev/null 2>&1
+{ tail -1 "$EVO_ROOT/ops/log/reconcile.jsonl" | grep -q '"judged_by":"reflector"' \
+  && tail -1 "$EVO_ROOT/ops/log/reconcile.jsonl" | grep -q '"state":"relevant-unused"'; } \
+  && ok "L: reconcile 写四态（judged_by=reflector）" || bad "L: reconcile" "(实得: $(tail -1 "$EVO_ROOT/ops/log/reconcile.jsonl" | head -c 80))"
+t "L: reconcile 非法 state 拒绝" "usage: evo reconcile" $EVO reconcile --ids x --state bogus
+# 噪声门槛：斜杠命令/超短 prompt 不进 recall.jsonl（护住 M1 分母），实义 prompt 照常进
+RBEFORE=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+printf '{"session_id":"noise-1","prompt":"提交"}' | $EVO hook-recall >/dev/null 2>&1
+printf '{"session_id":"noise-2","prompt":"/grill-me"}' | $EVO hook-recall >/dev/null 2>&1
+RMID=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+printf '{"session_id":"real-1","prompt":"arxiv API 批量下载被限流该怎么处理"}' | $EVO hook-recall >/dev/null 2>&1
+RAFTER=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+{ [ "$RBEFORE" = "$RMID" ] && [ "$RAFTER" -gt "$RMID" ]; } \
+  && ok "L: hook-recall 噪声门槛（噪声不记账，实义 prompt 照常）" || bad "L: 噪声门槛" "(计数 $RBEFORE→$RMID→$RAFTER)"
 
 echo
 echo "================ PASS=$PASS FAIL=$FAIL ================"
