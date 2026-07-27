@@ -391,6 +391,30 @@ function countGuardHits(id) {
   try { for (const l of fs.readFileSync(GUARD_LOG, 'utf8').split('\n')) { if (!l.trim()) continue; try { if (JSON.parse(l).rule === id) n++; } catch {} } } catch {}
   return n;
 }
+
+// warn 命中的证据质量：剥掉引号内字面量与 # 注释后仍匹配 = 命令位（真实执行意图）；
+// 不再匹配 = 仅在引号里提及（git commit -m 'fix rm -rf'、grep 'rm -rf'、文档 echo）。
+//
+// 只用于**评估是否够格升 block**，绝不能用于执行判定：`bash -c "rm -rf /"` 的危险命令
+// 本就在引号内，剥掉会漏杀。评估侧漏判只是少推荐一次升级，执行侧漏判是安全事故。
+// 存在的理由：裸命中数把"提及"和"执行"混在一起，会让 §8 准入④（matcher 覆盖率经复核）
+// 拿着被污染的数字通过——实测 dangerous-rm-rf 的裸命中里 60% 是提及。
+function guardHitQuality(id, matcher) {
+  let exec = 0, mention = 0;
+  let re; try { re = new RegExp(matcher); } catch { return { exec: 0, mention: 0 }; }
+  const strip = (s) => String(s).replace(/'[^']*'/g, "''").replace(/"[^"]*"/g, '""').replace(/#[^\n]*/g, '');
+  try {
+    for (const l of fs.readFileSync(GUARD_LOG, 'utf8').split('\n')) {
+      if (!l.trim()) continue;
+      try {
+        const j = JSON.parse(l);
+        if (j.rule !== id) continue;
+        if (re.test(strip(j.target || ''))) exec++; else mention++;
+      } catch {}
+    }
+  } catch {}
+  return { exec, mention };
+}
 // frontmatter 字段改写：只在开头的 --- 块内替换，块内无该字段则追加。
 // 不能对全文用 /^key:.*$/m —— 正文里出现 `status:` / `superseded_by:` 就会被误改
 // （提案正文常引用这些字段名）。curate/demote/moveToArchive 三处共用，避免各写各的。
@@ -886,8 +910,17 @@ const cmds = {
             g.push(`退役候选（空转）: [${e.id}] 注入 ${t.n} 次 adopted=0（irrelevant/relevant-unused ${t.dead}）→ evo demote --id ${e.id} --to lessons`);
         }
         for (const c of loadConstraints()) {
+          if (c.mode !== 'warn') continue;
           const h = countGuardHits(c.id);
-          if (c.mode === 'warn' && h >= 5) g.push(`升 block 候选: 约束 [${c.id}] warn 命中 ${h} 次 → evo solidify --id ${c.id} --to hook --matcher '<同原>' --mode block --criteria-confirmed`);
+          if (h < 5) continue;
+          // 判据看命令位命中数，不看裸命中数：裸数把"引号内提及"算进证据，
+          // 会让准入④（matcher 覆盖率经复核）拿被污染的数字通过。
+          const q = guardHitQuality(c.id, c.matcher);
+          const fpRate = h ? Math.round((q.mention / h) * 100) : 0;
+          if (q.exec >= 5 && fpRate <= 20)
+            g.push(`升 block 候选: 约束 [${c.id}] 命令位命中 ${q.exec} 次（提及 ${q.mention}，误报率 ${fpRate}%）→ evo solidify --id ${c.id} --to hook --matcher '<同原>' --mode block --criteria-confirmed`);
+          else
+            g.push(`⚠ 不建议升 block: 约束 [${c.id}] 裸命中 ${h} 次，但其中 ${q.mention} 次只是引号内提及（误报率 ${fpRate}%）——升 block 会阻断 git commit -m '…rm -rf…' / grep / 文档类命令。先收窄 matcher 再议（§8 准入④未达标）`);
         }
         return g.length ? g.join('\n') : '(当前无候选：正常，计数随使用积累)';
       })(),

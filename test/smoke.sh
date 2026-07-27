@@ -127,6 +127,16 @@ t "guard warn 不阻断"      '"action":"warn"'  $EVO guard --tool bash --input-
 t "hook-guard warn 浮现"   "systemMessage"    bash -c "echo '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"warn-cmd x\"}}' | $EVO hook-guard"
 t "hook-guard warn 不 deny" "__NEG__permissionDecision" bash -c "echo '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"warn-cmd x\"}}' | $EVO hook-guard"
 rm -f "$EVO_ROOT/ops/constraints/t-block.json" "$EVO_ROOT/ops/constraints/t-warn.json"
+# 升 block 判据必须看命令位命中，不看裸命中：引号内提及（git commit -m '…rm -rf…'、grep）
+# 混进证据会让 §8 准入④ 拿被污染的数字通过，升 block 后阻断正常命令。
+mkdir -p "$EVO_ROOT/ops/constraints"
+cat > "$EVO_ROOT/ops/constraints/t-fp.json" << 'JSON'
+{"id":"t-fp","matcher":"rm\\s+-rf","match_on":"command","message":"测试误报","mode":"warn","criteria_confirmed":true,"created":"2026-07-27"}
+JSON
+for i in 1 2 3 4 5 6; do $EVO guard --tool bash --input-json '{"command":"git commit -m '"'"'fix rm -rf handling'"'"'"}' >/dev/null 2>&1; done
+{ $EVO reflect 2>&1 | grep -q "不建议升 block: 约束 \[t-fp\]"; } \
+  && ok "F: 全引号内提及的约束不得进升 block 候选" || bad "F: 升 block 判据" "(裸命中被当证据)"
+rm -f "$EVO_ROOT/ops/constraints/t-fp.json"
 t "solidify 缺参数提示"    "usage" $EVO solidify
 t "solidify 无matcher拒绝" "matcher" $EVO solidify --id arxiv-api-rate-limit --to hook
 t "demote 未知条目"        "✗" $EVO demote --id not-exist --to archive
