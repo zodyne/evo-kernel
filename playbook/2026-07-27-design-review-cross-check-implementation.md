@@ -1,7 +1,7 @@
 ---
 id: design-review-cross-check-implementation
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: research-methodology
 tags: [design, review, blueprint, grounding, implementation-vs-design]
