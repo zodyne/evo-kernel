@@ -1,7 +1,7 @@
 ---
 id: evo-distill-transient-connection-error-retry
 type: lesson
-status: candidate
+status: validated
 scope: project:evo-kernel
 domain: ops
 tags: [evo-kernel, distill, retry, transient-error, api, connection-error, troubleshooting]
