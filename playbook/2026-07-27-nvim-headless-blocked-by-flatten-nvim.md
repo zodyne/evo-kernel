@@ -1,7 +1,7 @@
 ---
 id: nvim-headless-blocked-by-flatten-nvim
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: nvim
 tags: [neovim, headless, flatten-nvim, nvim-env, automation, config-testing]
