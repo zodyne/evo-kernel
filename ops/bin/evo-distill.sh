@@ -96,7 +96,9 @@ session_id：${SID}
 禁止：运行 \`${EVO} curate\`（入库必须人审）；修改 ops/proposals/ 与 ops/log/ 以外的任何文件；git commit / git push。"
 
   OUT="${ROOT}/ops/log/.distill-${SID}.out"
-  ( cd "$ROOT" && pi -p --no-session "$PROMPT" > "$OUT" 2>&1 ) &
+  # </dev/null 不能省：循环体的 stdin 是末尾的 here-string，pi 继承后会把剩余队列行全读走，
+  # 导致无论 --max 多大都只转一圈（且退出码 0，看起来像"队列处理完了"）。
+  ( cd "$ROOT" && pi -p --no-session "$PROMPT" > "$OUT" 2>&1 < /dev/null ) &
   PID=$!
 
   # 看门狗：超时 kill，避免 launchd 下无人值守的挂死
