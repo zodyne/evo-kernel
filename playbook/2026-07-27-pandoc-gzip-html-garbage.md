@@ -1,7 +1,7 @@
 ---
 id: pandoc-gzip-html-garbage
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: web-archival
 tags: [pandoc, gzip, html-to-markdown, web-scraping]
