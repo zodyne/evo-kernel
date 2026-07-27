@@ -1,7 +1,7 @@
 ---
 id: claude-code-sleep-blocked-poll-output
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: claude-code
 tags: [claude-code, harness, background-task, sleep-blocked, gui-launch, polling]
