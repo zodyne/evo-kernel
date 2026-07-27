@@ -384,13 +384,24 @@ function countGuardHits(id) {
   try { for (const l of fs.readFileSync(GUARD_LOG, 'utf8').split('\n')) { if (!l.trim()) continue; try { if (JSON.parse(l).rule === id) n++; } catch {} } } catch {}
   return n;
 }
+// frontmatter 字段改写：只在开头的 --- 块内替换，块内无该字段则追加。
+// 不能对全文用 /^key:.*$/m —— 正文里出现 `status:` / `superseded_by:` 就会被误改
+// （提案正文常引用这些字段名）。curate/demote/moveToArchive 三处共用，避免各写各的。
+function setFmField(src, key, value) {
+  const m = src.match(FM_RE);
+  if (!m) return src; // 无 frontmatter：不猜位置，原样返回
+  const head = m[0];
+  const re = new RegExp(`^${key}:.*$`, 'm');
+  const newHead = re.test(head)
+    ? head.replace(re, `${key}: ${value}`)
+    : head.replace(/\n---\r?\n?$/, `\n${key}: ${value}\n---\n`); // 块尾插入
+  return newHead + src.slice(head.length);
+}
+
 function moveToArchive(e, status, supersededBy) {
   let s = fs.readFileSync(e._path, 'utf8');
-  s = s.replace(/^status:.*$/m, `status: ${status}`);
-  if (supersededBy) {
-    if (/^superseded_by:/m.test(s)) s = s.replace(/^superseded_by:.*$/m, `superseded_by: ${supersededBy}`);
-    else s = s.replace(/^---/m, `---\nsuperseded_by: ${supersededBy}`); // 兜底插入
-  }
+  s = setFmField(s, 'status', status);
+  if (supersededBy) s = setFmField(s, 'superseded_by', supersededBy);
   const dest = path.join(ARCHIVE_DIR, path.basename(e._path));
   ensureDir(path.dirname(dest));
   fs.writeFileSync(dest, s);
@@ -580,11 +591,7 @@ const cmds = {
     // 不改写会让 status 与所在区脱节——条目照样被注入（recall 只看区不看 status），但 reflect 的
     // by-status 统计与 audit 的状态规则会读到假数据。只在 frontmatter 块内替换，不碰正文里的 status:。
     const wantStatus = to === 'lessons' ? 'candidate' : to === 'inbox' ? 'inbox' : 'validated';
-    let outText = srcText;
-    if (data.status !== wantStatus) {
-      const fm = srcText.match(/^---\n[\s\S]*?\n---/);
-      if (fm) outText = fm[0].replace(/^status:.*$/m, `status: ${wantStatus}`) + srcText.slice(fm[0].length);
-    }
+    const outText = data.status === wantStatus ? srcText : setFmField(srcText, 'status', wantStatus);
 
     const dest = path.join(ROOT, to, path.basename(src));
     ensureDir(path.dirname(dest));
@@ -960,7 +967,7 @@ const cmds = {
       return `✓ ${id} 已退役 → ops/archive/`;
     }
     if (to === 'lessons') {
-      const s = fs.readFileSync(e._path, 'utf8').replace(/^status:.*$/m, 'status: candidate');
+      const s = setFmField(fs.readFileSync(e._path, 'utf8'), 'status', 'candidate');
       const dest = path.join(ROOT, 'lessons', path.basename(e._path));
       ensureDir(path.dirname(dest));
       fs.writeFileSync(dest, s); fs.unlinkSync(e._path);
