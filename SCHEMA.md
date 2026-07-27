@@ -1,6 +1,6 @@
 # 条目 Schema（统一 frontmatter）
 
-> 权威来源：`design/build-spec-v1.md` §3.1（13 字段 + 决策② `schema_version` = 14 字段）。
+> 权威来源：`~/Dev/agent-evo/design/build-spec-v1.md` §3.1（13 字段 + 决策② `schema_version` = 14 字段）。
 > 解析实现：`bin/evo` 用 `js-yaml`（纯 JS，M0.1 绿地版）；坏 frontmatter 容错为空对象（recall/rebuild 跳过）。
 > `schema_version` 为**演化锚点**：解析缺省按 `1`（不报错不拒绝）；**不做迁移框架**——待某次字段变更出现「旧条目静默错读」实例再连同迁移脚本一并补（v4 §11.8）。
 

@@ -2,7 +2,7 @@
 /**
  * evo — Evo-Kernel CLI（内核协议载体，25 个公开命令）
  *
- * 设计契约：design/build-spec-v1.md（v1.1）+ design/blueprint-v4.md。
+ * 设计契约：~/Dev/agent-evo/design/build-spec-v1.md（v1.1）+ 同目录 blueprint-v4.md（另一仓库）。
  *   退出码规则（§0.3）：除 doctor 外所有命令所有路径 exit 0（fail-open，I1）。
  *     doctor 是诊断命令，唯一允许非零退出（FAIL → exit 1）。
  *   ROOT 解析顺序（§1.2 实施层修正）：`EVO_ROOT` 环境变量 > CLI 自定位

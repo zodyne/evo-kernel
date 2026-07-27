@@ -2,8 +2,8 @@
 
 个人「经验治理与固化层」内核：纯文件 + git 存储，Node CLI（`evo`），被 Pi 扩展 + Claude Code hooks 两个 harness 共用。
 
-> 设计权威：`design/blueprint-v4.md`（不变量 I1–I7、§4 数据存续、§7 测量定义）。
-> 构建契约：`design/build-spec-v1.md`（v1.1，§2 全部 21 个命令契约卡、§3 数据/日志 schema、§5 评分系数、§8 smoke 断言）。
+> 设计权威：`~/Dev/agent-evo/design/blueprint-v4.md`（不变量 I1–I7、§4 数据存续、§7 测量定义）。
+> 构建契约：`~/Dev/agent-evo/design/build-spec-v1.md`（v1.1，§2 命令契约卡（当时 21 个，现 25）、§3 数据/日志 schema、§5 评分系数、§8 smoke 断言）。
 
 ## 目录即状态机（§1.1）
 
@@ -32,7 +32,7 @@ ROOT = process.env.EVO_ROOT || <bin/evo 脚本的父目录>
 
 ## 21 个命令
 
-见 `bin/evo` 头注释或 `design/build-spec-v1.md` §2。退出码规则（§0.3）：除 `doctor` 外所有命令所有路径 `exit 0`（fail-open，I1）；`doctor` 是诊断命令，FAIL 时 `exit 1`。
+见 `bin/evo` 头注释或 `~/Dev/agent-evo/design/build-spec-v1.md` §2。退出码规则（§0.3）：除 `doctor` 外所有命令所有路径 `exit 0`（fail-open，I1）；`doctor` 是诊断命令，FAIL 时 `exit 1`。
 
 ---
 
