@@ -1,7 +1,7 @@
 ---
 id: pyside-probe-script-needs-qapplication
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: qt-gui
 tags: [pyside6, pyqtgraph, sigabrt, exit-134, qapplication]
