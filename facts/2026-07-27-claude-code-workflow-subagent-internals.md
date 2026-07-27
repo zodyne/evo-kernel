@@ -1,7 +1,7 @@
 ---
 id: claude-code-workflow-subagent-internals
 type: fact
-status: candidate
+status: validated
 scope: global
 domain: harness-internals
 tags: [claude-code, workflow, subagent, agent-tool, enableWorkflows, binary-reverse-engineering]
