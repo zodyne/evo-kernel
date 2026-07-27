@@ -1,7 +1,7 @@
 ---
 id: agent-system-deployability-falsifiable-value-claim
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: research-methodology
 tags: [design, review, deployability, falsifiability, agent-system, evaluation]
