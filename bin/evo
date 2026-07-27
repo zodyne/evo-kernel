@@ -182,7 +182,13 @@ function parseFm(src) {
     return { data: { schema_version: 1 }, body: src };
   }
   let data;
-  try { data = yaml.load(m[1]) || {}; }
+  // CORE_SCHEMA 而非默认 schema：js-yaml 的 DEFAULT_SCHEMA = CORE_SCHEMA + timestamp/merge/binary/…，
+  // 其中 timestamp 会把 `created: 2026-07-27` 静默转成 JS Date 对象——而 SCHEMA.md 声明这些字段是
+  // 「ISO 日期（YYYY-MM-DD）」字符串。后果是按字面写的代码全踩坑：`e.created === '2026-07-27'` 恒假、
+  // `e.created.slice(0,10)` 直接抛错、`String(e.created).slice(0,10)` 得到 "Mon Jul 27"。
+  // 现存 audit 用 Date.parse(Date对象) 恰好可用（会先 String() 再解析），属侥幸而非设计。
+  // 这就是 design §7 Phase 0 的 M0「消除 R3 静默错解」要治的东西。
+  try { data = yaml.load(m[1], { schema: yaml.CORE_SCHEMA }) || {}; }
   catch (e) { data = {}; } // 坏 frontmatter：容错为空对象（recall/rebuild 跳过该条，R3 守护）
   // 决策②：解析缺省按 1（不报错不拒绝，不做迁移框架）
   if (data.schema_version === undefined || data.schema_version === null) data.schema_version = 1;

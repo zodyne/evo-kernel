@@ -103,6 +103,57 @@ MD
   && ok "D2: 单词 tag 不足以单独注入（tag 并集归一）" || bad "D2: tag 过匹配" "(无关条目被顶进注入)"
 rm -f "$EVO_ROOT/playbook/zz-tagprobe.md"
 
+# ════════════ D3. 解析保真（M0「消除 R3 静默错解」） ════════════
+echo "——— D3. 解析保真 ———"
+# js-yaml 默认 schema 含 timestamp 类型，会把 `created: 2026-07-27` 静默转成 Date 对象，
+# 而 SCHEMA.md 声明它是「ISO 日期（YYYY-MM-DD）」字符串。类型错了不报错、只在下游炸——
+# 正是 design §7 Phase 0 的 M0 要消除的静默错解。这里守住 frontmatter 各字段的类型契约。
+node -e "
+const { parseFm } = require('$SRC/bin/evo');
+const src = [
+  '---',
+  'id: zz-parse',
+  'created: 2026-07-27',
+  'last_verified: 2026-07-28',
+  'review_after: 2026-09-25',
+  'schema_version: 1',
+  'status: candidate',
+  'evidence: {helpful: 3, harmful: 1}',
+  'tags: [a, b]',
+  'superseded_by: null',
+  '---',
+  'body',
+].join('\n');
+const { data } = parseFm(src);
+const chk = [
+  ['created 是字符串', typeof data.created === 'string' && data.created === '2026-07-27'],
+  ['last_verified 是字符串', typeof data.last_verified === 'string'],
+  ['review_after 是字符串', typeof data.review_after === 'string'],
+  ['schema_version 是数字', typeof data.schema_version === 'number'],
+  ['evidence 是对象且值为数字', data.evidence && data.evidence.helpful === 3 && data.evidence.harmful === 1],
+  ['tags 是数组', Array.isArray(data.tags) && data.tags.length === 2],
+  ['superseded_by 显式 null', data.superseded_by === null],
+];
+const bad = chk.filter(([, ok]) => !ok);
+bad.forEach(([n]) => console.log('✗ D3: ' + n));
+if (!bad.length) console.log('✓ D3: frontmatter 类型契约（日期不被静默转 Date）');
+process.exit(bad.length ? 1 : 0);
+" && PASS=$((PASS+1)) || FAIL=$((FAIL+1))
+# 全库回归：任何一条真实条目的日期字段都不得是 Date 对象
+node -e "
+const { loadEntries, SCAN_DIRS } = require('$SRC/bin/evo');
+process.env.EVO_ROOT = '$EVO_ROOT';
+const bad = [];
+for (const e of loadEntries(SCAN_DIRS)) {
+  for (const k of ['created', 'last_verified', 'review_after']) {
+    if (e[k] !== undefined && typeof e[k] !== 'string') bad.push(e.id + '.' + k);
+  }
+}
+if (bad.length) console.log('✗ D3: 全库日期字段类型异常 ' + bad.slice(0, 3).join(','));
+else console.log('✓ D3: 全库日期字段均为字符串');
+process.exit(bad.length ? 1 : 0);
+" && PASS=$((PASS+1)) || FAIL=$((FAIL+1))
+
 # ════════════ E. R3 守护：坏 frontmatter 跳过不崩（2 + 1 清理） ════════════
 echo "——— E. R3 守护：坏 frontmatter 跳过不崩 ———"
 printf -- '---\nbad: [unclosed\n---\nbody\n' > "$EVO_ROOT/inbox/bad-entry.md"
