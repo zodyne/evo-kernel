@@ -284,10 +284,54 @@ function govWeight(e) {
   return (VERIFIED_W[e.verified_by] ?? 0.4) * evW * typeW;
 }
 
+// 召回层评分变体（EVO_SCORING，默认 v0 = 历史行为）。沿用 §5.0 对检索行为变更的要求：
+// 可回退、旧实现保留、改动前后用 test/retrieval-bench 对照四阶段。
+//   v0  cover = hits / |phrase|                 —— 历史实现
+//   v1  cover = hits / max(|phrase|, FLOOR)     —— 压掉碎片 trigger 的虚高
+//   v2  cover = Σidf(hit) / Σidf(phrase)        —— 压掉通用词（结果/文件/数据）的伪相关
+//   v3  v1 + v2 叠加
+// 缺陷背景（2026-07-28 实测）：cover 按短语自身长度归一 → trigger 写得越具体越难召回。
+// 实例：目标条目命中 2 词得 0.143 被过滤；噪声条目仅命中 1 词（"结果"，trigger 只有 4 个
+// bigram）得 0.250 通过。命中更多的输给命中更少的，激励方向是反的。
+const SCORING = process.env.EVO_SCORING || 'v0';
+const PHRASE_FLOOR = Number(process.env.EVO_PHRASE_FLOOR || 8);
+
+// 以条目为文档单位统计 df（triggers + tags + id + 首行），供 idf 变体使用
+function buildIdf(entries) {
+  const df = new Map();
+  for (const e of entries) {
+    const seen = new Set();
+    for (const t of [...(e.triggers || []), (e.tags || []).join(' '), `${e.id} ${e._firstLine}`]) {
+      for (const w of terms(t)) seen.add(w);
+    }
+    for (const w of seen) df.set(w, (df.get(w) || 0) + 1);
+  }
+  const N = Math.max(entries.length, 1);
+  return (w) => Math.log((N + 1) / ((df.get(w) || 0) + 1)) + 1; // 平滑，恒 > 0
+}
+
+function makeCover(entries) {
+  const idf = SCORING === 'v2' || SCORING === 'v3' ? buildIdf(entries) : null;
+  const floored = SCORING === 'v1' || SCORING === 'v3';
+  return (taskT, phraseT) => {
+    if (!phraseT.size) return 0;
+    if (!idf) {
+      let hit = 0;
+      for (const t of phraseT) if (taskT.has(t)) hit++;
+      return hit / (floored ? Math.max(phraseT.size, PHRASE_FLOOR) : phraseT.size);
+    }
+    let num = 0, den = 0;
+    for (const t of phraseT) { const w = idf(t); den += w; if (taskT.has(t)) num += w; }
+    if (floored) den = Math.max(den, PHRASE_FLOOR * (den / phraseT.size)); // 按平均 idf 折算的下限
+    return den ? num / den : 0;
+  };
+}
+
 function recall(task, budget, session) {
   const taskT = terms(task);
   // I2 守恒：只读 RECALL_DIRS，排除 superseded_by 非空条目（含 ops/archive 固化条目）
   const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by);
+  const cover = makeCover(entries); // 遮蔽模块级 cover：变体只作用于召回层，不动导出的 cover
   const scored = [];
   for (const e of entries) {
     let trig = 0;

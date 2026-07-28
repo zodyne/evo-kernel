@@ -3,7 +3,7 @@
     "purpose": "检索层的可证伪基准。四阶段结构借自《大模型与 Agent 开发实战》实验 8-6（chapter8/self-evolution-eval），把'评估 Agent 是否在持续进化'的纵向框架映射到 Evo-Kernel 的召回层。",
     "measures": "召回质量（该找的找到没）、triggers 是否泛化、superseded_by 是否真的排除旧条目、无关任务是否被注入噪声。",
     "does_not_measure": "净收益。证明'注入经验让任务做得更好'需要 LLM 实跑 + 结果标注，本基准不做这件事——它只证伪召回层，不证伪价值主张。",
-    "labeling_discipline": "transfer 阶段的查询是**先读目标条目的 triggers、再刻意避开其措辞**写成的，只描述问题现场。若照 triggers 改写，测的是记忆不是泛化。learning/抗噪 阶段的查询取自 ops/log/recall.jsonl 的真实历史查询。",
+    "labeling_discipline": "transfer 阶段的查询是**先读目标条目的 triggers、再刻意避开其措辞**写成的，只描述问题现场。若照 triggers 改写，测的是记忆不是泛化。learning/抗噪 阶段的查询取自 ops/log/recall.jsonl 的真实历史查询。  另：expect_ids 必须指向 RECALL_DIRS 内的条目——lessons/ 与 inbox/ 按 I2 永不注入，拿它们当期望目标是无效用例（T-heredoc 曾犯此错）。",
     "phases": {
       "learning": "措辞贴近自然求助、与 triggers 同源。这是**下限**不是成绩：这些若不命中，说明召回层坏了。",
       "transfer": "同一需求、不同措辞，刻意不用 triggers 的词。核心指标。",
@@ -16,102 +16,128 @@
       "id": "L-arxiv",
       "phase": "learning",
       "query": "arXiv 批量下载论文元数据，API 返回 429 怎么处理",
-      "expect_ids": ["arxiv-api-rate-limit"],
+      "expect_ids": [
+        "arxiv-api-rate-limit"
+      ],
       "note": "近 triggers，基线下限"
     },
     {
       "id": "L-hook",
       "phase": "learning",
       "query": "Claude Code 的 SessionStart hook 拿不到用户 prompt",
-      "expect_ids": ["claude-hook-sessionstart-no-prompt"],
+      "expect_ids": [
+        "claude-hook-sessionstart-no-prompt"
+      ],
       "note": "近 triggers，基线下限"
     },
     {
       "id": "L-timeout",
       "phase": "learning",
       "query": "macOS 上跑 timeout 命令报 command not found",
-      "expect_ids": ["macos-no-timeout-command"],
+      "expect_ids": [
+        "macos-no-timeout-command"
+      ],
       "note": "近 triggers，基线下限"
     },
     {
       "id": "L-gitadd",
       "phase": "learning",
       "query": "git add 报 fatal: pathspec did not match any files，提交失败",
-      "expect_ids": ["git-add-untracked-source-path-aborts-staging"],
+      "expect_ids": [
+        "git-add-untracked-source-path-aborts-staging"
+      ],
       "note": "近 triggers，基线下限"
     },
     {
       "id": "L-stdin",
       "phase": "learning",
       "query": "while read 循环里调用子进程，批量只处理了第一条就退出",
-      "expect_ids": ["bash-loop-child-steals-stdin"],
+      "expect_ids": [
+        "bash-loop-child-steals-stdin"
+      ],
       "note": "近 triggers，基线下限"
     },
     {
       "id": "L-cfar",
       "phase": "learning",
       "query": "CFAR 点云虚警过滤怎么做",
-      "expect_ids": ["playbook-ucm221-cfar-point-cloud-filtering"],
+      "expect_ids": [
+        "playbook-ucm221-cfar-point-cloud-filtering"
+      ],
       "note": "近 triggers，基线下限"
     },
-
     {
       "id": "T-arxiv",
       "phase": "transfer",
       "query": "用脚本批量拉论文摘要，连着请求几十次之后对方服务端开始拒绝我",
-      "expect_ids": ["arxiv-api-rate-limit"],
+      "expect_ids": [
+        "arxiv-api-rate-limit"
+      ],
       "note": "避开 429 / API / export.arxiv.org"
     },
     {
       "id": "T-hook",
       "phase": "transfer",
       "query": "想让每次对话一开始就自动带上以前的笔记，但挂在启动事件上的脚本读不到用户说了什么",
-      "expect_ids": ["claude-hook-sessionstart-no-prompt"],
+      "expect_ids": [
+        "claude-hook-sessionstart-no-prompt"
+      ],
       "note": "避开 SessionStart / hook / 注入"
     },
     {
       "id": "T-timeout",
       "phase": "transfer",
       "query": "怕这条命令卡死，想限制它最多跑三十秒，我这台 mac 上不管用",
-      "expect_ids": ["macos-no-timeout-command"],
+      "expect_ids": [
+        "macos-no-timeout-command"
+      ],
       "note": "避开 timeout / command not found / coreutils"
     },
     {
       "id": "T-gitadd",
       "phase": "transfer",
       "query": "脚本把文件挪了个位置然后提交，结果提示没东西可提交，可文件明明动过了",
-      "expect_ids": ["git-add-untracked-source-path-aborts-staging"],
+      "expect_ids": [
+        "git-add-untracked-source-path-aborts-staging"
+      ],
       "note": "避开 git add / pathspec / fatal / curate"
     },
     {
       "id": "T-stdin",
       "phase": "transfer",
       "query": "批处理脚本按清单逐条跑，做完第一条就正常结束了，退出码还是 0",
-      "expect_ids": ["bash-loop-child-steals-stdin"],
+      "expect_ids": [
+        "bash-loop-child-steals-stdin"
+      ],
       "note": "避开 while read / stdin / 子进程"
     },
     {
       "id": "T-heredoc",
-      "phase": "transfer",
+      "phase": "invalid",
       "query": "一条命令里先生成一个文件再接着用它，下游却说文件不存在",
-      "expect_ids": ["heredoc-in-and-chain"],
-      "note": "避开 heredoc / && / ENOENT"
+      "expect_ids": [
+        "heredoc-in-and-chain"
+      ],
+      "note": "【已作废】标注错误：目标 heredoc-in-and-chain 位于 lessons/（candidate），按 I2 永不进入注入集，因此任何召回层都不可能命中它。保留此条作为标注纪律的反例：写 expect_ids 前必须确认目标条目在 RECALL_DIRS（playbook/facts/episodes/principles）内。"
     },
     {
       "id": "T-docdrift",
       "phase": "transfer",
       "query": "文档里那些『共 N 项』的说法还能信吗，是几天前写的",
-      "expect_ids": ["doc-selfreported-counts-drift"],
+      "expect_ids": [
+        "doc-selfreported-counts-drift"
+      ],
       "note": "避开 自述数字 / 手册 / 进度评估 / 命令数"
     },
     {
       "id": "T-cfar",
       "phase": "transfer",
       "query": "雷达出的目标点里混了很多根本不存在的回波，想把它们筛掉",
-      "expect_ids": ["playbook-ucm221-cfar-point-cloud-filtering"],
+      "expect_ids": [
+        "playbook-ucm221-cfar-point-cloud-filtering"
+      ],
       "note": "避开 点云 / 虚警 / CFAR / 峰值剪枝"
     },
-
     {
       "id": "N-download",
       "phase": "noise",
@@ -154,20 +180,25 @@
       "expect_ids": [],
       "note": "真实历史查询，无信息量"
     },
-
     {
       "id": "C-new",
       "phase": "change",
       "query": "本项目部署到生产要用哪个 Node 版本",
-      "expect_ids": ["zz-node-version-new"],
-      "forbid_ids": ["zz-node-version-old"],
+      "expect_ids": [
+        "zz-node-version-new"
+      ],
+      "forbid_ids": [
+        "zz-node-version-old"
+      ],
       "note": "fixture：旧条目被 superseded_by 指向新条目，必须召回新的、排除旧的（I2）"
     },
     {
       "id": "C-retain",
       "phase": "change",
       "query": "打包镜像时基础镜像怎么选",
-      "expect_ids": ["zz-base-image"],
+      "expect_ids": [
+        "zz-base-image"
+      ],
       "note": "fixture：未被取代的同库条目不应受取代动作影响（防误伤）"
     }
   ]
