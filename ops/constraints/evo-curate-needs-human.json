@@ -1,0 +1,11 @@
+{
+  "id": "evo-curate-needs-human",
+  "matcher": "evo\\s+curate\\b",
+  "match_on": "command",
+  "message": "入库须人审（I3）：curate 是注入集的唯一写入口，agent 不应自行调用。请让用户以 `! evo curate --file <提案> --to <区>` 亲自执行。若这是误报（commit message / 文档里提及 curate），忽略本提示即可——warn 阶段正在收集误报样本。",
+  "coverage_note": "覆盖 `evo curate` / `bin/evo curate` / 绝对路径调用；子串匹配无法区分'执行'与'提及'（引号内字面量、git commit -m、grep 均会命中），这是 matcher 的固有上限，升 block 前须按 §8 准入④复核命令位命中率。未覆盖：变量间接调用（$EVO curate）——smoke 自身即如此，属已知盲区。",
+  "mode": "warn",
+  "source_entry": "approval-gate-written-only-in-prompt-is-not-enforceable",
+  "criteria_confirmed": false,
+  "created": "2026-07-28"
+}

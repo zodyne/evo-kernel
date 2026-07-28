@@ -810,6 +810,8 @@ const cmds = {
     const entries = loadEntries(SCAN_DIRS);
     const out = [];
     const now = Date.now(), DAY = 86400000;
+    // 悬挂 related 检查的解析表：含 archive（链到已归档条目不算悬挂，但要提示改指）
+    const byId = new Map(loadEntries(SCAN_DIRS.concat(['ops/archive'])).map((x) => [x.id, x]));
     for (const e of entries) {
       const ev = e.evidence || {};
       // HIGH：harmful>0 且 harmful>helpful
@@ -821,6 +823,12 @@ const cmds = {
       // MID：lessons 中 status ≠ candidate（规则违反）
       if (e._zone === 'lessons' && e.status && e.status !== 'candidate')
         out.push({ level: 'MID', id: e.id, why: `lessons/ 中 status=${e.status}（规则：只存 candidate）→ 迁出` });
+      // SCHEMA ⑮ 建链规则：悬挂 related 比没有链接更误导，加字段就必须同时给出治理出口
+      for (const r of Array.isArray(e.related) ? e.related : []) {
+        const t = byId.get(r);
+        if (!t) out.push({ level: 'MID', id: e.id, why: `related 指向不存在的 id: ${r} → 修正或删除该链接` });
+        else if (t.superseded_by) out.push({ level: 'LOW', id: e.id, why: `related 指向已被取代的 ${r}（→ ${t.superseded_by}）→ 改指新条目` });
+      }
       const lv = Date.parse(e.last_verified || e.created || '');
       if (!isNaN(lv)) {
         const age = Math.floor((now - lv) / DAY);
@@ -896,7 +904,13 @@ const cmds = {
         } catch {}
       }
     } catch {}
-    const precision = reconciled ? Math.round(((adopted + relUnused) / reconciled) * 100) : 0;
+    // §7.1 精度必须拆成两个数（依据 playbook/injection-precision-must-split-recall-vs-adoption）：
+    //   召回精度 = 检索层（找来的相关吗）—— M1 闸门读这个
+    //   采纳率   = 应用层（找对了的里，Agent 真正用上了多少）—— 即 harness-benefit
+    // 合成一个数会让指标对后者完全不敏感：采纳率持续为 0 的系统，只要召回还准，精度看起来依然健康。
+    const relevantN = adopted + relUnused;
+    const precision = reconciled ? Math.round((relevantN / reconciled) * 100) : 0;
+    const adoption = relevantN ? Math.round((adopted / relevantN) * 100) : 0;
 
     // 降级事件（§7.2）
     let degradeN = 0; const degradeByComp = {};
@@ -934,7 +948,10 @@ const cmds = {
       '## 判据对照表（§7.3，判据驱动执行机构）',
       '| 判据 | 当前值 | 阈值 | 状态 |',
       '|---|---|---|---|',
-      `| M1 注入精度 | ${precision}%（${adopted + relUnused}/${reconciled}） | <50% 连续2周期 | ${reconciled ? (precision < 50 ? '命中' : '未命中') : '无数据'} |`,
+      `| M1 召回精度（检索层） | ${precision}%（${relevantN}/${reconciled}） | <50% 连续2周期 | ${reconciled ? (precision < 50 ? '命中' : '未命中') : '无数据'} |`,
+      // 采纳率是观察项不是闸门：阈值需要数据才能定，先攒着（定阈值前不要拿它做决策）。
+      // 必须与 misleading 并列读——被采纳的错误经验比"相关未用"危害更大，不能单独优化采纳率。
+      `| 采纳率（应用层·harness-benefit） | ${relevantN ? adoption + '%（' + adopted + '/' + relevantN + '）' : '无数据'} | 观察项（阈值待数据） | ${relevantN ? (misleading ? `⚠ 另有 misleading ${misleading} 例，须并读` : '观察') : '无数据'} |`,
       `| M1 对账覆盖率 | ${calls ? Math.round((reconciled / Math.max(calls, 1)) * 100) : 0}%（${reconciled}/${calls || 0}） | <30% 精度不可解读 | ${calls && reconciled / calls < 0.3 ? '⚠ 覆盖率过低，先修蒸馏纪律' : 'ok'} |`,
       `| M1 判定者分歧率 | (待人工抽≥10例复核) | >20% 精度不可解读 | ${recByJudge.reflector ? '⚠ 见下方校准' : 'n/a'} |`,
       `| M1 recall 累计 | ${calls} 次 | ≥200 | ${calls >= 200 ? '命中' : '未命中'} |`,

@@ -22,6 +22,7 @@ source: session:xxx 或 人工       # ⑪ 来源
 last_verified: 2026-07-23        # ⑫ YYYY-MM-DD；audit 复验超期用
 superseded_by: null              # ⑬ 固化升级后指向新条目；非空即 recall 跳过（I2）
 schema_version: 1                # ⑭【决策②】当前版本 1；写入新条目时带；解析缺省按 1
+related: [other-entry-id]        # ⑮ 可选：横向链接到相关条目 id（见下"建链规则"）
 ---
 正文：一句话主张 + 为什么 + 反例/边界 + 证据链接
 ```
@@ -32,6 +33,15 @@ schema_version: 1                # ⑭【决策②】当前版本 1；写入新�
 - **增量 delta 写入**；禁止整体重写（ACE 防 context collapse）。
 - **计数是滞后近似信号**（批处理周期级），禁止实时使用。helpful/harmful 只由离线对账回填（reconcile.jsonl，I4 单点写）。
 - **注入排除（I2 守恒）**：`inbox/`（未审）与 `lessons/`（candidate）永不进自动注入通道；`superseded_by` 非空条目排除出注入集。
+
+## 建链规则（⑮ `related`）
+
+纯文件式知识库若条目间无交叉引用，除全文扫描/向量检索外无从导航，**条目越多越难检索**；而模型不会自发建链，必须在写入侧写死要求（依据 `lessons/file-based-kb-needs-explicit-cross-links`）。
+
+- **写入时**：新增条目前先 `evo catalog` 查重，把相关的已有条目 id 填进 `related`（0~5 个，宁缺毋滥）。
+- **链接对象**：互补/前置/易混淆的条目。**不是**"同领域"——同 domain 已由 domain 字段表达，重复链接只会稀释信号。
+- **悬挂引用**：被链条目一旦 archive 或改 id，悬挂链接比没链接更误导。`evo audit` 检查 `related` 指向不存在的 id（MID）与指向已 `superseded_by` 条目（LOW）。
+- **不做的事**：不做双向自动回写（单写者约定下易产生半成品），不参与 relevance 打分（链接是导航用，不是召回权重）。
 
 ## 状态机（命令 × 源 × 目标）
 

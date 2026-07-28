@@ -188,6 +188,17 @@ for i in 1 2 3 4 5 6; do $EVO guard --tool bash --input-json '{"command":"git co
 { $EVO reflect 2>&1 | grep -q "不建议升 block: 约束 \[t-fp\]"; } \
   && ok "F: 全引号内提及的约束不得进升 block 候选" || bad "F: 升 block 判据" "(裸命中被当证据)"
 rm -f "$EVO_ROOT/ops/constraints/t-fp.json"
+# I3 人审门必须由 guard 执行，不能只写在 SKILL.md 里：agent 能直调的命令等于没有人审
+# （见 playbook/approval-gate-written-only-in-prompt-is-not-enforceable）。warn 档，不阻断。
+{ $EVO guard --tool bash --input-json '{"command":"evo curate --file x.md --to playbook"}' 2>&1 | grep -q 'evo-curate-needs-human'; } \
+  && ok "F: curate 人审门有 guard 执行（I3 可执行化）" || bad "F: curate 人审门" "(guard 未拦 evo curate)"
+{ $EVO guard --tool bash --input-json '{"command":"evo recall --task t"}' 2>&1 | grep -q '"allow"'; } \
+  && ok "F: 人审门不误伤其他 evo 命令" || bad "F: 人审门误伤" "(evo recall 被拦)"
+# SCHEMA ⑮：related 悬挂引用比没有链接更误导，加字段必须同时有治理出口
+printf -- '---\nid: zz-dangling\ntype: lesson\nstatus: candidate\ntriggers: ["悬挂探针"]\nrelated: [no-such-entry-id]\n---\n正文\n' > "$EVO_ROOT/lessons/zz-dangling.md"
+{ $EVO audit 2>&1 | grep -q 'related 指向不存在的 id'; } \
+  && ok "F: audit 检出悬挂 related（建链治理出口）" || bad "F: 悬挂 related" "(audit 未检出)"
+rm -f "$EVO_ROOT/lessons/zz-dangling.md"
 # K0a primer：安装是替换标记块而非覆盖用户配置——必须保住目标文件里的原有内容。
 # 这两个文件是用户自己的全局配置，写坏了影响每一次会话。
 PT="$TMP/primer-target.md"
@@ -356,7 +367,11 @@ $EVO index rebuild >/dev/null 2>&1
 { grep -A10 'id: arxiv-api-rate-limit' "$EVO_ROOT/index/manifest.yaml" | grep -q 'helpful: 4' && grep -A10 'id: arxiv-api-rate-limit' "$EVO_ROOT/index/manifest.yaml" | grep -q 'harmful: 1'; } && ok "J: rebuild 聚合 reconcile delta（helpful+1/harmful+1）" || bad "J: rebuild 聚合 delta" "(manifest 未反映累计)"
 # 精度计算（reflect 判据对照表）：3 例中 adopted+relevant-unused=2 → 67%
 REFL_OUT=$($EVO reflect 2>&1)
-{ echo "$REFL_OUT" | grep -q "M1 注入精度"; } && ok "J: 精度计算（reflect 判据对照表含 M1 注入精度）" || bad "J: 精度计算" "(reflect 无判据对照表)"
+{ echo "$REFL_OUT" | grep -q "M1 召回精度"; } && ok "J: 精度计算（reflect 判据对照表含 M1 召回精度）" || bad "J: 精度计算" "(reflect 无判据对照表)"
+# §7.1 精度必须拆两个数：relevant-unused 计入召回精度分子、但不计入采纳率分子。
+# 合成一个数会让指标对 harness-benefit（召回对了却没被用上）完全不敏感。
+{ echo "$REFL_OUT" | grep -q "采纳率（应用层"; } \
+  && ok "J: 采纳率与召回精度拆开呈报（harness-benefit 可见）" || bad "J: 采纳率拆分" "(判据表无采纳率行)"
 # reconcile 写入校验（schema 合法）
 node -e "
 const fs=require('fs');
