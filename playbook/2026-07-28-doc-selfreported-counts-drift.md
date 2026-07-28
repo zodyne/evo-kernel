@@ -1,7 +1,7 @@
 ---
 id: doc-selfreported-counts-drift
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: documentation
 tags: [stale-docs, verification, manual]
