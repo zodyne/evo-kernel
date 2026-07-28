@@ -233,6 +233,16 @@ printf -- '---\nid: zz-scope-probe\ntype: lesson\nstatus: candidate\ntriggers: [
 { ( cd "$EVO_ROOT" && git status --porcelain UNRELATED-DIRTY.txt 2>/dev/null | grep -q '??' ); } \
   && ok "curate 不卷入无关文件（提交边界）" || bad "curate 提交边界" "(无关脏文件被一起提交)"
 rm -f "$EVO_ROOT/UNRELATED-DIRTY.txt" "$EVO_ROOT/playbook/scopeprobe.md"
+# curate 的 commit 必须**真的成功**。提案文件从未被 git 跟踪，被 curate 移走后其路径既不存在
+# 也无历史，若仍传给 git add 会让整批 add fatal(128) → 一个都暂存不上 → commit 失败 → gitPush()
+# 够不着 → 部署门① 的自动 push 静默失效。实盘发生过：连续 4 次 curate 全部未提交、ahead 4 未推送。
+# 上面的「提交边界」用例抓不到它：那个探针提案写在 $TMP（ROOT 之外），add 本就 fatal，
+# 于是"无关文件没被卷入"因整批提交失败而平凡成立——它通过了，但是为错误的原因通过的。
+printf -- '---\nid: zz-commit-probe\ntype: lesson\nstatus: candidate\ntriggers: ["提交成功探针"]\n---\n正文\n' > "$EVO_ROOT/ops/proposals/zz-commit-probe.md"
+( cd "$EVO_ROOT" && $EVO curate --file ops/proposals/zz-commit-probe.md --to playbook >/dev/null 2>&1 )
+{ ( cd "$EVO_ROOT" && git log -1 --pretty=%s 2>/dev/null | grep -q 'zz-commit-probe' ); } \
+  && ok "curate 未跟踪提案仍能成功 commit" || bad "curate commit（未跟踪提案）" "(实得 HEAD: $( cd "$EVO_ROOT" && git log -1 --pretty=%s 2>&1 ))"
+rm -f "$EVO_ROOT/playbook/zz-commit-probe.md"
 t "curate 文件缺失"        "✗ 提案不存在" $EVO curate --file /nonexistent.md --to lessons
 t "slice 命令↔结果对齐"    "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session.jsonl"
 t "slice Claude 命令↔结果"  "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session-claude.jsonl"
