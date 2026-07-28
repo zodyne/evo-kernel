@@ -199,6 +199,15 @@ printf -- '---\nid: zz-dangling\ntype: lesson\nstatus: candidate\ntriggers: ["�
 { $EVO audit 2>&1 | grep -q 'related 指向不存在的 id'; } \
   && ok "F: audit 检出悬挂 related（建链治理出口）" || bad "F: 悬挂 related" "(audit 未检出)"
 rm -f "$EVO_ROOT/lessons/zz-dangling.md"
+# 检索基准的契约：跑得起来、四阶段齐全、且**不写真实 ops/log**（recall.jsonl 是 §7.1 精度与
+# §5.0 回放的数据源，基准查询混进去会污染判据）。此处不守护阈值——阈值要先有基线才能定。
+BENCH_BEFORE=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+BENCH_OUT=$(node "$SRC/test/retrieval-bench/bench.js" 2>&1)
+BENCH_AFTER=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+{ echo "$BENCH_OUT" | grep -q '| transfer |' && echo "$BENCH_OUT" | grep -q '| change |'; } \
+  && ok "M: 检索基准四阶段可跑" || bad "M: 检索基准" "(实得: $(echo "$BENCH_OUT" | tail -1))"
+{ [ "$BENCH_BEFORE" = "$BENCH_AFTER" ]; } \
+  && ok "M: 基准不污染 recall.jsonl（测量与被测数据隔离）" || bad "M: 基准日志隔离" "($BENCH_BEFORE → $BENCH_AFTER 行)"
 # K0a primer：安装是替换标记块而非覆盖用户配置——必须保住目标文件里的原有内容。
 # 这两个文件是用户自己的全局配置，写坏了影响每一次会话。
 PT="$TMP/primer-target.md"
