@@ -263,6 +263,22 @@ printf -- '---\nid: zz-commit-probe\ntype: lesson\nstatus: candidate\ntriggers: 
 { ( cd "$EVO_ROOT" && git log -1 --pretty=%s 2>/dev/null | grep -q 'zz-commit-probe' ); } \
   && ok "curate 未跟踪提案仍能成功 commit" || bad "curate commit（未跟踪提案）" "(实得 HEAD: $( cd "$EVO_ROOT" && git log -1 --pretty=%s 2>&1 ))"
 rm -f "$EVO_ROOT/playbook/zz-commit-probe.md"
+# 空提交容错分支：git commit 把 "no changes added to commit" 写到 **stdout**，而 execSync 抛出的
+# e.message 只含 stderr——原先只查 e.message，该容错从未生效过（此分支原先无用例，pi 独立评审指出）。
+#
+# 必须用 solidify --to hook 构造，不能用 curate：curate 每次都 rebuild，而 manifest 头部带
+# `# rebuilt: <ISO 时间戳>`，**每次重建必产生 diff** → 经 curate 永远到不了"无可提交"。
+# （这也解释了为何这条容错坏了很久却无可见伤害：它守的场景在主路径上根本不发生。）
+# solidify --to hook 只提交 constraint json、不带 manifest，同 id 同日重跑内容字节一致 → 空提交。
+# 观测点用降级事件而非命令输出：solidify 不检查 gitCommitWithRetry 返回值，输出分不出成败。
+SOL_ARGS=(--id macos-no-timeout-command --to hook --matcher zz-probe-matcher --criteria-confirmed)
+( cd "$EVO_ROOT" && $EVO solidify "${SOL_ARGS[@]}" >/dev/null 2>&1 )
+( cd "$EVO_ROOT" && $EVO solidify "${SOL_ARGS[@]}" >/dev/null 2>&1 )
+# 断言须锚到本用例的 commit message：degrade.jsonl 里还有更早的无关事件——第 222 行的
+# zz-status-probe2 curate 跑在 git init 之前，当时无仓库，记降级是 fail-open 的正常行为。
+{ ! grep -q 'solidify: macos-no-timeout-command' "$EVO_ROOT/ops/log/degrade.jsonl" 2>/dev/null; } \
+  && ok "空提交（无实际变更）判成功，不记降级" || bad "空提交容错" "(实得降级: $(grep 'solidify: macos-no-timeout-command' "$EVO_ROOT/ops/log/degrade.jsonl" 2>/dev/null | grep -o '"reason":"[^"]*' | tail -1))"
+rm -f "$EVO_ROOT/ops/constraints/macos-no-timeout-command.json"
 t "curate 文件缺失"        "✗ 提案不存在" $EVO curate --file /nonexistent.md --to lessons
 t "slice 命令↔结果对齐"    "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session.jsonl"
 t "slice Claude 命令↔结果"  "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session-claude.jsonl"

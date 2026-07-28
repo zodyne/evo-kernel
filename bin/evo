@@ -828,6 +828,9 @@ const cmds = {
         const t = byId.get(r);
         if (!t) out.push({ level: 'MID', id: e.id, why: `related 指向不存在的 id: ${r} → 修正或删除该链接` });
         else if (t.superseded_by) out.push({ level: 'LOW', id: e.id, why: `related 指向已被取代的 ${r}（→ ${t.superseded_by}）→ 改指新条目` });
+        // demote --to archive 的条目 status:deprecated 但无 superseded_by，上面两条都接不住，
+        // 会静默放行——链到一条已退役条目和链到不存在的条目同样误导（pi 独立评审发现）。
+        else if (t._zone === 'ops/archive') out.push({ level: 'LOW', id: e.id, why: `related 指向已归档条目 ${r}（status:${t.status || '?'}）→ 改指或删除该链接` });
       }
       const lv = Date.parse(e.last_verified || e.created || '');
       if (!isNaN(lv)) {
@@ -950,8 +953,15 @@ const cmds = {
       '|---|---|---|---|',
       `| M1 召回精度（检索层） | ${precision}%（${relevantN}/${reconciled}） | <50% 连续2周期 | ${reconciled ? (precision < 50 ? '命中' : '未命中') : '无数据'} |`,
       // 采纳率是观察项不是闸门：阈值需要数据才能定，先攒着（定阈值前不要拿它做决策）。
-      // 必须与 misleading 并列读——被采纳的错误经验比"相关未用"危害更大，不能单独优化采纳率。
-      `| 采纳率（应用层·harness-benefit） | ${relevantN ? adoption + '%（' + adopted + '/' + relevantN + '）' : '无数据'} | 观察项（阈值待数据） | ${relevantN ? (misleading ? `⚠ 另有 misleading ${misleading} 例，须并读` : '观察') : '无数据'} |`,
+      // 必须与 misleading 并列读：misleading 是与 adopted 互斥的第四态（误导了执行方向），
+      // 它不在采纳率分子里，但危害比"相关未用"大，只看采纳率会漏掉它。
+      // relevantN=0 且 reconciled>0 不是"无数据"，是**召回的全部无关/误导**——这恰是最该
+      // 报警的情形，报成"无数据"会把最坏情况伪装成没发生（pi 独立评审发现，2026-07-28）。
+      `| 采纳率（应用层·harness-benefit） | ${
+        relevantN ? `${adoption}%（${adopted}/${relevantN}）` : reconciled ? `⚠ 0 条相关（${reconciled} 例全部 irrelevant/misleading）` : '无数据'
+      } | 观察项（阈值待数据） | ${
+        relevantN ? (misleading ? `⚠ 另有 misleading ${misleading} 例，须并读` : '观察') : reconciled ? '⚠ 召回层已失效，先看召回精度' : '无数据'
+      } |`,
       `| M1 对账覆盖率 | ${calls ? Math.round((reconciled / Math.max(calls, 1)) * 100) : 0}%（${reconciled}/${calls || 0}） | <30% 精度不可解读 | ${calls && reconciled / calls < 0.3 ? '⚠ 覆盖率过低，先修蒸馏纪律' : 'ok'} |`,
       `| M1 判定者分歧率 | (待人工抽≥10例复核) | >20% 精度不可解读 | ${recByJudge.reflector ? '⚠ 见下方校准' : 'n/a'} |`,
       `| M1 recall 累计 | ${calls} 次 | ≥200 | ${calls >= 200 ? '命中' : '未命中'} |`,
