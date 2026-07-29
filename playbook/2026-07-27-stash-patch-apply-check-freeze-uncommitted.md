@@ -1,7 +1,7 @@
 ---
 id: 2026-07-27-stash-patch-apply-check-freeze-uncommitted
 type: playbook
-status: candidate
+status: validated
 scope: global
 domain: git-workflow
 tags: [git, stash, patch, apply-check, archive, provenance]
