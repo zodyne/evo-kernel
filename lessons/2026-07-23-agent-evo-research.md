@@ -1,7 +1,7 @@
 ---
 id: episode-agent-evo-research
 type: episode
-status: validated
+status: candidate
 scope: global
 domain: research-methodology
 tags: [episode, agent-evo, research, blueprint]
