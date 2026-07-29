@@ -149,7 +149,7 @@ Evo-Kernel 是位于通用记忆框架之上的「经验治理与固化层」。
 \node[box, fill=evoyellow!15, below=1.2cm of pi] (hook2) {before\_agent\_start\\session\_shutdown\\tool\_call};
 
 % 协议层
-\node[box, fill=linkblue!10, below=1.5cm of hook1] (proto) {evo CLI\\21 个命令};
+\node[box, fill=linkblue!10, below=1.5cm of hook1] (proto) {evo CLI\\26 个命令};
 
 % 内核层
 \node[box, fill=evored!10, below=1.2cm of proto] (kernel) {内核层\\目录即状态机};
@@ -211,25 +211,39 @@ Evo-Kernel 的每个目录都有明确的角色，这是「目录即状态机」
 
 \begin{figure}[H]
 \centering
+% 布局：主链路（捕获→提案→入库）横向在 y=0，两条固化分支上下分岔，退役在下方。
+% superseded 回边走右侧页边（x=14.3）绕开 hook 节点，不穿过节点场。
+% 宽度核算（textwidth = 16cm）：节点半宽 ≤1.41，横向间距 4.3/4.4 → 节点间空档 1.7cm，
+% 恰好容下最长边标签 "slice / reflect"（\scriptsize ≈1.5cm）；
+% 总占位 = 左缘 -1.3 至右缘 14.3 = 15.6cm，留 0.4cm 余量。
 \begin{tikzpicture}[
-  state/.style={rectangle, rounded corners, draw, minimum width=2.8cm, minimum height=0.9cm, align=center, font=\small},
+  state/.style={rectangle, rounded corners, draw, minimum width=2.6cm, minimum height=1.0cm, align=center, font=\footnotesize},
   arrow/.style={-{Stealth[length=2mm]}, thick},
-  annot/.style={font=\footnotesize, color=evogray}
+  annot/.style={font=\scriptsize, color=evogray, fill=white, inner sep=1pt}
 ]
 
-\node[state, fill=evogreen!10] (capture) {inbox\\捕获};
-\node[state, fill=evoyellow!10, right=1.5cm of capture] (slice) {ops/proposals\\提案};
-\node[state, fill=linkblue!10, right=1.5cm of slice] (curate) {playbook/facts/...\\入库};
-\node[state, fill=evored!10, above right=0.8cm and 1.5cm of curate] (skill) {skills/\\SKILL 固化};
-\node[state, fill=evored!10, below right=0.8cm and 1.5cm of curate] (hook) {ops/constraints/\\hook 硬化};
-\node[state, fill=evogray!20, below=1.5cm of curate] (archive) {ops/archive/\\退役};
+\node[state, fill=evogreen!10]  (capture) at (0,0)      {inbox\\捕获};
+\node[state, fill=evoyellow!10] (slice)   at (4.3,0)    {ops/proposals\\提案};
+\node[state, fill=linkblue!10]  (curate)  at (8.7,0)    {playbook/facts/…\\入库};
+\node[state, fill=evored!10]    (skill)   at (12.7,1.9) {skills/\\SKILL 固化};
+\node[state, fill=evored!10]    (hook)    at (12.7,-1.9){ops/constraints/\\hook 硬化};
+\node[state, fill=evogray!20]   (archive) at (8.7,-3.6) {ops/archive/\\退役};
 
-\draw[arrow] (capture) -- (slice) node[midway, above, annot] {slice / reflect};
-\draw[arrow] (slice) -- (curate) node[midway, above, annot] {人审 curate};
-\draw[arrow] (curate) -- (skill) node[midway, above, sloped, annot] {solidify skill};
-\draw[arrow] (curate) -- (hook) node[midway, below, sloped, annot] {solidify hook};
-\draw[arrow] (curate) -- (archive) node[midway, right, annot] {demote};
-\draw[arrow, dashed] (skill) -- (archive) node[midway, right, annot] {superseded};
+\draw[arrow] (capture) -- (slice);
+\draw[arrow] (slice) -- (curate);
+\draw[arrow] (curate) -- (skill);
+\draw[arrow] (curate) -- (hook);
+\draw[arrow] (curate) -- (archive);
+\draw[arrow, dashed] (skill.east) -- (14.3,1.9) -- (14.3,-3.6) -- (archive.east);
+
+% 边标签放在节点上沿之上（y=0.78 > 节点半高 0.5），横向再宽也不会压到节点；
+% 两条斜向标签退到 x=10.4，避开 skill/hook 节点左缘（x≈11.4）。
+\node[annot] at (2.15,0.78)  {slice / reflect};
+\node[annot] at (6.5,0.78)   {人审 curate};
+\node[annot] at (10.15,1.2)  {solidify skill};
+\node[annot] at (10.15,-1.2) {solidify hook};
+\node[annot, anchor=west] at (8.85,-1.9) {demote};
+\node[annot] at (12.2,-3.6)  {superseded};
 
 \end{tikzpicture}
 \caption{经验生命周期状态机}
@@ -249,7 +263,7 @@ cd ~/Dev/evo-kernel
 ./bin/evo doctor
 \end{lstlisting}
 
-期望输出是 \texttt{OK (N PASS / 1 WARN / 0 FAIL)}。唯一常见的 WARN 是 transcript 哨兵比，这是已知飞轮状态，由 reflect 周期跟踪。
+期望输出是 \texttt{OK (N PASS / 少量 WARN / 0 FAIL)}，只要 FAIL=0 即为健康。常见的 WARN 有三类，均非故障：工作区有未提交变更、manifest 滞后（跑一次 \texttt{evo index rebuild} 即消）、transcript 哨兵比（已知飞轮状态，由 reflect 周期跟踪）。
 
 \subsection{捕获一个想法}
 
@@ -344,6 +358,10 @@ curate 是唯一的入库口（不变量 I3）。不要手动把文件拖进 \te
 
 一次完整工作会话结束后，把 transcript 中的经验提炼出来。
 
+\begin{tipbox}
+这条流程现在已经自动化：SessionEnd 触发器会调用 \texttt{ops/bin/evo-distill.sh}（带锁，防并发），launchd 每日 03:30 再跑一次兜底（\texttt{--max 3}），清掉会话结束时机器休眠、harness 超时或锁冲突漏掉的积压。队列由 \texttt{evo queue} 给出、完成后 \texttt{evo mark-distilled} 回写。下面的手动步骤保留，用于自动链路失效时的排查与补跑。
+\end{tipbox}
+
 \textbf{Step 1：确认 session 已登记}
 
 Claude Code / Pi 的 session-end hook 会自动写 \texttt{inbox/session-refs.jsonl}。你也可以手动登记：
@@ -358,7 +376,7 @@ Claude Code / Pi 的 session-end hook 会自动写 \texttt{inbox/session-refs.js
 ./bin/evo slice --session /path/to/transcript.jsonl --ids <session-id>
 \end{lstlisting}
 
-这会输出一个 Markdown 报告，包含：命令 ↔ 结果对照、写/改文件列表、首条 user、末条 assistant，以及该 session 被注入了哪些经验条目。
+这会输出一个 Markdown 报告，包含：命令 $\leftrightarrow$ 结果对照、写/改文件列表、首条 user、末条 assistant，以及该 session 被注入了哪些经验条目。
 
 \textbf{Step 3：生成 reflect 提案}
 
@@ -410,20 +428,28 @@ reflect 会：
 
 \begin{figure}[H]
 \centering
+% 布局：4 阶段线性流水线，绝对坐标 x = 0 / 4.2 / 8.4 / 12.6。
+% 宽度核算（textwidth = 16cm）：最宽节点内容 ~2.2cm + inner sep 0.67cm = 2.87cm，
+% 半宽 1.44 → 横向占位 = 12.6 + 2×1.44 = 15.5cm，留 0.5cm 余量。
 \begin{tikzpicture}[
-  stage/.style={rectangle, rounded corners, draw, minimum width=3cm, minimum height=0.9cm, align=center, font=\small},
+  stage/.style={rectangle, rounded corners, draw, minimum width=2.6cm, minimum height=1.1cm, align=center, font=\footnotesize},
   arrow/.style={-{Stealth[length=2mm]}, thick},
-  annot/.style={font=\footnotesize, color=evogray}
+  annot/.style={font=\scriptsize, color=evogray, fill=white, inner sep=1pt}
 ]
 
-\node[stage, fill=evogreen!10] (raw) {原始资料\\Obsidian/Notion/MD};
-\node[stage, fill=evoyellow!10, right=1.5cm of raw] (prep) {预处理\\frontmatter/atomize/link};
-\node[stage, fill=linkblue!10, right=1.5cm of prep] (proposal) {ops/proposals/\\提案池};
-\node[stage, fill=evored!10, right=1.5cm of proposal] (curate) {人审 curate\\playbook/facts/...};
+\node[stage, fill=evogreen!10]  (raw)      at (0,0)    {原始资料\\Obsidian /\\Notion / MD};
+\node[stage, fill=evoyellow!10] (prep)     at (4.2,0)  {预处理\\frontmatter\\atomize / link};
+\node[stage, fill=linkblue!10]  (proposal) at (8.4,0)  {ops/proposals/\\提案池};
+\node[stage, fill=evored!10]    (curate)   at (12.6,0) {人审 curate\\playbook / facts};
 
-\draw[arrow] (raw) -- (prep) node[midway, above, annot] {脚本/LLM};
-\draw[arrow] (prep) -- (proposal) node[midway, above, annot] {生成提案};
-\draw[arrow] (proposal) -- (curate) node[midway, above, annot] {人工};
+\draw[arrow] (raw) -- (prep);
+\draw[arrow] (prep) -- (proposal);
+\draw[arrow] (proposal) -- (curate);
+
+% 边标签放在节点上沿之上（y=0.9 > 节点半高 ~0.63），不与节点争夺横向空档。
+\node[annot] at (2.1,0.9)  {脚本/LLM};
+\node[annot] at (6.3,0.9)  {生成提案};
+\node[annot] at (10.5,0.9) {人工};
 
 \end{tikzpicture}
 \caption{外部资料导入的两阶段模型}
@@ -690,7 +716,7 @@ git clone git@github.com:zodyne/evo-kernel.git
 cd evo-kernel
 npm install
 ./bin/evo doctor   # 此时 harness 挂线项会 WARN/FAIL，属预期
-./test/smoke.sh    # 必须 PASS=61 FAIL=0
+./test/smoke.sh    # 必须 PASS=85 FAIL=0
 rm -rf "$TMPDIR"
 \end{lstlisting}
 
@@ -714,10 +740,134 @@ rm -rf "$TMPDIR"
 
 \begin{itemize}
   \item \textbf{「我把文件拖进 playbook/ 就行了吧？」} 不行。curate 是唯一能写入 playbook/facts/episodes/principles 的入口。
-  \item \textbf{「recall 空命中很多，是不是该上 M1 FTS5？」} M1 判据是「注入精度连续 2 周期 <50\% 且 recall $\geq$ 200 次」。现在 recall 才约 50 次，数据不足，做了也是过早优化。
+  \item \textbf{「recall 空命中很多，是不是该上 M1 FTS5？」} M1 判据是「注入精度连续 2 周期 <50\% 且 recall $\geq$ 200 次」。截至 2026-07-29 recall 累计 193 次、召回精度 54\%，两条都未命中；且对账覆盖率仅 20\%，精度本身还不可解读。做了也是过早优化。
   \item \textbf{「transcript 哨兵比高，是不是 bug？」} 不是 bug。Claude Code 会按策略清理 transcript 文件，登记与蒸馏之间存在腐烂窗口。由 reflect 周期跟踪，不是靠实施解决。
   \item \textbf{「我想在另一台机器上也 curate。」} 暂时不要。多机并写未设计，只读消费可以。
 \end{itemize}
+
+%======================================================================
+\section{实施进度评估（截至 2026-07-29）}
+%======================================================================
+
+\begin{tipbox}
+本节所有数字取自 2026-07-29 当日在本机实跑的 \texttt{evo doctor --full} 与 \texttt{evo reflect} 输出，非估算。复现方式：\texttt{cd \textasciitilde/Dev/evo-kernel \&\& ./bin/evo doctor --full \&\& ./bin/evo reflect}。
+
+本节数字的时效性本身就是一条经验（条目 \texttt{doc-selfreported-counts-drift}）：初稿按 07-28 数据写成，隔一天复核时库规模已从 50 涨到 67、smoke 从 85 涨到 93、待审提案从 11 涨到 22。**读到本节请先按上面的命令复跑一遍**，不要直接引用纸面数字。
+\end{tipbox}
+
+\subsection{总体结论}
+
+内核已完整落地并进入日常生产使用：命令面 26 个、smoke 93 项断言全绿、双 harness 挂线完好、飞轮（capture $\rightarrow$ recall $\rightarrow$ 蒸馏 $\rightarrow$ curate）已闭环并自动化运行。设计文档 \texttt{design/final-architecture.md} §9.3 列出的 4 项「现在就做」（无判据）清单已全部核销。
+
+Phase 1--3（FTS5 / 向量 / LightRAG）按设计全部处于判据门控状态，当前无一命中——这是符合演进纪律的预期状态，不是欠账。
+
+真正的短板不在实现，在**治理链路的下游**：固化梯度（solidify）与退役出口（demote）代码就绪但零生产实例，硬约束 2 条规则全部停在 warn 且误报率 55--71\%，离线对账覆盖率仅 20\%（低于 30\% 的可解读门槛）。
+
+\subsection{Phase 0 清单核销}
+
+\begin{table}[H]
+\centering
+\caption{design/final-architecture.md §9.3「现在就做」四项}
+\begin{tabular}{@{}lp{5.5cm}p{4.2cm}@{}}
+\toprule
+\textbf{项} & \textbf{状态} & \textbf{证据} \\
+\midrule
+M0 解析器修复 & \textcolor{evogreen}{已完成} & 引入 \texttt{js-yaml}，且显式用 \texttt{CORE\_SCHEMA} 堵住日期被静默转 \texttt{Date} 的坑（commit \texttt{ed0c80e}） \\
+K0a primer & \textcolor{evogreen}{已完成} & \texttt{evo primer --install}；doctor 项 17 PASS：两处已装，\texttt{review\_after} 2026-09-25 \\
+去锚定 L1 & \textcolor{evogreen}{已完成} & primer 常驻块落 \texttt{CLAUDE.md}/\texttt{AGENTS.md} 为主、kernel 注入为辅（commit \texttt{312e62c}） \\
+日常飞轮 & \textcolor{evogreen}{运行中} & recall 累计 193 次；库从 18 条增至 67 条；蒸馏已自动化 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{能力落地矩阵}
+
+\begin{table}[H]
+\centering
+\caption{七条主链路的实现与验证状态}
+\begin{tabular}{@{}lp{2.4cm}p{6.4cm}@{}}
+\toprule
+\textbf{能力} & \textbf{状态} & \textbf{实测证据} \\
+\midrule
+捕获 capture & \textcolor{evogreen}{生产可用} & inbox 零判断入口在用；积压已按「junk drawer 前兆」清理过一轮（\texttt{420ec73}） \\
+检索注入 recall & \textcolor{evogreen}{生产可用} & 193 次调用，76\% 有注入命中（147/193）；后端仍为 \texttt{scan}（Phase 1 未触发） \\
+离线蒸馏 distill & \textcolor{evogreen}{已自动化} & SessionEnd 触发器 + launchd 每日 03:30 兜底（\texttt{--max 3}、带锁）；\texttt{queue} / \texttt{mark-distilled} / \texttt{catalog} 三命令支撑队列与查重 \\
+人审入库 curate & \textcolor{evogreen}{生产可用} & 51 条 \texttt{validated} 已入库；入 validated 区改写 status 的状态机漏洞已修（\texttt{cc45bf6}）；未跟踪提案致 \texttt{git add} 整批 fatal、commit 从未成功的缺陷已修（\texttt{cc3ff21}） \\
+离线对账 reconcile & \textcolor{evoyellow!70!black}{部分验证} & 39 例已判四态（adopted 6 / relevant-unused 15 / irrelevant 18 / misleading 0），覆盖率仅 20\% \\
+技能固化 solidify & \textcolor{evored}{路径未验证} & 代码与 smoke 就绪，但\textbf{生产实例为 0}；现有 4 个 SKILL 均为手写运维技能，非条目固化产物；reflect 已挂出 6 条固化候选待处理 \\
+硬约束 guard & \textcolor{evored}{路径未验证} & 2 条规则，\textbf{均停在 warn}：\texttt{dangerous-rm-rf} 误报率 71\%（59 裸命中/42 引号内提及）、\texttt{evo-curate-needs-human} 误报率 55\% 且 \texttt{criteria\_confirmed=false}，双双未达 §8 准入第 4 条 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{库存与飞轮实测数据}
+
+\begin{table}[H]
+\centering
+\caption{2026-07-29 实测规模}
+\begin{tabular}{@{}lp{4.6cm}p{4.6cm}@{}}
+\toprule
+\textbf{指标} & \textbf{当前值} & \textbf{备注} \\
+\midrule
+条目总数 & 67 & 其中可注入 51 条（\texttt{validated}） \\
+分区分布 & playbook 41 / lessons 9 / inbox 7 / facts 5 / episodes 4 / principles 1 & principles 单薄是真实缺口 \\
+待审提案 & 22 & 一天内从 11 翻倍，后台蒸馏产出快于人审 \\
+\texttt{ops/archive/} & 0 & 退役出口从未被走过 \\
+skills & 4 & 均为手写运维技能 \\
+constraints & 2（均 warn） & 无 block 规则 \\
+CLI 命令面 & 26 & 设计资产表记录的 617 行已增至 1463 行 \\
+smoke 断言 & PASS=93 FAIL=0 & 手册旧版记录为 61 \\
+doctor & 16 PASS / 1 WARN / 0 FAIL & WARN = 工作区有未提交变更 \\
+recall 累计 & 193 次 & 空命中任务 46 个 \\
+transcript 哨兵比 & 36/81（44\%） & 已由 FAIL/WARN 转为 PASS \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{判据门控状态}
+
+\begin{table}[H]
+\centering
+\caption{Phase 1--3 判据（全部未命中，符合预期）}
+\begin{tabular}{@{}lp{3.1cm}p{3.6cm}p{2.9cm}@{}}
+\toprule
+\textbf{判据} & \textbf{阈值} & \textbf{当前值} & \textbf{结论} \\
+\midrule
+M1 recall 累计 & $\geq$ 200 & 193 & 未命中（已逼近） \\
+M1 召回精度（检索层） & 连续 2 周期 $<$ 50\% & 54\%（21/39） & 未命中 \\
+采纳率（应用层） & 观察项，阈值待数据 & 29\%（6/21） & 观察 \\
+M1 对账覆盖率 & $\geq$ 30\% 方可解读 & 20\%（39/193） & \textcolor{evored}{不足，精度暂不可解读} \\
+M2 条目数（向量） & $\geq$ 500 & 67 & 未命中 \\
+P4 多跳关系需求 & 空命中呈关系特征 & 46 个空命中，多为闲聊/短指令 & 未命中 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{warnbox}
+对账覆盖率 20\% 是当前最关键的观测缺口：精度建立在 193 次注入里仅 39 次被判定的基础上，样本偏斜风险高。在覆盖率提到 30\% 以前，不应据此讨论换检索后端。
+
+另需注意精度口径已拆分为两层：\textbf{召回精度 54\%}（检索层——找出来的条目是否相关）与 \textbf{采纳率 29\%}（应用层——相关条目是否真被用上）。两者差距说明当前瓶颈更可能在「注入了但没被采纳」，而不在检索本身——这进一步支持「先修蒸馏与采纳纪律，而非先换检索后端」。
+\end{warnbox}
+
+\subsection{尚未验证的路径（诚实清单）}
+
+\begin{enumerate}
+  \item {\sloppy \textbf{固化梯度是空转的。} \texttt{solidify --to skill} 从未在生产跑过一次，\texttt{ops/archive/} 为空。这意味着「经验 $\rightarrow$ 技能」和「经验退役」这两条设计承诺的出口，只有 smoke 覆盖、没有真实使用反馈。reflect 当前挂着 6 条固化候选（最高的是 \texttt{verify-external-references}，helpful=5）与 1 条退役候选，是消除该空白的现成入口。\par}
+  \item \textbf{硬约束层实质未启用。} 2 条规则全部停在 \texttt{warn}：matcher 是子串匹配，分不清「执行」与「引号内提及」，误报率分别为 71\% 与 55\%，reflect 对两条都明确不建议升 \texttt{block}。硬化梯度目前仍是纸面能力。
+  \item \textbf{principles 仅 1 条。} 跨域普适原则本应是最高价值层，实际产出集中在 playbook（41 条）。蒸馏产物的层级分布偏低。
+  \item \textbf{提案积压 22 条。} 人审是设计上的瓶颈也是必要环节，但积压量一天内从 11 翻倍到 22——后台蒸馏的产出速度已明显快于人审速度，「消化层反成堆积层」不再是风险而是正在发生。
+  \item \textbf{多机并写仍未设计。} remote 只作备份，第二台机器只读消费的约束未变。
+\end{enumerate}
+
+\subsection{建议的下一步（按优先级）}
+
+\begin{enumerate}
+  \item 走通一次完整的 \texttt{solidify --to skill}，用 reflect 挂出的高 helpful 候选打通固化出口；同步走一次 \texttt{demote} 清掉空转条目。
+  \item 提升对账覆盖率至 30\% 以上——修蒸馏与采纳纪律优先于修检索（采纳率 29\% 明显低于召回精度 54\%）。
+  \item 收窄两条约束的 matcher（剥离引号语境，区分执行与提及），再谈 warn $\rightarrow$ block。
+  \item 消化 22 条待审提案，并给后台蒸馏加产出节流——否则人审永远追不上。
+  \item Phase 1--3 继续保持门控，不提前动工。
+\end{enumerate}
 
 %======================================================================
 \section{命令速查表}
@@ -725,7 +875,7 @@ rm -rf "$TMPDIR"
 
 \begin{table}[H]
 \centering
-\caption{Evo-Kernel 21 命令速查}
+\caption{Evo-Kernel 26 命令速查}
 \begin{tabular}{@{}lll@{}}
 \toprule
 \textbf{命令} & \textbf{用途} & \textbf{典型场景} \\
@@ -737,10 +887,15 @@ rm -rf "$TMPDIR"
 \texttt{hook-session-end} & 自动登记入口 & 由 hooks 自动调用 \\
 \texttt{adopt --ids} & 人工 +helpful & 明确知道某条被采用 \\
 \texttt{reject --ids} & 人工 +harmful & 明确知道某条误导 \\
+\texttt{reconcile --ids --state} & Reflector 四态对账 & 蒸馏时自动写 \\
+\texttt{queue} & 待蒸馏队列 TSV & 后台驱动器输入 \\
+\texttt{mark-distilled --ids} & 回写蒸馏完成 & 蒸馏收尾 \\
 \texttt{curate --file --to} & 人审入库 & 核心流程 \\
 \texttt{slice --session} & transcript 切片 & 蒸馏前准备 \\
 \texttt{index rebuild} & 重建 manifest & curate 后自动做 \\
+\texttt{primer [--install]} & 常驻背景块 & 装到 CLAUDE.md / AGENTS.md \\
 \texttt{candidates} & 列出候选条目 & agentic 粗筛 \\
+\texttt{catalog} & id×triggers 查重清单 & Reflector 落笔前查重 \\
 \texttt{get --ids} & 取全文 & agentic 精筛 \\
 \texttt{reflect --save} & 周期复盘 & 每周/每两周 \\
 \texttt{audit} & 治理检查 & 配合 reflect \\
