@@ -1,7 +1,7 @@
 ---
 id: 2026-07-27-git-mv-bulk-verify-byte-identical-renames
 type: playbook
-status: candidate
+status: validated
 scope: global
 domain: git
 tags: [git, git-mv, refactor, rename, relocation, verification, archive]
