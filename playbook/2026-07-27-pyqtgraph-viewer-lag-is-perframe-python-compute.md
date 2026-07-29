@@ -1,7 +1,7 @@
 ---
 id: 2026-07-27-pyqtgraph-viewer-lag-is-perframe-python-compute
 type: playbook
-status: candidate
+status: validated
 scope: global
 domain: performance-profiling
 tags: [pyqtgraph, qt, pyqt, pyside, profiling, viewer, realtime]
