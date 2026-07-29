@@ -1,7 +1,7 @@
 ---
 id: community-research-rss-api-first
 type: bullet
-status: candidate
+status: validated
 scope: global
 domain: web-scraping
 tags: [web-scraping, research, rss, api, reddit, hackernews, build-vs-buy]
