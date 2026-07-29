@@ -177,7 +177,23 @@ JSON
 t "guard warn 不阻断"      '"action":"warn"'  $EVO guard --tool bash --input-json '{"command":"warn-cmd x"}'
 t "hook-guard warn 浮现"   "systemMessage"    bash -c "echo '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"warn-cmd x\"}}' | $EVO hook-guard"
 t "hook-guard warn 不 deny" "__NEG__permissionDecision" bash -c "echo '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"warn-cmd x\"}}' | $EVO hook-guard"
-rm -f "$EVO_ROOT/ops/constraints/t-block.json" "$EVO_ROOT/ops/constraints/t-warn.json"
+# ── warn 降噪：只对命令位命中浮现（68% 的裸命中是引号内提及，噪声淹没信号）──
+# 提及不浮现，但必须仍落盘 quality:'mention'——准入④的取证材料一条都不能少。
+GH="$EVO_ROOT/ops/log/guard-hits.jsonl"
+GB=$(grep -c . "$GH" 2>/dev/null || echo 0)
+t "guard warn 引号内提及不浮现" '"action":"allow"' $EVO guard --tool bash --input-json '{"command":"git commit -m \"fix warn-cmd handling\""}'
+GA=$(grep -c . "$GH" 2>/dev/null || echo 0)
+{ [ "$GA" = "$((GB+1))" ] && tail -1 "$GH" | grep -q '"quality":"mention"'; } \
+  && ok "F: 提及仍落盘 quality:mention（准入④取证不丢）" || bad "F: 提及落盘" "(行数 $GB→$GA, 末行: $(tail -1 "$GH" | cut -c1-90))"
+$EVO guard --tool bash --input-json '{"command":"warn-cmd x"}' >/dev/null 2>&1
+{ tail -1 "$GH" | grep -q '"quality":"exec"'; } && ok "F: 命令位命中落盘 quality:exec" || bad "F: exec 落盘" "(末行: $(tail -1 "$GH" | cut -c1-90))"
+# block 一律按裸匹配判，**不看 quality**：危险命令本就常写在引号里（bash -c "rm -rf /"），
+# 按 quality 放行就是漏杀。评估侧漏判少推荐一次升级，执行侧漏判是安全事故。
+cat > "$EVO_ROOT/ops/constraints/t-block2.json" << 'JSON'
+{"id":"t-block2","matcher":"danger-cmd","match_on":"command","message":"测试阻断","mode":"block","criteria_confirmed":true,"created":"2026-07-29"}
+JSON
+t "guard block 仍拦引号内危险命令" '"action":"deny"' $EVO guard --tool bash --input-json '{"command":"bash -c \"danger-cmd /\""}'
+rm -f "$EVO_ROOT/ops/constraints/t-block.json" "$EVO_ROOT/ops/constraints/t-warn.json" "$EVO_ROOT/ops/constraints/t-block2.json"
 # 升 block 判据必须看命令位命中，不看裸命中：引号内提及（git commit -m '…rm -rf…'、grep）
 # 混进证据会让 §8 准入④ 拿被污染的数字通过，升 block 后阻断正常命令。
 mkdir -p "$EVO_ROOT/ops/constraints"

@@ -471,17 +471,22 @@ function countGuardHits(id) {
 // 本就在引号内，剥掉会漏杀。评估侧漏判只是少推荐一次升级，执行侧漏判是安全事故。
 // 存在的理由：裸命中数把"提及"和"执行"混在一起，会让 §8 准入④（matcher 覆盖率经复核）
 // 拿着被污染的数字通过——实测 dangerous-rm-rf 的裸命中里 60% 是提及。
+function stripQuoted(s) {
+  return String(s).replace(/'[^']*'/g, "''").replace(/"[^"]*"/g, '""').replace(/#[^\n]*/g, '');
+}
 function guardHitQuality(id, matcher) {
   let exec = 0, mention = 0;
   let re; try { re = new RegExp(matcher); } catch { return { exec: 0, mention: 0 }; }
-  const strip = (s) => String(s).replace(/'[^']*'/g, "''").replace(/"[^"]*"/g, '""').replace(/#[^\n]*/g, '');
   try {
     for (const l of fs.readFileSync(GUARD_LOG, 'utf8').split('\n')) {
       if (!l.trim()) continue;
       try {
         const j = JSON.parse(l);
         if (j.rule !== id) continue;
-        if (re.test(strip(j.target || ''))) exec++; else mention++;
+        // 优先用写入时留档的 quality（matcher 被收窄后，事后重算会得出与当时不同的结论）；
+        // 旧行没有该字段，退回按当前 matcher 重算，保持历史可读。
+        const q = j.quality || (re.test(stripQuoted(j.target || '')) ? 'exec' : 'mention');
+        if (q === 'exec') exec++; else mention++;
       } catch {}
     }
   } catch {}
@@ -558,9 +563,18 @@ function guardVerdict(toolName, input) {
     let re;
     try { re = new RegExp(r.matcher); } catch { continue; } // 非法 matcher → skip（容错）
     if (re.test(target)) {
-      appendGuardHit({ ts: new Date().toISOString(), rule: r.id, mode: r.mode, tool: toolName, target: target.slice(0, 100) });
+      // 命中质量在**写入时**判定并留档：剥掉引号内字面量与 # 注释后仍匹配 = 命令位；
+      // 不再匹配 = 只是在引号里提及（git commit -m '…rm -rf…'、grep、文档 echo）。
+      // 写入时算比事后重算可靠——事后重算要重新拿到当时的 matcher，而 matcher 会被收窄。
+      const quality = stripQuoted(target).match(re) ? 'exec' : 'mention';
+      appendGuardHit({ ts: new Date().toISOString(), rule: r.id, mode: r.mode, tool: toolName, target: target.slice(0, 100), quality });
+      // block 路径**一律按裸匹配判**，不看 quality：`bash -c "rm -rf /"` 的危险命令本就在
+      // 引号里，按 quality 放行就是漏杀。评估侧漏判只是少推荐一次升级，执行侧漏判是安全事故。
       if (r.mode === 'block') return { action: 'deny', rule: r.id, message: r.message }; // fail-close（成功匹配才 deny）
-      warnHit = warnHit || { action: 'warn', rule: r.id, message: r.message };
+      // warn 路径只对命令位命中浮现：warn 的唯一作用是让人看见并评估误报，
+      // 而 68% 的裸命中是引号内提及——噪声淹没信号后，观察期只会得出「太吵，关掉」。
+      // 提及仍然落盘（quality:'mention'），准入④的取证材料一条不少。
+      if (quality === 'exec') warnHit = warnHit || { action: 'warn', rule: r.id, message: r.message };
     }
   }
   return warnHit || { action: 'allow' };
