@@ -1,7 +1,7 @@
 ---
 id: 2026-07-27-qt-offscreen-opengl-context-warnings-nonfatal
 type: playbook
-status: candidate
+status: validated
 scope: global
 domain: qt-rendering
 tags: [qt, pyqt, pyside, pyqtgraph, opengl, offscreen, headless, ci, screenshot]
