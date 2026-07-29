@@ -1,7 +1,7 @@
 ---
 id: package-html-deadlinks-missing-assets
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: doc-packaging
 tags: [html, docs, packaging, deadlinks, assets, relative-path, git-untracked, handoff]
