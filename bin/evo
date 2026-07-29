@@ -501,6 +501,41 @@ function setFmField(src, key, value) {
   return newHead + src.slice(head.length);
 }
 
+// 会话登记（upsert：一个 session 一行）。
+// 登记有两个入口——首次 hook-recall（会话还活着，拿得到 transcript_path）与 SessionEnd。
+// 用 append 会让同一 session 出现两行，虚增 doctor 的哨兵率与 reflect 的蒸馏节律分母。
+// 允许的状态迁移只有两条，都是单向的：
+//   transcript '?' → 真实路径（首登记时文件还没落盘，结束时才有——哨兵可被升级）
+//   ended false → true（SessionEnd 到过）
+// 反向不允许：真路径不退回 '?'、ended 不退回 false，否则一次异常调用就抹掉已知事实。
+function registerSession(sid, file, harness, ended) {
+  const transcript = file && fs.existsSync(file) ? file : '?';
+  const row = { ts: new Date().toISOString(), session: sid || '?', transcript, harness: harness || 'claude', distilled: false, ended: !!ended };
+  // 无 session id：不 upsert。多条 '?' 是不同会话，按 session 折叠会丢登记。
+  if (!sid || sid === '?') { appendLog(SESSION_REFS, row); return 'append'; }
+  let lines;
+  try { lines = fs.readFileSync(SESSION_REFS, 'utf8').split('\n'); } catch { appendLog(SESSION_REFS, row); return 'append'; }
+  let found = false, changed = false;
+  const out = lines.map((line) => {
+    if (!line.trim()) return line;
+    try {
+      const j = JSON.parse(line);
+      if (j.session !== sid) return line;
+      found = true;
+      if (j.transcript === '?' && transcript !== '?') { j.transcript = transcript; changed = true; }
+      if (ended && !j.ended) { j.ended = true; changed = true; }
+      if (changed) return JSON.stringify(j);
+    } catch {} // 坏行原样保留，绝不丢数据
+    return line;
+  });
+  if (!found) { appendLog(SESSION_REFS, row); return 'append'; }
+  if (!changed) return 'skip';
+  const tmp = SESSION_REFS + '.tmp';
+  fs.writeFileSync(tmp, out.join('\n'));
+  fs.renameSync(tmp, SESSION_REFS); // 原子替换（与 mark-distilled 同法）
+  return 'update';
+}
+
 function moveToArchive(e, status, supersededBy) {
   let s = fs.readFileSync(e._path, 'utf8');
   s = setFmField(s, 'status', status);
@@ -565,6 +600,15 @@ const cmds = {
       let j = {};
       try { j = JSON.parse(raw); } catch { j = { prompt: raw }; } // 非 JSON 回退
       const sid = j.session_id || j.sessionId || null;
+      // 登记前移（§M0.4 时效约束的实施层加强）：Claude 的 UserPromptSubmit 里带
+      // transcript_path，会话还活着就登记，不必等 SessionEnd。
+      // 依据（2026-07-29 实测）：515 个有 session 归属的注入实例里，51.7% 落在**从未登记**的
+      // session 上——SessionEnd 没触发（会话被 kill / 机器休眠 / harness 异常退出），
+      // 而这些 session 里只有 6% 的 transcript 还留在磁盘上，其余永远追不回来。
+      // 登记是幂等 upsert，且整段 try 包住：登记失败绝不影响注入（I1）。
+      if (sid && (j.transcript_path || j.transcriptPath)) {
+        try { registerSession(sid, j.transcript_path || j.transcriptPath, j.harness, false); } catch {}
+      }
       if (sid && injectedSessions().has(sid)) return null; // 同 session 去重（空命中不占名额）
       if (noisyPrompt(j.prompt || j.message || '')) return null; // 噪声门槛：不检索也不记 recall.jsonl（护住 M1 分母）
       // 双字段兜底：prompt || message（§11 M5）
@@ -585,12 +629,9 @@ const cmds = {
       if (raw) { try { j = JSON.parse(raw); } catch {} }
       const file = argGet(args, '--session') || j.transcript_path || '';
       const sid = argGet(args, '--id') || j.session_id || '';
-      // §M0.4 时效约束①：探测 transcript 路径存在性，不存在写哨兵 '?'
-      const transcript = file && fs.existsSync(file) ? file : '?';
-      const session = sid || '?';
-      const harness = j.harness || 'claude';
-      // §3.7 session-refs.jsonl schema（git 跟踪，无 prompt 明文）
-      appendLog(SESSION_REFS, { ts: new Date().toISOString(), session, transcript, harness, distilled: false });
+      // ended:true —— 会话确实结束过（SessionEnd 到过）。queue 用它区分「已结束」与
+      // 「首条 prompt 就登记、但还在跑」的会话，见 registerSession 与 queue 的静默期。
+      registerSession(sid, file, j.harness, true);
       return `session registered → inbox/session-refs.jsonl`;
     } catch (e) { warn(`session-end: ${e.message}`); return null; }
   },
@@ -628,6 +669,8 @@ const cmds = {
   queue(args) {
     const minBytes = Number(argGet(args, '--min-bytes') || 50000);
     const limit = Number(argGet(args, '--limit') || 0);
+    // 静默期：未见 SessionEnd 的会话，transcript 多久没动才算「结束了」。0 = 关闭（smoke 用）。
+    const quietMs = Number(argGet(args, '--quiet-min') || process.env.EVO_QUEUE_QUIET_MIN || 30) * 60000;
     const bySession = new Map(); // 同 session 多次登记取最后一条（distilled 回写后仍为单行）
     try {
       for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
@@ -639,10 +682,15 @@ const cmds = {
     for (const j of bySession.values()) {
       if (j.distilled) continue;
       if (!j.transcript || j.transcript === '?') continue;
-      let size = 0;
-      try { size = fs.statSync(j.transcript).size; } catch { continue; } // 登记后被清理 → 跳过（哨兵化由 doctor 计数）
-      if (size < minBytes) continue;
-      out.push(`${j.session}\t${j.transcript}\t${j.harness || 'claude'}\t${size}`);
+      let st;
+      try { st = fs.statSync(j.transcript); } catch { continue; } // 登记后被清理 → 跳过（哨兵化由 doctor 计数）
+      // 登记前移后，**还在跑**的会话也在册。蒸馏一个正在写的 transcript 会：① 只蒸到半截
+      // ② mark-distilled 回写后剩余部分永不再蒸。ended=true（SessionEnd 到过）即可立刻入队——
+      // 这保住了 SessionEnd 触发器压缩腐烂窗口的效果；没等到 SessionEnd 的，用 mtime 静默期
+      // 当「会话已结束」的代理判据（内核问不到 harness 会话状态，这是可得的最好近似）。
+      if (!j.ended && Date.now() - st.mtimeMs < quietMs) continue;
+      if (st.size < minBytes) continue;
+      out.push(`${j.session}\t${j.transcript}\t${j.harness || 'claude'}\t${st.size}`);
     }
     return (limit > 0 ? out.slice(-limit) : out).join('\n');
   },

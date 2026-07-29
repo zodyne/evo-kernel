@@ -378,6 +378,33 @@ REFSLINES=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl" 2>/dev/null || echo 0
 REFS_OUT=$($EVO inbox 2>&1)
 { echo "$REFS_OUT" | grep -q "$REFSLINES 条会话登记待蒸馏"; } && ok "I: inbox 渲染 refs 计数（= JSONL 行数）" || bad "I: inbox 渲染 refs 计数" "(期望 $REFSLINES 条, 实得: ${REFS_OUT:0:60})"
 
+# ── 登记前移 + upsert（依据：51.7% 的注入实例落在从未登记的 session 上，SessionEnd 会漏）──
+LIVE="$TMP/live-transcript.jsonl"; echo '{"role":"user"}' > "$LIVE"
+B4=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
+echo "{\"session_id\":\"sess-live\",\"prompt\":\"arxiv 论文下载\",\"transcript_path\":\"$LIVE\"}" | $EVO hook-recall >/dev/null 2>&1
+A1=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
+{ [ "$A1" = "$((B4+1))" ] && grep -q '"session":"sess-live"' "$EVO_ROOT/inbox/session-refs.jsonl"; } \
+  && ok "I: 登记前移（首次 hook-recall 即登记，不等 SessionEnd）" || bad "I: 登记前移" "(行数 $B4→$A1)"
+# 二次 hook-recall 不得新增行（upsert 幂等；append 会虚增哨兵率与蒸馏节律分母）
+echo "{\"session_id\":\"sess-live\",\"prompt\":\"另一个问题\",\"transcript_path\":\"$LIVE\"}" | $EVO hook-recall >/dev/null 2>&1
+A2=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
+{ [ "$A2" = "$A1" ]; } && ok "I: 登记 upsert 幂等（同 session 不产生第二行）" || bad "I: 登记 upsert 幂等" "($A1→$A2)"
+# 哨兵升级：先登记不存在的路径（'?'），再带真实路径登记 → 同一行升级，行数不变
+$EVO session-end --session "/nonexistent/later.jsonl" --id sess-upgrade >/dev/null 2>&1
+U1=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
+$EVO session-end --session "$LIVE" --id sess-upgrade >/dev/null 2>&1
+U2=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
+{ [ "$U2" = "$U1" ] && grep '"session":"sess-upgrade"' "$EVO_ROOT/inbox/session-refs.jsonl" | grep -q "$LIVE"; } \
+  && ok "I: 哨兵行可被真实路径升级（单向，行数不变）" || bad "I: 哨兵升级" "(行数 $U1→$U2)"
+# queue 静默期：未见 SessionEnd 且 transcript 刚写过 → 不入队（防蒸馏半截会话）
+Q_LIVE=$($EVO queue --min-bytes 0 | grep -c "sess-live" || true)
+Q_ENDED=$($EVO queue --min-bytes 0 --quiet-min 0 | grep -c "sess-live" || true)
+{ [ "$Q_LIVE" = "0" ] && [ "$Q_ENDED" = "1" ]; } \
+  && ok "I: queue 静默期挡住在跑会话（ended=false 且 mtime 新）" || bad "I: queue 静默期" "(静默期内 $Q_LIVE 条, 关闭静默期 $Q_ENDED 条)"
+# ended=true（SessionEnd 到过）应立刻入队——否则 SessionEnd 触发器压缩腐烂窗口的效果就没了
+{ [ "$($EVO queue --min-bytes 0 | grep -c 'sess-upgrade' || true)" = "1" ]; } \
+  && ok "I: ended=true 绕过静默期立刻入队（保住 SessionEnd 触发器）" || bad "I: ended 立刻入队" "(未入队)"
+
 # ════════════ J. reconcile（M0.4 对账通道·I4 单点写） ════════════
 echo "——— J. reconcile（M0.4 对账通道·I4） ———"
 # 模拟 Reflector 写四态行（adopted + misleading）
