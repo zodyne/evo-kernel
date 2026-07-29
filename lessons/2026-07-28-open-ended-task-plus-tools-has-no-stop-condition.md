@@ -17,7 +17,7 @@ source: session:8e6bf649-a112-4ed7-a3bb-5391e23931a0
 last_verified: 2026-07-28
 superseded_by: null
 schema_version: 1
-related: [review-packet-completeness-is-assemblers-duty, parallel-research-delegation, independent-design-review]
+related: [review-packet-completeness-is-assemblers-duty, independent-design-review]
 ---
 # 开放式任务配文件工具没有终止条件：先把材料做全，再决定给不给工具
 
