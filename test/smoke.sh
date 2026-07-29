@@ -390,9 +390,26 @@ JSONL
 # rebuild 聚合 delta（base helpful=3+1=4, harmful=0+1=1）
 $EVO index rebuild >/dev/null 2>&1
 { grep -A10 'id: arxiv-api-rate-limit' "$EVO_ROOT/index/manifest.yaml" | grep -q 'helpful: 4' && grep -A10 'id: arxiv-api-rate-limit' "$EVO_ROOT/index/manifest.yaml" | grep -q 'harmful: 1'; } && ok "J: rebuild 聚合 reconcile delta（helpful+1/harmful+1）" || bad "J: rebuild 聚合 delta" "(manifest 未反映累计)"
-# 精度计算（reflect 判据对照表）：3 例中 adopted+relevant-unused=2 → 67%
+# 精度计算（reflect 判据对照表）：断言算出来的**数**，不是断言表格标题在不在。
+# 只 grep 标题的旧断言会在分子分母算错时照样通过（见 lessons/test-may-pass-for-the-wrong-reason）。
 REFL_OUT=$($EVO reflect 2>&1)
-{ echo "$REFL_OUT" | grep -q "M1 召回精度"; } && ok "J: 精度计算（reflect 判据对照表含 M1 召回精度）" || bad "J: 精度计算" "(reflect 无判据对照表)"
+RECN=$(grep -c . "$EVO_ROOT/ops/log/reconcile.jsonl" 2>/dev/null || echo 0)
+RELN=$(grep -c '"state":"\(adopted\|relevant-unused\)"' "$EVO_ROOT/ops/log/reconcile.jsonl" 2>/dev/null || echo 0)
+PREC=$(node -e "console.log(Math.round($RELN/$RECN*100))")
+{ echo "$REFL_OUT" | grep -q "M1 召回精度（检索层） | ${PREC}%（${RELN}/${RECN}）"; } \
+  && ok "J: 精度计算（召回精度 = ${PREC}%（${RELN}/${RECN}），按实际四态算）" \
+  || bad "J: 精度计算" "(期望 ${PREC}%（${RELN}/${RECN}）, 实得: $(echo "$REFL_OUT" | grep 'M1 召回精度'))"
+# §7.1 对账覆盖率的分母是**注入实例数**（Σ|ids|），不是 recall 调用数——用调用数当分母会虚高数倍，
+# 而这个数决定「精度可不可解读」。分母从 recall.jsonl 现算，不硬编码。
+INST=$(node -e "
+const fs=require('fs');let n=0;
+for(const l of fs.readFileSync('$EVO_ROOT/ops/log/recall.jsonl','utf8').split('\n')){
+  if(!l.trim())continue; try{const j=JSON.parse(l); n+=(j.ids||[]).length;}catch{}
+}
+console.log(n);")
+{ echo "$REFL_OUT" | grep -q "M1 对账覆盖率 | .*（${RECN}/${INST}）"; } \
+  && ok "J: 对账覆盖率分母 = 注入实例数 Σ|ids|（${RECN}/${INST}）" \
+  || bad "J: 对账覆盖率分母" "(期望分母 ${INST} 个实例, 实得: $(echo "$REFL_OUT" | grep '对账覆盖率'))"
 # §7.1 精度必须拆两个数：relevant-unused 计入召回精度分子、但不计入采纳率分子。
 # 合成一个数会让指标对 harness-benefit（召回对了却没被用上）完全不敏感。
 { echo "$REFL_OUT" | grep -q "采纳率（应用层"; } \

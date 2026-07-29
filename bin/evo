@@ -923,6 +923,11 @@ const cmds = {
       }
     } catch {}
     const top = Object.entries(idCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    // 注入实例数 = Σ|ids|，**不是** recall 调用数。§7.1 把「注入实例」定义为 ids 数组里的每个 id
+    // （同一条目多 session 注入计多次），对账覆盖率的分母就是它。用 calls 当分母会把覆盖率
+    // 虚高数倍（实测 2026-07-29：39/205=19% vs 定义口径 39/685=5.7%），而这个数正是用来判断
+    // 「离 30% 可解读门槛还有多远」的——虚高会让「先修蒸馏纪律」这件事看起来没那么急。
+    const instances = Object.values(idCount).reduce((a, b) => a + b, 0);
 
     // reconcile.jsonl 分析（§7.1 精度测量）
     let reconciled = 0, adopted = 0, relUnused = 0, irrelevant = 0, misleading = 0;
@@ -987,7 +992,7 @@ const cmds = {
       'by status: ' + Object.entries(byStatus).map(([k, v]) => `${k}:${v}`).join(' '),
       '',
       '## 检索表现',
-      `recall 调用 ${calls} 次，注入命中率 ${calls ? Math.round((hits / calls) * 100) : 0}%（${hits}/${calls}）`,
+      `recall 调用 ${calls} 次，注入命中率 ${calls ? Math.round((hits / calls) * 100) : 0}%（${hits}/${calls}），注入实例 ${instances} 个`,
       `当前检索后端: ${BACKEND}`,
       top.length ? 'top 被注入条目:\n' + top.map(([i, c]) => `  ${c}× [${i}]`).join('\n') : '(尚无注入记录)',
       misses.length ? `空命中任务 ${misses.length} 个（注入精度改进线索）:\n` + misses.slice(0, 8).map((m) => '  - ' + m).join('\n') : '空命中 0 个',
@@ -1006,7 +1011,7 @@ const cmds = {
       } | 观察项（阈值待数据） | ${
         relevantN ? (misleading ? `⚠ 另有 misleading ${misleading} 例，须并读` : '观察') : reconciled ? '⚠ 召回层已失效，先看召回精度' : '无数据'
       } |`,
-      `| M1 对账覆盖率 | ${calls ? Math.round((reconciled / Math.max(calls, 1)) * 100) : 0}%（${reconciled}/${calls || 0}） | <30% 精度不可解读 | ${calls && reconciled / calls < 0.3 ? '⚠ 覆盖率过低，先修蒸馏纪律' : 'ok'} |`,
+      `| M1 对账覆盖率 | ${instances ? Math.round((reconciled / instances) * 100) : 0}%（${reconciled}/${instances}） | <30% 精度不可解读 | ${instances && reconciled / instances < 0.3 ? '⚠ 覆盖率过低，先修蒸馏纪律' : 'ok'} |`,
       `| M1 判定者分歧率 | (待人工抽≥10例复核) | >20% 精度不可解读 | ${recByJudge.reflector ? '⚠ 见下方校准' : 'n/a'} |`,
       `| M1 recall 累计 | ${calls} 次 | ≥200 | ${calls >= 200 ? '命中' : '未命中'} |`,
       `| M2 条目数 | ${entryCount} | ≥500 | ${entryCount >= 500 ? '命中' : '未命中'} |`,
