@@ -1,7 +1,7 @@
 ---
 id: 2026-07-27-zsh-unquoted-glob-arg-no-matches
 type: playbook
-status: candidate
+status: validated
 scope: global
 domain: shell
 tags: [zsh, bash, shell, glob, grep, find, macos, quoting]
