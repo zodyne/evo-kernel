@@ -4,21 +4,30 @@ type: lesson
 status: candidate
 scope: global
 domain: experience-engineering
-tags: [capture, inbox, distill, data-hygiene, root-cause]
+tags:
+- capture
+- inbox
+- distill
+- data-hygiene
+- root-cause
 triggers:
-  - "根因查明，推翻了当天早些时候写下的初步归因"
-  - "inbox 里躺着一条基于已被推翻结论的 capture（失败信号）"
-  - "同一 session 里出现两条互相矛盾的 capture/记录"
-  - "用 evo capture 先记了初步判断，调查还在继续"
-  - "蒸馏原料里混入了已知为错的记录，怕产出伪经验"
+- 根因查明，推翻了当天早些时候写下的初步归因
+- inbox 里躺着一条基于已被推翻结论的 capture（失败信号）
+- 同一 session 里出现两条互相矛盾的 capture/记录
+- 用 evo capture 先记了初步判断，调查还在继续
+- 蒸馏原料里混入了已知为错的记录，怕产出伪经验
 created: 2026-07-29
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: session:b6cf7fd7-73c7-4cef-b538-5428b694a71b
 last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
-related: [llm-cli-zero-output-slow-not-dead, proposal-independent-review-before-curate]
+related:
+- kimi-api-latency-streaming-thinking
+- proposal-independent-review-before-curate
 ---
 
 # 结论被推翻后，必须同步删除/改写基于旧结论的 capture——错误记录是蒸馏的原料

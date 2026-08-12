@@ -4,21 +4,30 @@ type: lesson
 status: candidate
 scope: global
 domain: llm-ops
-tags: [streaming, ttfb, timeout, llm-api, thinking]
+tags:
+- streaming
+- ttfb
+- timeout
+- llm-api
+- thinking
 triggers:
-  - "用首字节延迟（TTFB）给 LLM 请求做判活/超时设计"
-  - "非流式（stream=false）LLM 请求长时间没有响应"
-  - "开 thinking/推理模式后 API 响应慢到触发看门狗（失败信号）"
-  - "包装 LLM API/CLI 做批处理，在流式与非流式之间选型"
-  - "实测 TTFB 与总耗时几乎相等，判活逻辑形同虚设"
+- 用首字节延迟（TTFB）给 LLM 请求做判活/超时设计
+- 非流式（stream=false）LLM 请求长时间没有响应
+- 开 thinking/推理模式后 API 响应慢到触发看门狗（失败信号）
+- 包装 LLM API/CLI 做批处理，在流式与非流式之间选型
+- 实测 TTFB 与总耗时几乎相等，判活逻辑形同虚设
 created: 2026-07-29
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: session:b6cf7fd7-73c7-4cef-b538-5428b694a71b
 last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
-related: [llm-cli-zero-output-slow-not-dead, streaming-protocol-snapshot-vs-delta]
+related:
+- kimi-api-latency-streaming-thinking
+- streaming-protocol-snapshot-vs-delta
 ---
 
 # 非流式 LLM 请求的首字节延迟≈全量生成时长：判活与看门狗必须建在流式首字节上
