@@ -1,0 +1,11 @@
+capture-2026-08-07-13-41-38-537-9lbi.md	curate	playbook	openclaw-model-override-needs-whitelist.md	与已有提案互补：新增白名单要求这一坑
+capture-2026-08-11-07-00-08-900-o1o8.md	curate	playbook	uv-lock-outdated-check-uv-version-first.md	uv lock报错假信号，真因托管uv过旧
+capture-2026-08-11-07-13-39-253-e3zy.md	curate	playbook	tailscale-serve-preserves-host-header.md	serve保留Host头致上游404，需nginx桥
+capture-2026-08-11-07-13-39-290-010o.md	curate	playbook	tailscale-up-auth-link-timeout-expires.md	up --timeout链接过期报错误导，用nohup
+capture-2026-08-11-07-13-39-325-oubb.md	curate	playbook	tailscale-funnel-manual-enable-dns-delay.md	funnel默认未启用+DNS传播延迟
+capture-2026-08-11-07-57-12-384-ke6c.md	curate	playbook	hermes-claw-migrate-samefileerror-outside-openclaw.md	迁移器pathlib绝对路径bug及修法
+capture-2026-08-11-07-57-12-634-t55q.md	curate	playbook	hermes-cron-create-positionals-before-options.md	cron create位置参数须前置，报错迷惑
+capture-2026-08-11-07-57-51-546-itdi.md	curate	playbook	node-http-host-header-skews-tls-sni.md	Node显式Host头带偏SNI致断连
+capture-2026-08-11-08-25-12-566-g9g1.md	curate	playbook	searxng-all-engines-fail-check-outgoing-proxy.md	searxng全灭真因是上游代理死
+capture-2026-08-12-01-09-40-611-3769.md	curate	playbook	hermes-config-set-cannot-write-list-dict.md	config set写结构化值变串且fail-closed
+capture-2026-08-12-01-09-50-916-ezxs.md	curate	playbook	hermes-cron-model-drift-fail-closed.md	cron模型漂移熔断，需pin或机队默认

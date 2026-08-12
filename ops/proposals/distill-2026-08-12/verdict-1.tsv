@@ -1,0 +1,18 @@
+eaa269a8-34b2-4abf-a08f-1dd23a6ff138	distilled	viz-filter-diff-two-level-viewport,gitignored-dir-comment-out-not-delete	两级视窗可视化教训+gitignore目录保留模式
+583c96aa-69cd-41b3-926b-4f72d4d7c7f5	distilled	kimi-api-latency-streaming-thinking,claude-md-directory-scoped-global-skill	kimi延迟实测(与b6cf7fd7合并)+CLAUDE.md作用域
+b6cf7fd7-73c7-4cef-b538-5428b694a71b	distilled	kimi-api-latency-streaming-thinking,stdio-mcp-probe-handshake-not-help	pi协同失败根因(合并583c96aa)+MCP探测法
+6f9c92c5-482a-40a9-8810-6dd388611e95	distilled	gui-test-widgets-by-text-not-index,composite-score-binary-term-bimodal	GUI索引选取假通过+二值项双峰阈值
+40a7756a-b82e-42cf-9704-be6eafb35707	distilled	ab-reference-independent-of-compared,package-deliverable-recipient-verify	循环参照论证+打包三坑
+c0a7ecbd-7117-4c93-931a-53aca42b7fed	distilled	dirty-worktree-patch-freeze-before-revert	脏工作区先patch冻结再还原
+5f8dee58-e3b6-4552-a0bf-8df757d08d5c	distilled	ratelimit-budget-per-task-reset	限流计数器函数属性不重置之坑
+fa7187d7-2951-4d30-a0f9-9c30f60229d4	distilled	transcript-parser-normalize-tool-names	跨harness解析需归一化工具名/字段
+dd4c9446-3469-4308-a3d0-e45881145255	distilled	docx-keep-format-reuse-original-skeleton	docx保格式复用骨架(与b4705404合并)
+4af1c06f-edee-4b3f-88a3-87e56a8df9b8	skip	-	通用Python知识(venv/PEP668)，无新坑
+9df36dfc-790a-4022-b8d8-620e0ced67ea	distilled	mcp-sdk-2-removed-fastmcp-pin	mcp SDK 2.0移除fastmcp须锁版
+95d881b1-df57-45b6-95d2-8fadcef18b18	distilled	calibration-physics-first-sweep-robustness-only	物理定值扫描只体检+实现单测≠参数质量
+b4705404-11d9-41aa-89ed-740c2fedfb2b	distilled	docx-keep-format-reuse-original-skeleton	docx格式源为基底灌内容(并入dd4c9446草稿)
+ebd9ff4c-dc42-41f5-8b67-f59bd29483ee	distilled	metric-must-be-computable-from-logs,git-add-a-sweeps-unrelated-changes	判据须可计算+自动化禁用git add -A
+fecf8853-d7da-426d-ba18-9b02510419ab	distilled	gitignore-blocks-handwritten-makefile	ignore宽泛规则误伤源码Makefile
+4697eb23-484f-4c9a-b61d-5817ace53d76	distilled	claude-code-subscription-model-routing-facts	订阅路由限制+缓存不掉质量两事实
+a9471ca4-e65d-462e-b835-3157d28df6b7	skip	-	仅项目进展浏览，无可复用经验
+3153bd45-cca6-47cf-9b2a-faeb98a20ff4	skip	-	仅项目进展浏览，无可复用经验

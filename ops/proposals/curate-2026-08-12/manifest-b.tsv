@@ -1,0 +1,12 @@
+capture_file	action	target_dir	draft_file或已有条目id	理由
+capture-2026-07-29-09-49-37-713-3vi1.md	dup	playbook	bash-loop-child-steals-stdin	pi吞stdin与</dev/null修法已被完全覆盖
+capture-2026-07-29-15-18-38-067-b9f4.md	dup	ops/proposals	pal-mcp-server-pin-mcp-sdk-1x	mcp SDK pin 1.x与该提案逐条对应
+capture-2026-07-29-15-18-38-122-3pyg.md	curate	facts	pal-clink-cli-client-name-fixed-triplet.md	clink client名三元组硬校验无已有条目
+capture-2026-07-31-03-45-48-850-pohe.md	dup	ops/proposals	nvim-lspconfig-in-lazy-lock-but-no-spec-not-in-runtimepath	主内容重复;clangd段已被clangd-subproject条目覆盖
+capture-2026-08-01-15-39-57-659-eki8.md	curate	playbook	claude-code-local-plugin-marketplace-add.md	本地插件市场命名与flag持久化无重复
+capture-2026-08-01-22-59-40-832-krkr.md	curate	playbook	pi-subagent-tool-silent-failure-pitfalls.md	pi subagent三静默坑源码核实无重复
+capture-2026-08-03-07-13-42-628-d1hx.md	curate	playbook	ucm221-static-clutter-notch-beats-mti.md	静止场景陷波优于MTI实测结论
+capture-2026-08-03-08-22-58-089-gjhg.md	curate	playbook	ucm221-mti-mean-vs-frame-cancellation.md	mean vs frame机理与d1hx互补不重叠
+capture-2026-08-03-11-11-10-371-uf00.md	curate	playbook	claude-relay-outage-layered-diagnosis.md	中转站四层诊断法无已有条目
+capture-2026-08-06-09-15-42-579-zor4.md	curate	playbook	report-schema-claims-need-live-ground-truth.md	结构断言须实测取ground truth
+capture-2026-08-07-06-39-01-011-bbpi.md	curate	facts	ucm221-cross-angle-dataset-record.md	十字测角数据集事实与分析入口

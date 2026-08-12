@@ -1,0 +1,12 @@
+capture_file	action	target_dir	draft_file或已有条目id	理由
+capture-2026-07-27-14-36-51-742-ee3f.md	curate	playbook	numpy-complex-scalar-division.md;acceptance-build-ffp-contract-off.md	unwrap部分dup→numpy-unwrap；另两点新草稿
+capture-2026-07-27-23-26-22-015-ljdc.md	curate	principles	validation-params-readable-from-artifact.md	make变量部分dup→已有；总原则新草稿
+capture-2026-07-28-04-00-17-843-ewwj.md	curate	playbook	recalibrate-thresholds-before-comparing-sets.md	先重标定再比集合，无重复条目
+capture-2026-07-28-06-10-06-884-mg1k.md	curate	playbook	neon-vmlaq-f32-not-portable-bit-exact.md;armv7-cross-compile-needs-explicit-mfpu-neon.md	维度切分dup→simd-split；两陷阱新草稿
+capture-2026-07-28-08-22-34-499-yxc2.md	dup	playbook	test-may-pass-for-the-wrong-reason	空过用例条目已入库，证据即本条
+capture-2026-07-28-08-42-40-321-ubhx.md	dup	playbook	recall-failure-empty-vs-noise-taxonomy	基线25%与失败分类法已入库
+capture-2026-07-28-12-27-16-760-r1c9.md	curate	lessons	criterion-without-data-path-never-fills.md	判据无数据路径；含待审口径变更
+capture-2026-07-29-02-23-18-583-b2gk.md	curate	facts	fact-ucm221-repo-restructured-2026-07-29.md	仓库重组结构与关联仓库事实
+capture-2026-07-29-03-16-43-941-afn6.md	curate	playbook	ucm221-chamber-doa-bin3-fixed-gate-rx-pair.md	暗室测角三结论，从零复现验证
+capture-2026-07-29-05-28-46-708-615w.md	curate	playbook	ucm221-doa-reverify-fixed-gate-survives-bin0-hijack.md	复验四结论，与afn6互补互链
+capture-2026-07-29-09-39-12-538-yqix.md	dup	lessons	llm-cli-zero-output-slow-not-dead	同session提案已覆盖根因与处置
