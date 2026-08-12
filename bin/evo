@@ -1341,33 +1341,11 @@ const cmds = {
     }
     add(6, h6, 'Claude hooks 三件套挂线', d6);
 
-    // 7. Pi extension 在位
-    const piExt = path.join(homeDir(), '.pi/agent/extensions/evo-kernel.ts');
-    let h7 = 'WARN', d7 = '未检测到 Pi extension';
-    if (has(piExt)) {
-      try {
-        const t = fs.readFileSync(piExt, 'utf8');
-        if (t.includes(cliPath)) { h7 = 'PASS'; d7 = `EVO 常量匹配 (${cliPath})`; }
-        else { h7 = 'WARN'; d7 = 'EVO 常量路径不匹配'; }
-      } catch { h7 = 'WARN'; d7 = '读取失败'; }
-    }
-    add(7, h7, 'Pi extension 在位', d7);
+    // 7. Pi extension 在位 —— pi harness 于 2026-08-12 退役（memory 确认），检查项退役
+    add(7, 'SKIP', 'Pi extension 在位', '已退役（pi harness 2026-08 移除）');
 
-    // 16. Pi extension 仓库副本同步（§4.2 存续）：扩展装在仓库外，丢了 git 恢复不了；
-    //     留副本还不够——副本会悄悄过期，所以这里比对内容而不只是比对存在性。
-    const piVendor = path.join(ROOT, 'ops/integrations/pi-evo-kernel.ts');
-    let h16 = 'WARN', d16 = '仓库无副本（ops/integrations/pi-evo-kernel.ts）→ 扩展丢失即不可恢复';
-    if (has(piVendor)) {
-      if (!has(piExt)) { h16 = 'WARN'; d16 = '有副本但未实装'; }
-      else {
-        try {
-          const same = fs.readFileSync(piVendor, 'utf8') === fs.readFileSync(piExt, 'utf8');
-          h16 = same ? 'PASS' : 'WARN';
-          d16 = same ? '副本与实装一致' : '副本已过期 → cp ~/.pi/agent/extensions/evo-kernel.ts ops/integrations/pi-evo-kernel.ts';
-        } catch { d16 = '比对失败'; }
-      }
-    }
-    add(16, h16, 'Pi extension 仓库副本', d16);
+    // 16. Pi extension 仓库副本同步 —— 同项 7，pi 已退役
+    add(16, 'SKIP', 'Pi extension 仓库副本', '已退役（pi harness 2026-08 移除）');
 
     // 17. K0a primer 装载与新鲜度（§8.2#1 头号失败模式：primer 变陈旧、常驻错误前提）
     //     两处安装点各自会漂移，且 primer 本身会过期——两件事都查。
