@@ -4,21 +4,31 @@ type: bullet
 status: validated
 scope: project:ucm221
 domain: radar-doa
-tags: [ucm221, doa, 暗室, 固定门, eta校准, 数据质量, 采集完整性]
+tags:
+- ucm221
+- doa
+- 暗室
+- 固定门
+- eta校准
+- 数据质量
+- 采集完整性
 triggers:
-  - "UCM221 新采集数据集上复验测角，bin0/bin3 比值接近或超过 1"
-  - "看到 bin0>bin3 就判测角失效（失败信号：只杀峰值搜索不杀固定门）"
-  - "大角度测角误差增大，要区分算法极限还是数据质量"
-  - "跨采集会话复用 eta 校准 LUT"
-  - "接收新采集的暗室数据集，做完整性检查"
+- UCM221 新采集数据集上复验测角，bin0/bin3 比值接近或超过 1
+- 看到 bin0>bin3 就判测角失效（失败信号：只杀峰值搜索不杀固定门）
+- 大角度测角误差增大，要区分算法极限还是数据质量
+- 跨采集会话复用 eta 校准 LUT
+- 接收新采集的暗室数据集，做完整性检查
 created: 2026-08-12
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-29-05-28-46-708-615w.md）
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [ucm221-chamber-doa-bin3-fixed-gate-rx-pair, ucm221-leakage-far-exceeds-hann-sidelobe, analysis-cache-filename-must-key-dataset, calibration-set-not-validation-set]
+related:
+- ucm221-chamber-doa-bin3-fixed-gate-rx-pair
 ---
 # UCM221 测角复验：固定门不怕 bin0 反超；大角度失效是数据质量；eta 需逐会话 LUT
 

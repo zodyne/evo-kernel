@@ -4,20 +4,29 @@ type: bullet
 status: validated
 scope: global
 domain: numerical-computing
-tags: [numpy, c, porting, complex-division, numerical-parity]
+tags:
+- numpy
+- c
+- porting
+- complex-division
+- numerical-parity
 triggers:
-  - "把含复数数组除标量的 numpy 代码移植到 C，逐点比对对不上"
-  - "复数数组归一化（cal 归一化 / xn 归一化）C 侧与 numpy 参照差在最后几位"
-  - "在 C 里把 complex/float 实现成实部虚部分别相除"
-  - "跨语言数值验收：公式逐行核对一致，结果仍有系统性尾差（失败信号）"
+- 把含复数数组除标量的 numpy 代码移植到 C，逐点比对对不上
+- 复数数组归一化（cal 归一化 / xn 归一化）C 侧与 numpy 参照差在最后几位
+- 在 C 里把 complex/float 实现成实部虚部分别相除
+- 跨语言数值验收：公式逐行核对一致，结果仍有系统性尾差（失败信号）
 created: 2026-08-12
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-27-14-36-51-742-ee3f.md）
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [numpy-unwrap-diff-from-original-array, acceptance-build-ffp-contract-off, numpy-percentile-float32-mismatch]
+related:
+- numpy-unwrap-diff-from-original-array
+- acceptance-build-ffp-contract-off
 ---
 # numpy 的 complex/float 走复数除法语义：退化为乘倒数，不是逐分量相除
 

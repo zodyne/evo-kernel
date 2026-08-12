@@ -4,20 +4,27 @@ type: bullet
 status: validated
 scope: global
 domain: methodology
-tags: [algorithm-change, threshold-recalibration, iou, ab-evaluation, ucm221]
+tags:
+- algorithm-change
+- threshold-recalibration
+- iou
+- ab-evaluation
+- ucm221
 triggers:
-  - "改了算法/特征权重后，沿用旧阈值比较新旧输出集合"
-  - "变更评估指标暴跌（KEEP 数/召回/IoU），要判断是真退化还是阈值失配"
-  - "拿 IoU/重合度当'变差没有'的判据（失败信号：IoU 只说变了多少）"
-  - "评估一个占权重较大的特征被改/被抽掉的影响"
+- 改了算法/特征权重后，沿用旧阈值比较新旧输出集合
+- 变更评估指标暴跌（KEEP 数/召回/IoU），要判断是真退化还是阈值失配
+- 拿 IoU/重合度当'变差没有'的判据（失败信号：IoU 只说变了多少）
+- 评估一个占权重较大的特征被改/被抽掉的影响
 created: 2026-08-12
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-28-04-00-17-843-ewwj.md）
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [calibration-set-not-validation-set, filter-relaxation-quantify-keep-increment, ab-compare-runtime-switch-same-binary]
+related: []
 ---
 # 算法变更的代价评估：先重标定再比集合，再用独立特征判"变差没有"
 

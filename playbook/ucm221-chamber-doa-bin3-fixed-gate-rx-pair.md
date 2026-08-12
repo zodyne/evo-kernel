@@ -4,20 +4,31 @@ type: bullet
 status: validated
 scope: project:ucm221
 domain: radar-doa
-tags: [ucm221, doa, 暗室, 距离门, rx对, eta校准, 相位约定]
+tags:
+- ucm221
+- doa
+- 暗室
+- 距离门
+- rx对
+- eta校准
+- 相位约定
 triggers:
-  - "UCM221 暗室数据测角，选距离门/峰值搜索"
-  - "峰值搜索结果塌缩、六通道零相位（失败信号：被 bin0 DC 劫持）"
-  - "用 Rx 对（Rx1/Rx2 方位、Rx4/Rx5 俯仰）做解耦测角"
-  - "评估 Rx 对/稀疏阵测角能否达到工程精度"
+- UCM221 暗室数据测角，选距离门/峰值搜索
+- 峰值搜索结果塌缩、六通道零相位（失败信号：被 bin0 DC 劫持）
+- 用 Rx 对（Rx1/Rx2 方位、Rx4/Rx5 俯仰）做解耦测角
+- 评估 Rx 对/稀疏阵测角能否达到工程精度
 created: 2026-08-12
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-29-03-16-43-941-afn6.md）
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [ucm221-elevation-display-sign-convention, ucm221-leakage-far-exceeds-hann-sidelobe, episode-ucm221-uneven-array-doa, ucm221-doa-reverify-fixed-gate-survives-bin0-hijack]
+related:
+- episode-ucm221-uneven-array-doa
+- ucm221-doa-reverify-fixed-gate-survives-bin0-hijack
 ---
 # UCM221 暗室测角链路三结论：固定 bin3、y 向相位约定 -1、Rx 对解耦需 eta 校准
 

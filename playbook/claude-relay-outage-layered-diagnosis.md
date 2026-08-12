@@ -4,20 +4,27 @@ type: bullet
 status: validated
 scope: global
 domain: llm-api
-tags: [claude-code, 中转站, relay, 诊断, model-not-found]
+tags:
+- claude-code
+- 中转站
+- relay
+- 诊断
+- model-not-found
 triggers:
-  - "Claude Code 中转站所有模型突然不可用"
-  - "API 返回 Upstream access forbidden"
-  - "model_not_found 分不清是网络、鉴权还是上游问题"
-  - "排查第三方 API 端点故障要分层定位"
+- Claude Code 中转站所有模型突然不可用
+- API 返回 Upstream access forbidden
+- model_not_found 分不清是网络、鉴权还是上游问题
+- 排查第三方 API 端点故障要分层定位
 created: 2026-08-03
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: capture:capture-2026-08-03-11-11-10-371-uf00
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [fix-api-config-via-local-harness-reference, local-proxy-env-blocks-api-client, kimi-model-variant-names-must-be-probed-live]
+related: []
 ---
 排查 Claude Code 中转站不可用的分层诊断法，逐层缩小故障域：
 

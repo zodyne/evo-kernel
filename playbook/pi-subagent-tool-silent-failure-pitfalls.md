@@ -4,20 +4,27 @@ type: bullet
 status: validated
 scope: global
 domain: pi-agent
-tags: [pi, subagent, parallel, chain, silent-failure]
+tags:
+- pi
+- subagent
+- parallel
+- chain
+- silent-failure
 triggers:
-  - "用 pi subagent 工具（官方 example 扩展）派 parallel/chain 任务"
-  - "项目级 .pi/agents 加载不到、报 Unknown agent"
-  - "parallel 扇出的大产出回流给模型时被截断"
-  - "chain 的下一步拿不到上一步输出"
+- 用 pi subagent 工具（官方 example 扩展）派 parallel/chain 任务
+- 项目级 .pi/agents 加载不到、报 Unknown agent
+- parallel 扇出的大产出回流给模型时被截断
+- chain 的下一步拿不到上一步输出
 created: 2026-08-01
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: human
 source: capture:capture-2026-08-01-22-59-40-832-krkr
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [agentic-delegation-empty-response-must-fail-explicitly]
+related: []
 ---
 pi subagent 工具有三个静默失效坑（源码核实），全部不报错、表现为"配置没生效"：
 

@@ -4,20 +4,27 @@ type: principle
 status: validated
 scope: global
 domain: methodology
-tags: [validation, configuration, verification, trust-but-verify]
+tags:
+- validation
+- configuration
+- verification
+- trust-but-verify
 triggers:
-  - "做'换参数重跑'的验证，比对前只检查了调用命令行"
-  - "验证结果异常，第一反应去查算法/数值 bug"
-  - "被测产物的实际配置与调用者传入的参数可能不一致"
-  - "写比对/验证脚本，设计自检前置（失败信号：参数只来自调用者声明）"
+- 做'换参数重跑'的验证，比对前只检查了调用命令行
+- 验证结果异常，第一反应去查算法/数值 bug
+- 被测产物的实际配置与调用者传入的参数可能不一致
+- 写比对/验证脚本，设计自检前置（失败信号：参数只来自调用者声明）
 created: 2026-08-12
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-27-23-26-22-015-ljdc.md）
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [make-d-macro-change-skips-rebuild-silently, analysis-cache-filename-must-key-dataset]
+related:
+- make-d-macro-change-skips-rebuild-silently
 ---
 # 换参数重跑的验证：实际生效参数必须能从被测产物本身读出来
 

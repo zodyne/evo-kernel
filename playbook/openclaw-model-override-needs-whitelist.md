@@ -4,20 +4,27 @@ type: bullet
 status: validated
 scope: global
 domain: harness-config
-tags: [openclaw, provider, whitelist, model-override, config]
+tags:
+- openclaw
+- provider
+- whitelist
+- model-override
+- config
 triggers:
-  - "openclaw 加完 provider 后指定模型报 Model override not allowed"
-  - "openclaw agent --model provider/model 被拒，路由明明已配好"
-  - "编辑 ~/.openclaw/openclaw.json 的 agents.defaults.models"
-  - "在 openclaw 里用 provider/model 形式覆盖默认模型"
+- openclaw 加完 provider 后指定模型报 Model override not allowed
+- openclaw agent --model provider/model 被拒，路由明明已配好
+- 编辑 ~/.openclaw/openclaw.json 的 agents.defaults.models
+- 在 openclaw 里用 provider/model 形式覆盖默认模型
 created: 2026-08-07
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: session:capture-2026-08-07-13-41-38-537-9lbi
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [openclaw-add-provider-route, openclaw-config-openclaw-json]
+related: []
 ---
 openclaw 新增 provider 路由后，还必须把 `provider/model` 加进 `agents.defaults.models` 白名单（带 alias），否则报 `Model override not allowed`。
 
