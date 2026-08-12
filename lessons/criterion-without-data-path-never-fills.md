@@ -4,20 +4,28 @@ type: lesson
 status: candidate
 scope: global
 domain: metric-design
-tags: [metrics, criteria, judge-agreement, reconcile, evo-kernel]
+tags:
+- metrics
+- criteria
+- judge-agreement
+- reconcile
+- evo-kernel
 triggers:
-  - "设计文档里写了判定/复核类判据，要检查它能否被填上"
-  - "指标行长期挂着'(待人工复核)'占位符从没变过（失败信号）"
-  - "两个裁判 0% 分歧，想据此宣布口径清晰"
-  - "给对账/评审系统设计人工复核或第二裁判通道"
+- 设计文档里写了判定/复核类判据，要检查它能否被填上
+- 指标行长期挂着'(待人工复核)'占位符从没变过（失败信号）
+- 两个裁判 0% 分歧，想据此宣布口径清晰
+- 给对账/评审系统设计人工复核或第二裁判通道
 created: 2026-08-12
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-28-12-27-16-760-r1c9.md）
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [coverage-denominator-is-a-moving-target, injection-precision-must-split-recall-vs-adoption]
+related:
+- injection-precision-must-split-recall-vs-adoption
 ---
 # 判据没有数据落盘路径就永远填不满；0% 分歧 ≠ 口径清晰
 

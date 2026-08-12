@@ -4,20 +4,28 @@ type: lesson
 status: candidate
 scope: project:ucm221-pointcloud-2-0
 domain: methodology
-tags: [adaptive-threshold, causality, frozen-baseline, quantile, evaluation-integrity]
+tags:
+- adaptive-threshold
+- causality
+- frozen-baseline
+- quantile
+- evaluation-integrity
 triggers:
-  - "实现自适应阈值：用全局分位数归一每帧分位数"
-  - "换评估数据集后顺手把自适应基线也重算了（失败信号：循环论证）"
-  - "在线自适应机制要用未来/全局信息，因果性存疑"
-  - "自适应改动的效果评估，基线口径前后不一致"
+- 实现自适应阈值：用全局分位数归一每帧分位数
+- 换评估数据集后顺手把自适应基线也重算了（失败信号：循环论证）
+- 在线自适应机制要用未来/全局信息，因果性存疑
+- 自适应改动的效果评估，基线口径前后不一致
 created: 2026-07-25
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: none
 source: session:8eefe3a4
 last_verified: 2026-07-25
 superseded_by: null
 schema_version: 1
-related: [recalibrate-thresholds-before-comparing-sets, calibration-set-not-validation-set]
+related:
+- recalibrate-thresholds-before-comparing-sets
 ---
 
 # 自适应阈值的全局基线必须冻结：随评估数据重算就是循环论证

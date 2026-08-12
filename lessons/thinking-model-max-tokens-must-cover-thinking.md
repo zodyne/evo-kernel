@@ -4,20 +4,27 @@ type: lesson
 status: candidate
 scope: global
 domain: llm-ops
-tags: [max-tokens, thinking, stop-reason, kimi, api-debugging]
+tags:
+- max-tokens
+- thinking
+- stop-reason
+- kimi
+- api-debugging
 triggers:
-  - "思考型模型返回空文本/零输出，stop_reason=max_tokens（失败信号）"
-  - "区分 LLM 调用失败是 token 预算耗尽还是传输层中断"
-  - "给带 thinking 的模型设 max_tokens，只按最终答案长度估算"
-  - "连接中断类错误想靠调 token 参数修复"
+- 思考型模型返回空文本/零输出，stop_reason=max_tokens（失败信号）
+- 区分 LLM 调用失败是 token 预算耗尽还是传输层中断
+- 给带 thinking 的模型设 max_tokens，只按最终答案长度估算
+- 连接中断类错误想靠调 token 参数修复
 created: 2026-07-30
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: none
 source: session:06d00000
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related: [kimi-thinking-budget-no-help-for-disconnect]
+related: []
 ---
 
 # 思考型模型的 max_tokens 必须包含思考预算，否则零文本输出

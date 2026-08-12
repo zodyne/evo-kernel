@@ -4,20 +4,28 @@ type: lesson
 status: candidate
 scope: project:ucm221-pointcloud-2-0
 domain: signal-processing
-tags: [feature-design, dc-frac, semantics, radar, false-alarm]
+tags:
+- feature-design
+- dc-frac
+- semantics
+- radar
+- false-alarm
 triggers:
-  - "按名字/直觉理解一个特征的物理含义，拿它设阈值硬剔除"
-  - "某特征剔除了大量点，要确认它量的是不是以为的那个量"
-  - "特征与某个无关变量强相关（如 dc 与距离强相关，失败信号）"
-  - "真目标被过滤器成片误杀，归因到某个特征超阈"
+- 按名字/直觉理解一个特征的物理含义，拿它设阈值硬剔除
+- 某特征剔除了大量点，要确认它量的是不是以为的那个量
+- 特征与某个无关变量强相关（如 dc 与距离强相关，失败信号）
+- 真目标被过滤器成片误杀，归因到某个特征超阈
 created: 2026-07-31
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: none
 source: session:da720f38
 last_verified: 2026-07-31
 superseded_by: null
 schema_version: 1
-related: [calibration-set-not-validation-set, eval-negative-only-data-hides-overfiltering]
+related:
+- eval-negative-only-data-hides-overfiltering
 ---
 
 # 特征的语义要用物理真值样本验证，不能按名字理解

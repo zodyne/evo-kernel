@@ -4,20 +4,27 @@ type: lesson
 status: candidate
 scope: project:ucm221-pointcloud-2-0
 domain: signal-processing
-tags: [doppler, fft-bin, wraparound, velocity, visualization]
+tags:
+- doppler
+- fft-bin
+- wraparound
+- velocity
+- visualization
 triggers:
-  - "雷达点多普勒门号（vpos）直接当速度用或着色"
-  - "速度分布在零附近突变/两端聚集中间空（失败信号：环绕未解）"
-  - "FFT 门号接近 N-1 的点被当成速度极大"
-  - "用波形参数推导速度标度 Δv"
+- 雷达点多普勒门号（vpos）直接当速度用或着色
+- 速度分布在零附近突变/两端聚集中间空（失败信号：环绕未解）
+- FFT 门号接近 N-1 的点被当成速度极大
+- 用波形参数推导速度标度 Δv
 created: 2026-07-27
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: none
 source: session:9c7257e9
 last_verified: 2026-07-27
 superseded_by: null
 schema_version: 1
-related: [offline-radar-datapath-derived-params]
+related: []
 ---
 
 # 多普勒门号是环绕量：先解环绕成有符号门号再换算速度

@@ -4,20 +4,29 @@ type: bullet
 status: validated
 scope: global
 domain: performance
-tags: [armv7, neon, cross-compile, compiler-flags, silent-fallback]
+tags:
+- armv7
+- neon
+- cross-compile
+- compiler-flags
+- silent-fallback
 triggers:
-  - "交叉编译 ARMv7 目标，NEON 加速路径用 __ARM_NEON 宏守卫"
-  - "交叉编译产物功能正确但性能与标量版一样（失败信号）"
-  - "NEON intrinsic 代码编不过或被静默跳过"
-  - "验收交叉编译的向量化改造，先确认 NEON 路径真的编进去了"
+- 交叉编译 ARMv7 目标，NEON 加速路径用 __ARM_NEON 宏守卫
+- 交叉编译产物功能正确但性能与标量版一样（失败信号）
+- NEON intrinsic 代码编不过或被静默跳过
+- 验收交叉编译的向量化改造，先确认 NEON 路径真的编进去了
 created: 2026-08-12
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-28-06-10-06-884-mg1k.md）
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [simd-split-along-lane-divisible-dimension, neon-vmlaq-f32-not-portable-bit-exact, compile-flag-zero-cost-verification]
+related:
+- simd-split-along-lane-divisible-dimension
+- neon-vmlaq-f32-not-portable-bit-exact
 ---
 # ARMv7 交叉编译必须显式 `-mfpu=neon`，否则静默退回标量版
 

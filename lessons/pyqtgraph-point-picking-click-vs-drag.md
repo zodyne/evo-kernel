@@ -4,20 +4,29 @@ type: lesson
 status: candidate
 scope: global
 domain: visualization
-tags: [pyqtgraph, opengl, picking, qt, mouse-event]
+tags:
+- pyqtgraph
+- opengl
+- picking
+- qt
+- mouse-event
 triggers:
-  - "pyqtgraph/GL 3D 视图里加鼠标点选点云的功能"
-  - "旋转视角时误触发选点（失败信号：点击与拖拽没区分）"
-  - "屏幕重叠点选到了背后那个而不是看见的那个"
-  - "macOS 上 Cmd/Ctrl 加选修饰键不生效"
+- pyqtgraph/GL 3D 视图里加鼠标点选点云的功能
+- 旋转视角时误触发选点（失败信号：点击与拖拽没区分）
+- 屏幕重叠点选到了背后那个而不是看见的那个
+- macOS 上 Cmd/Ctrl 加选修饰键不生效
 created: 2026-07-28
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: none
 source: session:b417294c
 last_verified: 2026-07-28
 superseded_by: null
 schema_version: 1
-related: [macos-qt-cmd-key-maps-to-control-modifier, qmatrix4x4-data-returns-column-major-tuple]
+related:
+- 2026-07-28-macos-qt-cmd-key-maps-to-control-modifier
+- 2026-07-28-qmatrix4x4-data-returns-column-major-tuple
 ---
 
 # pyqtgraph 3D 点选：点击/拖拽按位移阈值分开，拾取先屏幕距离再 NDC 深度

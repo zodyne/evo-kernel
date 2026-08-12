@@ -4,20 +4,27 @@ type: lesson
 status: candidate
 scope: project:ucm221-pointcloud-2-0
 domain: signal-processing
-tags: [quantization, grid-key, matching, persistence, off-by-one-cell]
+tags:
+- quantization
+- grid-key
+- matching
+- persistence
+- off-by-one-cell
 triggers:
-  - "用量化/取整后的网格 key（体素、分格）做跨帧/跨集合点匹配"
-  - "名为 tolerance 的参数实际匹配率为零或极低（失败信号）"
-  - "连续出现的真实目标跨帧持久性恒为 0"
-  - "匹配容差改了没效果，命中率远低于预期"
+- 用量化/取整后的网格 key（体素、分格）做跨帧/跨集合点匹配
+- 名为 tolerance 的参数实际匹配率为零或极低（失败信号）
+- 连续出现的真实目标跨帧持久性恒为 0
+- 匹配容差改了没效果，命中率远低于预期
 created: 2026-07-31
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: none
 source: session:da720f38
 last_verified: 2026-07-31
 superseded_by: null
 schema_version: 1
-related: [dual-impl-cross-check-tolerance-grid-anchored]
+related: []
 ---
 
 # 量化网格 key 做匹配 = 容差为零：跨格邻居永远失配

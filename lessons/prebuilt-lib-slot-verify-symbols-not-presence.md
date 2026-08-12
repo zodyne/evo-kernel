@@ -4,20 +4,28 @@ type: lesson
 status: candidate
 scope: project:ucm221-pointcloud-2-0
 domain: c-porting
-tags: [prebuilt-static-lib, symbol-audit, nm, cross-platform, link-error]
+tags:
+- prebuilt-static-lib
+- symbol-audit
+- nm
+- cross-platform
+- link-error
 triggers:
-  - "仓库里存着多平台预编译 .a/.lib 槽位（lib<name>-<os>-<arch>.a）"
-  - "某平台链接报未定义符号，本地平台却正常（失败信号：槽位漂移）"
-  - "替换预编译库只验了文件存在/大小，没验内容"
-  - "nm 查槽位符号，发现符号集与当前 API 不符"
+- 仓库里存着多平台预编译 .a/.lib 槽位（lib<name>-<os>-<arch>.a）
+- 某平台链接报未定义符号，本地平台却正常（失败信号：槽位漂移）
+- 替换预编译库只验了文件存在/大小，没验内容
+- nm 查槽位符号，发现符号集与当前 API 不符
 created: 2026-08-02
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: none
 source: session:7c4809cc
 last_verified: 2026-08-02
 superseded_by: null
 schema_version: 1
-related: [verify-dylib-port-completeness-via-nm-symbols, armv7-cross-compile-needs-explicit-mfpu-neon]
+related:
+- armv7-cross-compile-needs-explicit-mfpu-neon
 ---
 
 # 预编译库槽位要验符号表，不能只验文件存在

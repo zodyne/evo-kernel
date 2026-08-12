@@ -4,20 +4,28 @@ type: lesson
 status: candidate
 scope: global
 domain: methodology
-tags: [evaluation, validation-data, false-alarm-filter, degenerate-baseline, ucm221]
+tags:
+- evaluation
+- validation-data
+- false-alarm-filter
+- degenerate-baseline
+- ucm221
 triggers:
-  - "手里只有纯负样本数据（净空/全是虚警），要评估过滤器/分类器效果"
-  - "评估指标看起来满分，怀疑是退化模型也能拿满分（失败信号）"
-  - "报告 KEEP 率/抑制率很好看，但没有任何已知真目标穿过管道"
-  - "设计过滤器的验证方案，选评估数据集"
+- 手里只有纯负样本数据（净空/全是虚警），要评估过滤器/分类器效果
+- 评估指标看起来满分，怀疑是退化模型也能拿满分（失败信号）
+- 报告 KEEP 率/抑制率很好看，但没有任何已知真目标穿过管道
+- 设计过滤器的验证方案，选评估数据集
 created: 2026-07-31
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: none
 source: session:da720f38
 last_verified: 2026-07-31
 superseded_by: null
 schema_version: 1
-related: [calibration-set-not-validation-set, recalibrate-thresholds-before-comparing-sets]
+related:
+- recalibrate-thresholds-before-comparing-sets
 ---
 
 # 纯负样本数据评估过滤器：结构上只能度量漏杀，退化过滤器也得满分

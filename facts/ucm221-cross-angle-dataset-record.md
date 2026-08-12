@@ -4,20 +4,27 @@ type: fact
 status: validated
 scope: project:ucm221
 domain: radar-signal
-tags: [ucm221, 十字测角, 数据集, 外场, 出圆]
+tags:
+- ucm221
+- 十字测角
+- 数据集
+- 外场
+- 出圆
 triggers:
-  - "找 UCM221 十字测角外场数据集（08-05）"
-  - "复现/更新十字测角分析报告"
-  - "大俯仰角段出现 az 伪点，怀疑相位模糊"
-  - "需要出圆率的参考数值"
+- 找 UCM221 十字测角外场数据集（08-05）
+- 复现/更新十字测角分析报告
+- 大俯仰角段出现 az 伪点，怀疑相位模糊
+- 需要出圆率的参考数值
 created: 2026-08-07
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: capture:capture-2026-08-07-06-39-01-011-bbpi
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [episode-ucm221-out-of-circle-az90-algorithm-defect, parser-silent-clamp-masks-out-of-range]
+related: []
 ---
 UCM221 十字测角数据集（`data/十字测角`，08-05 外场）实测特征记录：
 
