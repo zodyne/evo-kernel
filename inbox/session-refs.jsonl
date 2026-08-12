@@ -211,7 +211,7 @@
 {"ts":"2026-08-11T08:15:38.983Z","session":"019feef0-eba6-762c-aba8-b939fa92b4bb","transcript":"/Users/zodyne/.pi/agent/sessions/--Users-zodyne--/2026-08-11T03-49-54-214Z_019feef0-eba6-762c-aba8-b939fa92b4bb.jsonl","harness":"pi","distilled":false,"ended":true}
 {"ts":"2026-08-11T10:57:43.192Z","session":"019fefe4-37ae-73db-817e-2139bbd459a3","transcript":"/Users/zodyne/.pi/agent/sessions/--Users-zodyne--/2026-08-11T08-15-38-926Z_019fefe4-37ae-73db-817e-2139bbd459a3.jsonl","harness":"pi","distilled":false,"ended":true}
 {"ts":"2026-08-11T10:57:43.192Z","session":"019feef0-76cc-7323-9fd3-199aa716a4ff","transcript":"/Users/zodyne/.pi/agent/sessions/--Users-zodyne--/2026-08-11T03-49-24-300Z_019feef0-76cc-7323-9fd3-199aa716a4ff.jsonl","harness":"pi","distilled":false,"ended":true}
-{"ts":"2026-08-12T02:11:58.338Z","session":"5199a9e7-8664-4265-957c-a70738f1926e","transcript":"/Users/zodyne/.claude/projects/-Users-zodyne-Dev-SPC865-SUC221/5199a9e7-8664-4265-957c-a70738f1926e.jsonl","harness":"claude","distilled":false,"ended":false}
+{"ts":"2026-08-12T02:11:58.338Z","session":"5199a9e7-8664-4265-957c-a70738f1926e","transcript":"/Users/zodyne/.claude/projects/-Users-zodyne-Dev-SPC865-SUC221/5199a9e7-8664-4265-957c-a70738f1926e.jsonl","harness":"claude","distilled":false,"ended":true}
 {"ts":"2026-08-12T02:12:41.831Z","session":"b1629f34-6391-4de0-abf7-09f808a2b77a","transcript":"?","harness":"claude","distilled":false,"ended":true}
 {"ts":"2026-08-12T02:14:01.148Z","session":"d08e16ea-b103-4f6f-a496-8fe37491525e","transcript":"?","harness":"claude","distilled":false,"ended":true}
 {"ts":"2026-08-12T02:14:08.640Z","session":"7f380ae6-6e75-4a52-8782-993648b3c266","transcript":"?","harness":"claude","distilled":false,"ended":true}
@@ -221,3 +221,16 @@
 {"ts":"2026-08-12T02:19:50.845Z","session":"35a03758-b9a1-4dab-aa8c-45e90392c972","transcript":"?","harness":"claude","distilled":false,"ended":true}
 {"ts":"2026-08-12T03:03:02.376Z","session":"a9721972-6e6e-478a-bfac-457496461905","transcript":"?","harness":"claude","distilled":false,"ended":true}
 {"ts":"2026-08-12T03:03:49.509Z","session":"f269db7c-42bf-4495-9e22-ef25078f847f","transcript":"?","harness":"claude","distilled":false,"ended":true}
+{"ts":"2026-08-12T03:59:18.079Z","session":"test-sess-001","transcript":"?","harness":"hermes","distilled":false,"ended":true}
+{"ts":"2026-08-12T04:39:58.011Z","session":"test-sess-002","transcript":"?","harness":"hermes","distilled":false,"ended":false}
+{"ts":"2026-08-12T04:40:05.168Z","session":"9b9610d0-fdad-4487-9704-368a57144062","transcript":"/Users/zodyne/.claude/projects/-Users-zodyne-Dev-SPC865-SUC221/9b9610d0-fdad-4487-9704-368a57144062.jsonl","harness":"claude","distilled":false,"ended":true}
+{"ts":"2026-08-12T04:40:43.956Z","session":"test-sess-003","transcript":"?","harness":"hermes","distilled":false,"ended":false}
+{"ts":"2026-08-12T04:42:45.480Z","session":"test-session","transcript":"?","harness":"hermes","distilled":false,"ended":true}
+{"ts":"2026-08-12T04:42:59.707Z","session":"20260812_124256_c93cd3","transcript":"?","harness":"hermes","distilled":false,"ended":true}
+{"ts":"2026-08-12T05:17:03.365Z","session":"fb2bdfe6-d293-4624-9636-bf53eeb208e0","transcript":"/Users/zodyne/.claude/projects/-private-tmp-hermes-cc-smoke/fb2bdfe6-d293-4624-9636-bf53eeb208e0.jsonl","harness":"claude","distilled":false,"ended":true}
+{"ts":"2026-08-12T05:20:26.135Z","session":"4d3d2ce6-7892-45c1-a48b-f1a8bd781b98","transcript":"/Users/zodyne/.claude/projects/-private-tmp-hermes-cc-smoke/4d3d2ce6-7892-45c1-a48b-f1a8bd781b98.jsonl","harness":"claude","distilled":false,"ended":true}
+{"ts":"2026-08-12T05:25:12.156Z","session":"20260812_132409_371b22","transcript":"?","harness":"hermes","distilled":false,"ended":true}
+{"ts":"2026-08-12T05:27:15.525Z","session":"82468b1c-204f-4d81-9cc1-7bcb97697158","transcript":"/Users/zodyne/.claude/projects/-private-tmp-hermes-cc-smoke/82468b1c-204f-4d81-9cc1-7bcb97697158.jsonl","harness":"claude","distilled":false,"ended":true}
+{"ts":"2026-08-12T05:31:16.963Z","session":"20260812_132951_2a1b20","transcript":"?","harness":"hermes","distilled":false,"ended":true}
+{"ts":"2026-08-12T05:36:05.335Z","session":"edb20309-0fa4-4aeb-9c03-8cfc6f2e0c25","transcript":"/Users/zodyne/.claude/projects/-private-tmp-hermes-cc-smoke/edb20309-0fa4-4aeb-9c03-8cfc6f2e0c25.jsonl","harness":"claude","distilled":false,"ended":true}
+{"ts":"2026-08-12T05:38:44.824Z","session":"e0f205fc-0d3d-4983-9d2f-e14a1a1475c7","transcript":"/Users/zodyne/.claude/projects/-private-tmp-hermes-cc-smoke/e0f205fc-0d3d-4983-9d2f-e14a1a1475c7.jsonl","harness":"claude","distilled":false,"ended":true}

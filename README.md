@@ -1,6 +1,6 @@
 # Evo-Kernel
 
-个人「经验治理与固化层」内核：纯文件 + git 存储，Node CLI（`evo`），被 Pi 扩展 + Claude Code hooks 两个 harness 共用。
+个人「经验治理与固化层」内核：纯文件 + git 存储，Node CLI（`evo`），被 Hermes hooks + Claude Code hooks 两个 harness 共用。
 
 > 设计权威：`~/Dev/agent-evo/design/blueprint-v4.md`（不变量 I1–I7、§4 数据存续、§7 测量定义）。
 > 构建契约：`~/Dev/agent-evo/design/build-spec-v1.md`（v1.1，§2 命令契约卡（当时 21 个，现 25）、§3 数据/日志 schema、§5 评分系数、§8 smoke 断言）。

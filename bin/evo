@@ -1341,11 +1341,45 @@ const cmds = {
     }
     add(6, h6, 'Claude hooks 三件套挂线', d6);
 
-    // 7. Pi extension 在位 —— pi harness 于 2026-08-12 退役（memory 确认），检查项退役
-    add(7, 'SKIP', 'Pi extension 在位', '已退役（pi harness 2026-08 移除）');
+    // 7. Hermes hooks 三件套挂线 —— pi harness 于 2026-08-12 退役，挂载迁移至
+    //    Hermes shell hooks（config.yaml hooks 段 → agent-hooks/*.sh adapter）
+    let h7 = 'WARN', d7 = 'Hermes hooks 未挂线';
+    try {
+      const hcfg = yaml.load(fs.readFileSync(path.join(homeDir(), '.hermes/config.yaml'), 'utf8')) || {};
+      const want7 = {
+        pre_llm_call: ['evo-recall.sh'],
+        on_session_end: ['evo-session-end.sh'],
+        pre_tool_call: ['evo-guard.sh'],
+      };
+      const hookEntries = hcfg.hooks || {};
+      const matched7 = [];
+      const miss7 = [];
+      for (const evt of Object.keys(want7)) {
+        const list = hookEntries[evt] || [];
+        const scripts = (Array.isArray(list) ? list : []).map((e) => (e && e.command) || '');
+        const found = want7[evt].some((s) => scripts.some((c) => c.includes(s)));
+        if (found) matched7.push(evt);
+        else miss7.push(`${evt}:缺`);
+      }
+      if (miss7.length) { h7 = 'FAIL'; d7 = miss7.join(', ') + ' → 在 ~/.hermes/config.yaml hooks 段接线（参考 ops/integrations/hermes-evo-hooks/）'; }
+      else { h7 = 'PASS'; d7 = `三件套挂线 (${Object.keys(want7).length} 事件)`; }
+    } catch (e) { h7 = 'WARN'; d7 = `~/.hermes/config.yaml 解析失败: ${e.message}`; }
+    add(7, h7, 'Hermes hooks 三件套挂线', d7);
 
-    // 16. Pi extension 仓库副本同步 —— 同项 7，pi 已退役
-    add(16, 'SKIP', 'Pi extension 仓库副本', '已退役（pi harness 2026-08 移除）');
+    // 16. Hermes agent-hooks adapter 仓库副本同步 —— 比对实装与 ops/integrations 副本
+    let h16 = 'WARN', d16 = '副本缺失';
+    try {
+      const liveDir = path.join(homeDir(), '.hermes/agent-hooks');
+      const copyDir = path.join(ROOT, 'ops/integrations/hermes-evo-hooks');
+      const files = ['evo-recall.sh', 'evo-session-end.sh', 'evo-guard.sh'];
+      const drift = files.filter((f) => {
+        try { return fs.readFileSync(path.join(liveDir, f), 'utf8') !== fs.readFileSync(path.join(copyDir, f), 'utf8'); }
+        catch { return true; }
+      });
+      if (drift.length) { h16 = 'WARN'; d16 = `副本漂移: ${drift.join(', ')} → 同步 ops/integrations/hermes-evo-hooks/`; }
+      else { h16 = 'PASS'; d16 = '副本一致'; }
+    } catch (e) { h16 = 'WARN'; d16 = `副本检查失败: ${e.message}`; }
+    add(16, h16, 'Hermes hooks adapter 副本', d16);
 
     // 17. K0a primer 装载与新鲜度（§8.2#1 头号失败模式：primer 变陈旧、常驻错误前提）
     //     两处安装点各自会漂移，且 primer 本身会过期——两件事都查。
@@ -1489,7 +1523,8 @@ function main() {
     // doctor 是诊断命令，绕过全局 fail-open exit-0（§2.21 实现注记）
     if (cmd === 'doctor') {
       const code = cmds.doctor(args, true);
-      process.exit(typeof code === 'number' ? code : 0);
+      if (typeof code === 'number') process.exitCode = code;
+      return; // 不 process.exit：stdout 为管道时 console.log 异步 flush 会被 exit 截断（>64KB 输出丢失）
     }
     // 非 doctor 命令：ROOT 不存在 → fail-open exit 0（I1）
     if (!fs.existsSync(ROOT)) { warn(`kernel 不存在: ${ROOT}`); process.exit(0); }
@@ -1498,11 +1533,15 @@ function main() {
     const out = fn(args);
     if (out) console.log(out);
   } catch (e) { warn(`fatal(fail-open): ${e.message}`); }
-  process.exit(0);
+  // 自然退出（exitCode=0）：console.log 对管道 stdout 是异步写，process.exit 会截断大输出
 }
 
 // 测试贯穿：require 为模块时导出内部函数（不运行 main），供 test/smoke.sh 组 G/H 直接断言。
 // CLI 入口：直接运行时执行 main（require.main === module 守卫）。不改变任何 CLI 行为。
 module.exports = { parseFm, terms, cover, govWeight, loadEntries, ROOT, SCAN_DIRS, RECALL_DIRS, VERIFIED_W };
 
-if (require.main === module) main();
+if (require.main === module) {
+  // 管道下游提前关闭（head/grep -q）→ EPIPE：按 fail-open 静默退出 0，不抛未捕获异常
+  process.stdout.on('error', (e) => { if (e && e.code === 'EPIPE') process.exit(0); throw e; });
+  main();
+}
