@@ -4,20 +4,27 @@ type: lesson
 status: candidate
 scope: global
 domain: harness-config
-tags: [claude-code, bash, timeout]
+tags:
+- claude-code
+- bash
+- timeout
 triggers:
-  - "在 Claude Code 里用 Bash 探测慢端点（LLM API / 编译 / 渲染）"
-  - "命令报 Exit code 143 / Command timed out after 2m 0s（失败信号）"
-  - "慢任务被误杀，分不清是挂了还是被工具超时掐掉"
-  - "给预期超过 2 分钟的命令没显式传 timeout 参数"
+- 在 Claude Code 里用 Bash 探测慢端点（LLM API / 编译 / 渲染）
+- 命令报 Exit code 143 / Command timed out after 2m 0s（失败信号）
+- 慢任务被误杀，分不清是挂了还是被工具超时掐掉
+- 给预期超过 2 分钟的命令没显式传 timeout 参数
 created: 2026-07-30
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: session:583c96aa-69cd-41b3-926b-4f72d4d7c7f5
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related: [llm-api-proxy-timeout-wall-retry-futile, llm-cli-zero-output-slow-not-dead]
+related:
+- kimi-api-latency-streaming-thinking
+- kimi-api-latency-streaming-thinking
 ---
 
 Claude Code 的 Bash 工具默认约 2 分钟超时：探测 LLM 端点的长生成请求被以 `Exit code 143 / Command timed out after 2m 0s` 掐掉——这是 harness 侧超时，不是目标服务失败，两者要分清。
