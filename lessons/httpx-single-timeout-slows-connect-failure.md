@@ -4,20 +4,28 @@ type: lesson
 status: candidate
 scope: global
 domain: http-client
-tags: [httpx, timeout, llm-api, python, 长请求]
+tags:
+- httpx
+- timeout
+- llm-api
+- python
+- 长请求
 triggers:
-  - "给 httpx.AsyncClient/Client 配超时，写了单一的 timeout=秒数"
-  - "LLM/生成类长请求要等几分钟，但连接失败也傻等同样的时长（失败信号）"
-  - "端点挂了/代理断了，客户端几分钟才报错而不是秒级失败"
-  - "封装多模型 API 调用工具，设计 connect/read 分离的超时策略"
+- 给 httpx.AsyncClient/Client 配超时，写了单一的 timeout=秒数
+- LLM/生成类长请求要等几分钟，但连接失败也傻等同样的时长（失败信号）
+- 端点挂了/代理断了，客户端几分钟才报错而不是秒级失败
+- 封装多模型 API 调用工具，设计 connect/read 分离的超时策略
 created: 2026-07-30
-evidence: {helpful: 0, harmful: 0}
+evidence:
+  helpful: 0
+  harmful: 0
 verified_by: command
 source: session:0a908942-190f-4fef-b7db-437423af1169
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related: [llm-api-proxy-timeout-wall-retry-futile]
+related:
+- kimi-api-latency-streaming-thinking
 ---
 
 `httpx.AsyncClient(timeout=300.0)` 这一个值会同时作用于 connect/read/write/pool 四个阶段：端点或代理层故障时，**连接失败也要等满 300 秒**才报错。长生成请求的正确配法是拆分：`httpx.Timeout(connect=10.0, read=300.0, write=30.0, pool=30.0)`——connect 短（故障秒级暴露），read 长（容纳生成耗时）。
