@@ -11,4 +11,6 @@ sid="$(printf '%s' "$payload" | jq -r '.session_id // empty')"
 if [[ -z "$sid" ]]; then printf '{}\n'; exit 0; fi
 cli_payload="$(jq -n --arg s "$sid" '{session_id:$s, transcript_path:"?", harness:"hermes"}')"
 printf '%s' "$cli_payload" | "$EVO" hook-session-end >/dev/null 2>&1 || true
+# gbrain 双写（fail-open: 会话摘要 → gbrain put_page + timeline）
+"$HOME/brain/gbrain-session-write.sh" "$sid" >/dev/null 2>&1 || true
 printf '{}\n'
