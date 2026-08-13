@@ -495,9 +495,8 @@ git init -q --bare "$REMOTE" 2>/dev/null
 EVO_ROOT="$KROOT" "$SRC/bin/evo" index rebuild >/dev/null 2>&1
 # 接线文件指向 KROOT（决策③：路径匹配）
 mkdir -p "$KHOME/.claude" "$KHOME/.hermes/agent-hooks" "$KHOME/.hermes"
-cat > "$KHOME/.claude/settings.json" << JSON
-{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"$KROOT/bin/evo hook-recall","timeout":8}]}],"SessionEnd":[{"hooks":[{"type":"command","command":"$KROOT/bin/evo hook-session-end","timeout":5}]}],"PreToolUse":[{"matcher":"Bash|Write|Edit","hooks":[{"type":"command","command":"$KROOT/bin/evo hook-guard","timeout":5}]}]}}
-JSON
+# Claude hooks 已退役（pi 退役，挂载迁移至 Hermes hooks）：预期无挂载
+printf '{}' > "$KHOME/.claude/settings.json"
 # Hermes hooks 接线（config.yaml hooks 段 → agent-hooks adapter）
 cat > "$KHOME/.hermes/config.yaml" << YAML
 hooks:
@@ -517,6 +516,17 @@ HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" link >/dev/null 2>&1
 # K1: 全绿 → exit 0 + 无 [FAIL]
 DOC=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1); DRC=$?
 { [ $DRC -eq 0 ] && ! echo "$DOC" | grep -q '\[FAIL\]'; } && ok "K: doctor 全绿（exit0 + 无 FAIL）" || bad "K: doctor 全绿" "(rc=$DRC; $(echo "$DOC" | grep '\[FAIL\]' | tr '\n' ';'))"
+# K5: Claude hooks 已退役确认（无挂载 → PASS；check 6 语义反转后不再误 FAIL）
+{ echo "$DOC" | grep -q '6. Claude hooks 已退役确认' && echo "$DOC" | grep -q '预期无挂载'; } \
+  && ok "K: doctor 含 Claude hooks 退役确认" || bad "K: 退役确认缺失" "(doctor 第 6 项语义未反转)"
+# K6: 残留旧挂载 → WARN（不 FAIL，但须报残留，防退役后悄悄残留）
+cat > "$KHOME/.claude/settings.json" << JSON
+{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"$KROOT/bin/evo hook-recall","timeout":8}]}],"SessionEnd":[{"hooks":[{"type":"command","command":"$KROOT/bin/evo hook-session-end","timeout":5}]}],"PreToolUse":[{"matcher":"Bash|Write|Edit","hooks":[{"type":"command","command":"$KROOT/bin/evo hook-guard","timeout":5}]}]}}
+JSON
+DOC5=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+{ echo "$DOC5" | grep -q '残留旧挂载'; } \
+  && ok "K: 残留 Claude 挂载报 WARN" || bad "K: 残留检测失效" "(有残留未报)"
+printf '{}' > "$KHOME/.claude/settings.json"
 # K4: Hermes hooks adapter 副本漂移检测（§4.2 存续）——留副本不够，副本会悄悄过期，必须比对内容
 { echo "$DOC" | grep -q '16. Hermes hooks adapter 副本'; } \
   && ok "K: doctor 含 hermes adapter 副本检查" || bad "K: 副本检查缺失" "(doctor 无第 16 项)"
