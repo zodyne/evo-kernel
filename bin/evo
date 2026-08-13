@@ -1300,10 +1300,12 @@ const cmds = {
     }
     add(5, ab5, '本地领先/落后', `ahead ${ahead} / behind ${behind}`);
 
-    // 6. Claude hooks 三件套挂线（settings.json command 路径匹配实际 CLI 路径）
+    // 6. Claude hooks 已退役确认 —— pi harness 于 2026-08-12 退役，挂载迁移至 Hermes
+    //    hooks（见 check 7）。预期状态 = ~/.claude/settings.json 无 evo hooks；
+    //    发现残留旧挂载 → WARN 提醒清理（不再 FAIL：退役是设计使然，不是部署缺陷）。
     const cliPath = path.join(ROOT, 'bin/evo');
     const settingsPath = path.join(homeDir(), '.claude/settings.json');
-    let h6 = 'WARN', d6 = '未检测到 settings.json';
+    let h6 = 'PASS', d6 = '已退役（挂载迁移至 Hermes hooks，预期无挂载）';
     if (has(settingsPath)) {
       try {
         const sj = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -1323,23 +1325,16 @@ const cmds = {
           visit(node);
           return cmds;
         };
-        const want = { UserPromptSubmit: 'hook-recall', SessionEnd: 'hook-session-end', PreToolUse: 'hook-guard' };
-        let matched = 0, total = 0, mismatched = [];
-        for (const [evt, sub] of Object.entries(want)) {
+        const legacy = { UserPromptSubmit: 'hook-recall', SessionEnd: 'hook-session-end', PreToolUse: 'hook-guard' };
+        const residual = [];
+        for (const [evt, sub] of Object.entries(legacy)) {
           const cmds = collectCommands(hooks[evt]);
-          total++;
-          const hit = cmds.find((c) => c.includes('evo'));
-          if (hit) {
-            if (hit.includes(cliPath) && hit.includes(sub)) matched++;
-            else mismatched.push(`${evt}:路径不匹配`);
-          } else mismatched.push(`${evt}:缺`);
+          if (cmds.find((c) => c.includes('evo') && c.includes(sub))) residual.push(evt);
         }
-        if (matched === total) { h6 = 'PASS'; d6 = `三件套挂线 (${cliPath})`; }
-        else if (mismatched.some((m) => m.endsWith(':缺'))) { h6 = 'FAIL'; d6 = mismatched.join(', '); }
-        else { h6 = 'WARN'; d6 = mismatched.join(', '); }
+        if (residual.length > 0) { h6 = 'WARN'; d6 = `残留旧挂载（pi 已退役，建议清理）: ${residual.join(', ')}`; }
       } catch (e) { h6 = 'WARN'; d6 = `settings.json 解析失败: ${e.message}`; }
     }
-    add(6, h6, 'Claude hooks 三件套挂线', d6);
+    add(6, h6, 'Claude hooks 已退役确认', d6);
 
     // 7. Hermes hooks 三件套挂线 —— pi harness 于 2026-08-12 退役，挂载迁移至
     //    Hermes shell hooks（config.yaml hooks 段 → agent-hooks/*.sh adapter）
