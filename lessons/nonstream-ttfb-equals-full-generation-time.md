@@ -1,7 +1,7 @@
 ---
 id: nonstream-ttfb-equals-full-generation-time
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: llm-ops
 tags:
@@ -23,7 +23,7 @@ evidence:
 verified_by: command
 source: session:b6cf7fd7-73c7-4cef-b538-5428b694a71b
 last_verified: 2026-07-29
-superseded_by: null
+superseded_by: skill:llm-api-latency-diagnosis
 schema_version: 1
 related:
 - kimi-api-latency-streaming-thinking

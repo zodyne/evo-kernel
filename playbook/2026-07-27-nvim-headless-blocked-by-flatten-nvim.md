@@ -1,7 +1,7 @@
 ---
 id: nvim-headless-blocked-by-flatten-nvim
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: nvim
 tags: [neovim, headless, flatten-nvim, nvim-env, automation, config-testing]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:019fa11b-e83c-78ff-a701-e0f1d363d3af
 last_verified: 2026-07-27
-superseded_by: null
+superseded_by: skill:nvim-lsp-troubleshooting
 schema_version: 1
 ---
 装了 **flatten.nvim** 的环境下，直接 `nvim --headless +'lua ...'` 会被 flatten 拦截：flatten 检测到外层 nvim（通过继承的 `$NVIM` 环境变量——在 nvim 内置终端或嵌套调用里它已被设值），试图把子进程 rpc 回父实例，导致 `flatten/rpc.lua` 报错、headless 命令拿不到预期输出。

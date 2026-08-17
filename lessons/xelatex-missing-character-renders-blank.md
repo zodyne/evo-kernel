@@ -1,7 +1,7 @@
 ---
 id: xelatex-missing-character-renders-blank
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: latex
 tags: [xelatex, cjk, 中文报告, 图检]

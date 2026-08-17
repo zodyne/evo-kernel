@@ -1,7 +1,7 @@
 ---
 id: pal-model-capabilities-declare-code-support
 type: lesson
-status: candidate
+status: archived
 scope: global
 domain: mcp
 tags: [pal-mcp, model-capabilities, overclaim, adapter-layer]

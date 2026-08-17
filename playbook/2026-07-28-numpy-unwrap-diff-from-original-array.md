@@ -1,7 +1,7 @@
 ---
 id: numpy-unwrap-diff-from-original-array
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: numerical-computing
 tags: [c, numpy, porting, unwrap, signal-processing, in-place]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: human
 source: session:fb616292-c015-42e4-9987-16229ad221f3
 last_verified: 2026-07-28
-superseded_by: null
+superseded_by: skill:matlab-to-python-migration
 schema_version: 1
 ---
 # 移植 np.unwrap 到 C：差分必须取自原始数组，禁止边算边就地改写

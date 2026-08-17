@@ -1,7 +1,7 @@
 ---
 id: figure-readability-has-no-log-signal
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: latex
 tags: [tikz, figures, verification, vision-check]

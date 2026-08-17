@@ -1,7 +1,7 @@
 ---
 id: cmake-glob-recurse-pulls-in-main-c
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: build-system
 tags: [cmake, glob-recurse, static-library, build, porting]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:40a7756a-b82e-42cf-9704-be6eafb35707
 last_verified: 2026-07-29
-superseded_by: null
+superseded_by: skill:embedded-cross-compilation
 schema_version: 1
 ---
 # CMake GLOB_RECURSE 会把目录下全部源文件（含 main.c）编进目标：单独建静态库或显式排除

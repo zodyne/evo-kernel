@@ -1,7 +1,7 @@
 ---
 id: numpy-complex-scalar-division
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: numerical-computing
 tags:
@@ -22,7 +22,7 @@ evidence:
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-27-14-36-51-742-ee3f.md）
 last_verified: 2026-08-12
-superseded_by: null
+superseded_by: skill:matlab-to-python-migration
 schema_version: 1
 related:
 - numpy-unwrap-diff-from-original-array

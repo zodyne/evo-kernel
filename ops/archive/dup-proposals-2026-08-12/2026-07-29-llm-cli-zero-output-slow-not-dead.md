@@ -1,7 +1,7 @@
 ---
 id: llm-cli-zero-output-slow-not-dead
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: llm-ops
 tags: [pi, watchdog, timeout, troubleshooting, root-cause]
@@ -16,7 +16,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:b6cf7fd7-73c7-4cef-b538-5428b694a71b
 last_verified: 2026-07-29
-superseded_by: null
+superseded_by: skill:external-cli-polling
 schema_version: 1
 related: [evo-distill-transient-connection-error-retry, nonstream-ttfb-equals-full-generation-time, overturned-capture-must-be-rewritten]
 ---

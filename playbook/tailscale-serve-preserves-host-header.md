@@ -1,7 +1,7 @@
 ---
 id: tailscale-serve-preserves-host-header
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: networking
 tags: [tailscale, nginx, reverse-proxy, host-header, sse]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:capture-2026-08-11-07-13-39-253-e3zy
 last_verified: 2026-08-12
-superseded_by: null
+superseded_by: skill:network-reachability-diagnosis
 schema_version: 1
 related: [node-http-host-header-skews-tls-sni, tailscale-funnel-manual-enable-dns-delay]
 ---

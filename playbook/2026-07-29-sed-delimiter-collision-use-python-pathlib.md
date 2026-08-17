@@ -1,7 +1,7 @@
 ---
 id: sed-delimiter-collision-use-python-pathlib
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: shell
 tags: [sed, python, text-replace, tooling]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:8e6bf649-a112-4ed7-a3bb-5391e23931a0
 last_verified: 2026-07-29
-superseded_by: null
+superseded_by: skill:python-launch-patterns
 schema_version: 1
 ---
 

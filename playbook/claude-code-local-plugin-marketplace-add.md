@@ -1,7 +1,7 @@
 ---
 id: claude-code-local-plugin-marketplace-add
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: claude-code
 tags:
@@ -22,7 +22,7 @@ evidence:
 verified_by: command
 source: capture:capture-2026-08-01-15-39-57-659-eki8
 last_verified: 2026-08-12
-superseded_by: null
+superseded_by: skill:claude-code
 schema_version: 1
 related:
 - macos-no-timeout-command

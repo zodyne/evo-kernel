@@ -1,7 +1,7 @@
 ---
 id: openclaw-add-provider-route
 type: lesson
-status: candidate
+status: archived
 scope: global
 domain: harness-config
 tags: [openclaw, provider, api-route, openai-responses, config]

@@ -1,7 +1,7 @@
 ---
 id: hermes-cron-model-drift-fail-closed
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: hermes
 tags: [hermes, cron, model, drift, fail-closed]

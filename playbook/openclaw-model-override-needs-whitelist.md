@@ -1,7 +1,7 @@
 ---
 id: openclaw-model-override-needs-whitelist
 type: bullet
-status: validated
+status: archived
 scope: global
 domain: harness-config
 tags:

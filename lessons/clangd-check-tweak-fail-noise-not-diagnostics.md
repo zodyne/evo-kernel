@@ -1,7 +1,7 @@
 ---
 id: clangd-check-tweak-fail-noise-not-diagnostics
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: tooling
 tags: [clangd, diagnostics, noise, grep, c]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:019febc9-0500-7400-b95e-bb526bd26016
 last_verified: 2026-08-10
-superseded_by: null
+superseded_by: skill:nvim-lsp-troubleshooting
 schema_version: 1
 related: [clangd-check-headless-repro-editor-diagnostics]
 ---

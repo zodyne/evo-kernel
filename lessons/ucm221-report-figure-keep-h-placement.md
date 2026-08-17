@@ -1,7 +1,7 @@
 ---
 id: ucm221-report-figure-keep-h-placement
 type: lesson
-status: candidate
+status: deprecated
 scope: project:ucm221
 domain: latex
 tags: [ucm221, latex, figure-placement, user-preference]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: human
 source: session:eaa269a8-34b2-4abf-a08f-1dd23a6ff138
 last_verified: 2026-08-03
-superseded_by: null
+superseded_by: skill:ucm221-weekly-report
 schema_version: 1
 related: []
 ---

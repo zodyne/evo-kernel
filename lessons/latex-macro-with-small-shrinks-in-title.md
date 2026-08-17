@@ -1,7 +1,7 @@
 ---
 id: latex-macro-with-small-shrinks-in-title
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: latex
 tags: [latex, xelatex, macro, fontsize, title, code]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: human
 source: session:eaa269a8-34b2-4abf-a08f-1dd23a6ff138
 last_verified: 2026-08-03
-superseded_by: null
+superseded_by: skill:latex-tikz-figures
 schema_version: 1
 related: [xelatex-missing-character-renders-blank, figure-readability-has-no-log-signal]
 ---

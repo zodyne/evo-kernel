@@ -1,7 +1,7 @@
 ---
 id: simd-split-along-lane-divisible-dimension
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: performance
 tags: [simd, neon, vectorization, arm, c, numerical, bit-exact]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:fb616292-c015-42e4-9987-16229ad221f3
 last_verified: 2026-07-28
-superseded_by: null
+superseded_by: skill:embedded-cross-compilation
 schema_version: 1
 ---
 # SIMD 沿"能整除 lane 宽"的维度切，可与标量版逐位一致

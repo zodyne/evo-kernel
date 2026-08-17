@@ -1,7 +1,7 @@
 ---
 id: node-http-host-header-skews-tls-sni
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: networking
 tags: [nodejs, tls, sni, host-header, reverse-proxy]
@@ -14,7 +14,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:capture-2026-08-11-07-57-51-546-itdi
 last_verified: 2026-08-12
-superseded_by: null
+superseded_by: skill:node-cli-runtime-pitfalls
 schema_version: 1
 related: [tailscale-serve-preserves-host-header]
 ---

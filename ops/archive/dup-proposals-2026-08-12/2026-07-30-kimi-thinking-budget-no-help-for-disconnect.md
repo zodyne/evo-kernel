@@ -1,7 +1,7 @@
 ---
 id: kimi-thinking-budget-no-help-for-disconnect
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: llm-api
 tags: [kimi, moonshot, thinking, disconnect, falsified-hypothesis]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:06d00000-c5a0-4247-9e4a-de361d19d25e
 last_verified: 2026-07-30
-superseded_by: null
+superseded_by: skill:hermes-custom-providers
 schema_version: 1
 related: [llm-api-proxy-timeout-wall-retry-futile, nonstream-ttfb-equals-full-generation-time]
 ---

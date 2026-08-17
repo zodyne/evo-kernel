@@ -1,7 +1,7 @@
 ---
 id: local-proxy-env-blocks-api-client
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: networking
 tags: [proxy, env, httpx, api-debugging]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:0fe7c2be-cdd2-41a5-be17-e2cd31fe1740
 last_verified: 2026-07-29
-superseded_by: null
+superseded_by: skill:network-reachability-diagnosis
 schema_version: 1
 related: []
 ---

@@ -1,7 +1,7 @@
 ---
 id: nvim-lspconfig-in-lazy-lock-but-no-spec-not-in-runtimepath
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: nvim
 tags: [nvim, lazy.nvim, lspconfig, clangd, runtimepath]
@@ -16,7 +16,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:019fb5b5-ed73-71ba-8ec2-95256ac3edf8
 last_verified: 2026-07-31
-superseded_by: null
+superseded_by: skill:nvim-lsp-troubleshooting
 schema_version: 1
 related: [nvim-headless-verify-lsp-root-and-diagnostics]
 ---

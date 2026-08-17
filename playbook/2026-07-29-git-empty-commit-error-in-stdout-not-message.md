@@ -1,7 +1,7 @@
 ---
 id: git-empty-commit-error-in-stdout-not-message
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: git
 tags: [git, execSync, nodejs, automation, error-handling]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: test
 source: session:8e6bf649-a112-4ed7-a3bb-5391e23931a0
 last_verified: 2026-07-29
-superseded_by: null
+superseded_by: skill:node-cli-runtime-pitfalls
 schema_version: 1
 related: [git-add-untracked-source-path-aborts-staging]
 ---

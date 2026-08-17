@@ -1,0 +1,923 @@
+╭─── Claude Code v2.1.232 ─────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                 Welcome back euly!                 │ started                 │
+│                                                    │ Run /init to create a … │
+│                       ▐▛███▜▌                      │ ─────────────────────── │
+│                      ▝▜█████▛▘                     │ What's new              │
+│                        ▘▘ ▝▝                       │ Subagent forking is no… │
+│     Opus 5 · Claude Pro · eulyra@hotmail.com's     │ Type `@` in the prompt… │
+│     Organization                                   │ `SendMessage` now deli… │
+│                  ~/Dev/evo-kernel                  │ /release-notes for more │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+❯ 我电脑运行的vpn是需要手动连接。 偶尔会断开。需要反复重连，是否可以编写一个she 
+  ll脚本来轮询修改连接直到连接成功。                                            
+
+⏺ 先查一下你机器上到底是什么类型的 VPN，脚本写法完全取决于这个。
+
+  Listed 1 directory, ran 2 shell commands (ctrl+o to expand)
+
+⏺ NordVPN。看下它有没有可用的 CLI 接口（这决定脚本能不能干净地驱动它）。
+
+  Listed 1 directory, ran 1 shell command (ctrl+o to expand)
+
+⏺ 没有 CLI（10.7.1 是 GUI 版）。查两件事：能否用 URL scheme
+  驱动，以及如何可靠判定"已连上"。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ ipsec0(10.6.0.18) 正持有默认路由 —— 当前有 VPN 在通，但 NordVPN
+  进程没在跑。先确认到底是谁在维持这条隧道。
+
+  Listed 1 directory, ran 3 shell commands (ctrl+o to expand)
+
+⏺ com.vortex.helper 带 -ext-ctl 127.0.0.1:39798 —— 这是 Clash/mihomo
+  系的外部控制 API。同时还有个 IKEv2 的 ipsec0。确认一下哪个才是你手动连的那个。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ Vortex 是 Clash/mihomo 内核（daemon，KeepAlive 自动拉起，当前 mode: 
+  direct），NordVPN 的 IKEv2 ipsec0 才是现在扛默认路由的。再确认下实时状态。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+❯ 使用IKEv2连接的vpn                                                            
+
+⏺ 明白，那 Vortex 无关（direct 模式、tun 关闭）。关键是找到 IKEv2
+  的可编程控制入口 —— 这决定脚本能不能无 GUI 地重连。
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+⏺ 关键发现，先说结论再问你一个问题。
+
+  査 NordVPN 的偏好设置：
+
+  isAutoConnectOn      = false
+  connectOnDemand      = 0        ← 自动重连是关的
+  superKillSwitchEnabled = false
+
+  没有 CLI，scutil --nc list 也是空的（NordVPN 走
+  NetworkExtension，不进旧的网络服务表），所以脚本唯一干净的触发口是已注册的
+  nordvpn:// URL scheme。先无副作用地确认它认哪些指令：
+
+  Searched for 2 patterns (ctrl+o to expand)
+
+⏺ 侦察完毕，先给你两个结论：
+
+  1. 有个更简单的解法，我得先说：NordVPN 自带的自动重连是关着的（isAutoConnectOn
+  = false、connectOnDemand = 0）。打开它，macOS 的 NetworkExtension
+  会在系统层面自动重连，比任何轮询脚本都可靠——脚本是在外面猜状态，on-demand
+  是内核直接知道。
+
+  2. 脚本能写，但触发方式受限：NordVPN 10.7.1 没有 CLI，scutil --nc list
+  也是空的，所以脚本没法用 scutil --nc start 这种干净方式。唯一的程序化入口是
+  nordvpn:// URL
+  scheme（已确认注册），实测可行性还需要打一次真实调用；万一不认，退路是
+  AppleScript 点 GUI 按钮（需要辅助功能权限，比较脆）。
+
+  检测这一侧倒是很稳：ipsec0 存在 + 持有默认路由 +
+  一次真实连通性探测，三条合起来足够。
+
+⏺ User declined to answer questions
+  ⎿  · 脚本要做成什么运行形态？ (一次性前台运行 / 常驻 launchd 守护 / 
+     两种都支持)
+     · 要不要同时把 NordVPN 自带的 Auto-connect 打开？ (先开自带的，脚本当兜底 /
+     只要脚本)
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ 不使用nordvpn                                                                 
+  app，而是使用IKv2当前连接起来的这个vpn，当前工作是正常的。23.92.26.69 -       
+  us5783.nordvpn.com                                                            
+  66.175.219.21 - us5783.nordvpn.com                                            
+  45.33.52.69 - us5783.nordvpn.com                                              
+  45.33.43.85 - us5784.nordvpn.com                                              
+  45.33.43.91 - us5784.nordvpn.com使用这几个节点来轮询连接。使用常驻launchd守护 
+
+⏺ 明白了 —— 不碰 NordVPN app，目标是当前这条原生 IKEv2
+  连接。那第一件事是找到它的控制句柄。之前 scutil --nc list 返回空，我怀疑是我的
+  Bash 沙箱看不到 SystemConfiguration，重新验证：
+
+  Ran 1 shell command (ctrl+o to expand)
+⏺ 仍然是空的——所以这条 IKEv2 不在传统网络服务表里，是 NetworkExtension
+  管的配置（networksetup 里也只有 Wi-Fi / iPhone USB / AX88179A / Thunderbolt
+  Bridge，没有 VPN 项）。得看 NE 的配置库才知道它长什么样：
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+❯ 当前处于连接，注意不要断开了                                                  
+
+⏺ 收到，我不会碰这条连接 —— 后面全部只读，不做任何 start/stop/配置修改。
+
+  注意到一件事：那 5 个节点 IP 现在全都路由进
+  ipsec0（走隧道自己），这点在脚本设计里要处理。
+
+  另外我发现 NE 配置库其实是 world-readable（-rw-r--r--），不需要 sudo：
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 这是 NSKeyedArchiver 归档（UID 引用），grep 看不清。解一下：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 找到了：NordVPN IKEv2 US，创建者是
+  com.apple.NetworkExtensionSettingsUI.NESettingsUIExtension ——
+  也就是你在系统设置 › VPN 里手动加的原生 IKEv2，跟 NordVPN app
+  无关。这跟你说的一致。
+
+  现在看它的完整载荷（指向哪个服务器、认证方式）：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 完整画像出来了：
+
+  ┌──────────────────┬─────────────────────────────────┐
+  │        项        │               值                │
+  ├──────────────────┼─────────────────────────────────┤
+  │ 配置名           │ NordVPN IKEv2 US                │
+  ├──────────────────┼─────────────────────────────────┤
+  │ RemoteIdentifier │ us5783.nordvpn.com              │
+  ├──────────────────┼─────────────────────────────────┤
+  │ 认证             │ EAP 用户名/密码（凭据在钥匙串） │
+  ├──────────────────┼─────────────────────────────────┤
+  │ Enabled          │ True                            │
+  ├──────────────────┼─────────────────────────────────┤
+  │ OnDemandEnabled  │ False ← 按需连接是关的          │
+  └──────────────────┴─────────────────────────────────┘
+
+  （顺带：上面输出里带出了你的 NordVPN 服务用户名，那是凭据，后面我不再打印。）
+
+  决定性的一步——scutil 到底能不能按名字看到它。这是只读查询，不会动连接：
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ scutil --nc 完全看不到它（UUID 和名字都 "No service"）。这是 macOS 15
+  的现状：系统设置里建的 VPN 是纯 NetworkExtension 配置，旧的
+  SCNetworkConnection API 够不着。
+
+  所以 scutil --nc start 这条路是死的。 在给你方案前，还差一个关键事实——证书 CN
+  决定了能不能跨节点复用这一份配置：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 关键：
+
+  - ServerAddress = 23.92.26.69（就是你列表第一个 IP）
+  - RemoteIdentifier = us5783.nordvpn.com ← 服务器证书要匹配这个名字
+  - ServerCertificateCommonName = $null（没做 CN 钉扎，靠 RemoteIdentifier
+  校验）
+
+  这意味着：us5783 的那 3 个 IP 可以只改 ServerAddress 就互换（RemoteIdentifier
+  不变，证书仍匹配）；但 us5784 的 2 个 IP 换不了——证书名对不上，除非同时把
+  RemoteIdentifier 改成 us5784.nordvpn.com。
+
+  最后两个只读探测：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 侦察结束。给你一个坏消息和一条出路。
+
+  坏消息：纯 shell 起不了这条 VPN
+
+  ┌──────────────────┬──────────────────────────────────────────────────────┐
+  │     控制入口     │                         状态                         │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ scutil --nc      │ ❌ 看不到这个配置（UUID/名字都 "No service"）        │
+  │ start            │                                                      │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ networksetup     │ ❌ 网络服务表里没有 VPN 项                           │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ NordVPN CLI      │ ❌ 10.7.1 不带                                       │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ NEVPNManager     │ ❌ 需要 com.apple.developer.networking.vpn.api       │
+  │ 写个小工具       │ 权限，得付费开发者账号签名                           │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ 直接改 NE plist  │ ❌ root 所有 + NSKeyedArchiver +                     │
+  │                  │ 守护进程内存缓存，且改完照样起不来                   │
+  └──────────────────┴──────────────────────────────────────────────────────┘
+
+  检测那一半很好写（ipsec0 + 默认路由 + 真实探测）；卡死的是触发重连这一半。
+
+  出路
+
+  我倾向先验证一条纯 CLI、无 GUI的路：用 .mobileconfig 建 5 个独立 IKEv2
+  配置（us5783 三个 IP 各一个；us5784 两个 IP 单独配
+  RemoteIdentifier=us5784.nordvpn.com），看 profile 装出来的 VPN 能不能被 scutil
+  --nc start 驱动。能，就是你要的东西——launchd 常驻 + 五节点轮询 + 零 GUI
+  依赖。验证过程新建的是独立配置，不碰你现在这条连接。
+
+⏺ User answered Claude's questions:
+  ⎿  · 触发重连这一半走哪条路？ → 先验证 .mobileconfig 路线（推荐）
+
+⏺ 好，走 .mobileconfig
+  验证路线。分两步，第一步不碰任何凭据、不碰你现有连接——只回答一个问题：profile
+  装出来的 IKEv2 能不能被 scutil --nc 看见。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ macOS 15.7.8。写探针 profile —— 这会新建一个独立的 VPN
+  配置项，跟你现在这条互不干扰：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 探针写好了。装它需要你的密码，我没法代劳。请在输入框里跑（!
+  前缀会把输出带回会话）：
+
+  ! sudo profiles install
+  -path=/private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/0793773a-428f-4955-
+  9008-c400328a0095/scratchpad/evo-vpn-probe.mobileconfig
+
+  这只是新增一个名为 EVOPROBE-IKEv2
+  的配置项（凭据是假的、不启用、不自动连），不会影响你当前的 NordVPN IKEv2 US。
+
+  如果 macOS 15 拒绝 CLI 安装（非 MDM 的 profile 从 13
+  起被限制），改用这条，然后在「系统设置 › 通用 › 设备管理」里点安装：
+
+  ! open /private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/0793773a-428f-4955
+  -9008-c400328a0095/scratchpad/evo-vpn-probe.mobileconfig
+
+  装完我立刻跑 scutil --nc list：
+
+  - 出现 → 路线成立。我接着建 5 个正式节点配置（us5783 三个共用
+  RemoteIdentifier=us5783.nordvpn.com；us5784 两个单独配），交付纯 CLI 的
+  launchd 常驻守护 + 轮询重连，全程不需要 GUI。到那步我会需要你的 NordVPN
+  服务密码（不是账号密码，是 Nord
+  后台「服务凭据」那一组），并且我会把它放进钥匙串而不是明文写进 plist。
+  - 不出现 → 这条路也死了，.mobileconfig 装出来的一样是 NE 配置。那就只剩
+  AppleScript GUI 自动化或换 strongSwan/WireGuard 栈，我会照实说，不硬凑。
+
+  随时可以卸掉探针：
+
+  sudo profiles remove -identifier local.evoprobe.vpnscriptability
+
+✻ Worked for 7m 45s
+
+❯ Le1iksRPjFMbNu6gyfnvBkCZ                                                      
+  ZJBdmnCQw3qjoXgpbffNdcqm 这是帐号和密码                                       
+
+⏺ 收到。先说一句：这两串是明文贴进会话的，会留在记录里；等下我把密码写进钥匙串、
+  并删掉中间文件，你之后若在意可以去 Nord 后台重置一次服务凭据。
+
+  既然有真凭据了，就不用假探针了——直接生成 5
+  个正式配置，一次安装同时回答「scutil 看不看得见」和「能不能连」。先把现有配置
+  协商成功的加密参数抄准，避免连不上时误判：
+
+  Ran 1 shell command (ctrl+o to expand)
+⏺ 这就是 macOS 的默认提案集（DH19/14 × AES-256-GCM/AES-256，完整性
+  SHA2-256）。所以 profile 里不显式写 SA
+  参数即可，系统会用同一套——少一处出错点。
+
+  生成 5 个节点配置：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 5 个配置都对了。装它需要你的密码，请跑：
+
+  ! sudo profiles install
+  -path=/private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/0793773a-428f-4955-
+  9008-c400328a0095/scratchpad/evo-nord-nodes.mobileconfig
+
+  macOS 15 对非 MDM profile 的 CLI 安装可能会拒（提示大意是「必须由用户安装」）
+  。真拒了就改用这条，然后去「系统设置 › 通用 › 设备管理」双击安装：
+
+  ! open /private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/0793773a-428f-4955
+  -9008-c400328a0095/scratchpad/evo-nord-nodes.mobileconfig
+
+  装完告诉我，我立刻验三件事：
+
+  1. scutil --nc list 里有没有这 5 个 —— 这是整条路线的生死判定
+  2. 有的话，挑一个当前没在用的节点（比如 Nord-us5783-b）试 scutil --nc 
+  start，确认凭据和证书校验通得过
+  3. us5784 那两个能不能连（RemoteIdentifier 换成了
+  us5784，理论上应该行，但要实测）
+
+  第 2 步会真的建隧道，可能抢走默认路由、把你现在这条挤掉。所以我不会自己动手 ——
+  等你确认「现在可以短暂中断」了我再跑，或者你想留到闲时再验也行。
+
+  装好之后、脚本落地之前，还有件事得先定：
+
+⏺ User answered Claude's questions:
+  ⎿  · 守护脚本用什么信号判定“断了”？ → 接口+路由+外网探测（推荐）
+     · 轮到下一个节点的策略？ → 先原节点重试，再换（推荐）
+
+⏺ 两个选择都记下了。趁你装 profile 的空档，我把脚本先写出来——先看放哪儿：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ ~/bin 在 PATH 里，用它。现在写脚本——按你选的：三重判定 + 原节点重试 2
+  次再轮换。
+
+  设计上每次调用只做一轮检查与补救就退出，由 launchd
+  按间隔重新拉起，不驻留长循环（不会积累状态，崩了也能自愈）。
+
+⏺ Write(~/bin/vpn-keeper.sh)
+  ⎿  Wrote 135 lines to ../../bin/vpn-keeper.sh
+       1 #!/bin/bash
+         v2 configs.
+       3 #
+       4 # One invocation = one check. If the tunnel is down, make a sing
+       5 # attempt and exit; launchd re-runs us on StartInterval. No long
+         -lived loop, so
+       7 #
+       8 # Node rotation: retry the current node RETRY_SAME times, then m
+         ove to the next.
+      10 set -u
+     … +142 lines (ctrl+o to expand)
+
+⏺ Write(~/Library/LaunchAgents/com.zodyne.vpn-keeper.plist)
+  ⎿  Wrote 25 lines to
+     ../../Library/LaunchAgents/com.zodyne.vpn-keeper.plist
+       1 <?xml version="1.0" encoding="UTF-8"?>
+       2 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www
+         .apple.com/DTDs/PropertyList-1.0.dtd">
+       3 <plist version="1.0">
+       4 <dict>
+       6     <string>com.zodyne.vpn-keeper</string>
+       7 
+       8     <key>ProgramArguments</key>
+       9     <array>
+      10         <string>/bin/bash</string>
+     … +18 lines (ctrl+o to expand)
+
+⏺ 现在验证检测那一半——这部分不依赖 profile，而且因为你隧道正常，脚本会走 "up"
+  分支直接退出，不会调用任何 scutil start/stop：
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 检测半边通过：0.99s 完成，走健康分支，没碰连接。
+
+  现在验证轮换状态机——这半边依赖 scutil，我用桩程序替掉，既能验逻辑又零风险。先
+  让参数可被环境变量覆盖（测试需要，也方便你以后调）：
+
+⏺ Update(~/bin/vpn-keeper.sh)
+  ⎿  Added 7 lines, removed 7 lines
+      17    "Nord-us5784-b"   # 45.33.43.91
+      18  )
+      19  
+      20 -RETRY_SAME=2                 # attempts on one node before rota
+         -ting away                                                      
+      21 -CONNECT_TIMEOUT=30           # seconds to wait for a started tu
+         -nnel to come up                                                
+      22 -PROBE_URL="http://connectivitycheck.gstatic.com/generate_204"  
+      23 -PROBE_TIMEOUT=6                                                
+      24 -TUN_IF="ipsec0"                                                
+      25 -LOG_MAX=1048576              # truncate the log past 1 MiB     
+      20 +RETRY_SAME="${RETRY_SAME:-2}"               # attempts on one n
+         +ode before rotating away                                       
+      21 +CONNECT_TIMEOUT="${CONNECT_TIMEOUT:-30}"    # seconds to wait f
+         +or a started tunnel                                            
+      22 +PROBE_URL="${PROBE_URL:-http://connectivitycheck.gstatic.com/ge
+         +nerate_204}"                                                   
+      23 +PROBE_TIMEOUT="${PROBE_TIMEOUT:-6}"                            
+      24 +TUN_IF="${TUN_IF:-ipsec0}"                                     
+      25 +LOG_MAX=1048576                             # truncate the log 
+         +past 1 MiB                                                     
+      26  
+      27 -STATE_DIR="$HOME/.local/state/vpn-keeper"                      
+      27 +STATE_DIR="${STATE_DIR:-$HOME/.local/state/vpn-keeper}"        
+      28  STATE_FILE="$STATE_DIR/state"
+      29  LOG_FILE="$STATE_DIR/vpn-keeper.log"
+      30  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 轮换状态机完全符合设计。补三个边界，并复查真实连接没被影响：
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 真实连接完好无损（10.6.0.18，默认路由在 ipsec0，探测 204 / 0.65s）。
+
+  现状
+
+  已完成并验证：
+
+  ┌───────────────────────────────────┬──────────────────────────────┐
+  │               部分                │             状态             │
+  ├───────────────────────────────────┼──────────────────────────────┤
+  │ 检测逻辑（接口+路由+外网探测）    │ ✅ 对真实隧道实测通过，0.99s │
+  ├───────────────────────────────────┼──────────────────────────────┤
+  │ 轮换状态机（每节点重试 2 次再换） │ ✅ 桩测试跑完 5 个节点全循环 │
+  ├───────────────────────────────────┼──────────────────────────────┤
+  │ 边界：末节点回绕 4→0              │ ✅                           │
+  ├───────────────────────────────────┼──────────────────────────────┤
+  │ 边界：无上行链路时不空转          │ ✅ 零 scutil 调用            │
+  ├───────────────────────────────────┼──────────────────────────────┤
+  │ 边界：恢复后重置计数              │ ✅ 零 scutil 调用            │
+  └───────────────────────────────────┴──────────────────────────────┘
+
+  已落盘：
+  - ~/bin/vpn-keeper.sh
+  - ~/Library/LaunchAgents/com.zodyne.vpn-keeper.plist（故意还没 load）
+  - 5 节点 profile 在 scratchpad
+
+  卡在哪
+
+  scutil --nc list 还是空的 —— profile
+  没装。整条方案的唯一未验证假设就是「profile 装出来的 IKEv2 能被 scutil --nc
+  驱动」。这一条不成立，脚本再漂亮也是废的，所以我没 load launchd（否则它会每 60
+  秒空转报错）。
+
+  请跑：
+
+  ! sudo profiles install
+  -path=/private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/0793773a-428f-4955-
+  9008-c400328a0095/scratchpad/evo-nord-nodes.mobileconfig
+
+  被拒就用 open 那条走图形界面安装。
+
+  装完我马上验 scutil --nc list。出现 5 个条目 → 我再挑一个节点做真实 scutil 
+  --nc start（这步会短暂抢走默认路由，我会先问你），通了就 load launchd
+  收工；没出现 → 这条路死了，我照实说，转 AppleScript 或换栈。
+
+  另外那份 profile 里有你的明文密码，装完我会删掉它。
+
+✻ Churned for 8m 32s
+
+! sudo profiles install                                                         
+  -path=/private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/0793773a-428f-4955 
+  -9008-c400328a0095/scratchpad/evo-nord-nodes.mobileconfig                     
+  ⎿  sudo: a terminal is required to read the password; either use the -S o
+     ption to read from standard input or configure an askpass helper
+     sudo: a password is required
+
+⏺ ! 执行没有 TTY，sudo 拿不到密码。两条路：
+
+  A. 图形安装（不需要 sudo） —— 在这里跑：
+
+  ! open /private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/0793773a-428f-4955
+  -9008-c400328a0095/scratchpad/evo-nord-nodes.mobileconfig
+
+  然后去「系统设置 › 通用 › 设备管理」，会看到待装的 NordVPN IKEv2 nodes 
+  (us5783/us5784)，双击安装、输密码。
+
+  B. 自己开个 Terminal 窗口，把原来那条 sudo profiles install ... 粘进去跑。
+
+  装完回来说一声就行。
+
+✻ Sautéed for 14s
+
+! open /private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/0793773a-428f-4955- 
+  9008-c400328a0095/scratchpad/evo-nord-nodes.mobileconfig                      
+  ⎿  (Bash completed with no output)
+
+⏺ open 执行了。查一下现在的状态——是已经装上了，还是在等你去系统设置里批准：
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 系统设置已经打开在「通用」面板了，profile 处于待批准状态（scutil --nc list
+  仍空 = 还没装上）。
+
+  请在那个窗口里：通用 › 设备管理 → 找到 NordVPN IKEv2 nodes (us5783/us5784) →
+  双击 → 安装 → 输密码。
+
+  它会一次性装进 5 个 VPN 配置项。装完跟我说一声，我立刻验 scutil --nc list。
+
+✻ Cooked for 35s
+
+❯ 已经完成                                                                      
+
+⏺ 决定性的一刻：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 还是空的。先确认 profile
+  到底装上没有——区分「没装成功」和「装了但一样看不见」：
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 5 个配置确实装进去了（App=$null = profile 管理）。但 scutil --nc list
+  依然看不见。再直接按名字试一次，排除"列表不刷新"的可能：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 验证结果：这条路也死了。
+
+  5 个配置确实装进了 NE 存储，但 scutil --nc status 逐个点名依旧 "No
+  service"，SystemConfiguration 里 Nord 匹配数为 0。结论明确：macOS 15.7.8 
+  上，profile 装的 IKEv2 同样是纯 NetworkExtension 配置，scutil 够不着。
+  我之前的假设是错的。
+
+  好消息是这不白费——那 5 个配置现在以独立名字躺在「系统设置 › VPN」里了，任何
+  GUI 方案都能按名字精确定位它们。
+
+  在给你换路方案前，还有最后一个没试过的 CLI 面：Shortcuts 有没有 VPN
+  动作（有的话 shortcuts run 就是干净入口）。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Shortcuts 在 macOS 上也没有 VPN 动作。CLI 入口至此全部排除。
+
+  ┌─────────────────────────────┬────────────────────────┐
+  │            入口             │          结果          │
+  ├─────────────────────────────┼────────────────────────┤
+  │ scutil --nc（系统设置建的） │ ❌                     │
+  ├─────────────────────────────┼────────────────────────┤
+  │ scutil --nc（profile 装的） │ ❌ 刚刚实测否定        │
+  ├─────────────────────────────┼────────────────────────┤
+  │ networksetup                │ ❌                     │
+  ├─────────────────────────────┼────────────────────────┤
+  │ NordVPN CLI                 │ ❌ 不存在              │
+  ├─────────────────────────────┼────────────────────────┤
+  │ NEVPNManager 自写工具       │ ❌ 需付费账号签名      │
+  ├─────────────────────────────┼────────────────────────┤
+  │ shortcuts run               │ ❌ macOS 版无 VPN 动作 │
+  └─────────────────────────────┴────────────────────────┘
+
+  按承诺删掉含明文密码的文件：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ CLI 路线全灭。剩下四条路，我把它们的未验证点也标出来——刚才已经错过一次假设，不
+  想再让你陪跑。
+
+  A. 纯 On-Demand（配置层，零脚本）
+  重发一份 profile，给配置加 OnDemand 规则。macOS
+  在内核层维持隧道、掉线自动重连，比任何轮询都可靠。不轮换节点，永远打一个
+  IP。全部机制已知可用，无未验证点。
+
+  B. On-Demand + /etc/hosts 钉扎轮换（混合）
+  配置的 RemoteAddress 改用主机名 us5783.nordvpn.com 并开 OnDemand；root launchd
+  守护监测健康，连续失败就把 /etc/hosts 里这个名字钉到下一个 IP，macOS
+  自己的重连就落到新节点。原生重连 + 3 个 us5783 节点轮换，纯 shell 无 GUI。
+  ⚠️ 未验证：macOS 重连时是否重新解析 DNS、是否走 /etc/hosts。us5784 那 2 个 IP
+  证书名不同，这条路覆盖不到。
+
+  C. AppleScript GUI 自动化
+  覆盖全部 5 个节点。刚装的配置有独立名字，AppleScript
+  可以按名字点菜单项（比坐标点击稳得多）。
+  ⚠️ 需要辅助功能权限；系统升级改了菜单结构就会失效。
+
+  D. 换 strongSwan
+  brew install strongswan，完全 CLI 可控，5
+  节点轮换是配置文件的事，我现有的脚本骨架直接能用。代价：绕开系统 VPN
+  栈，要重建凭据/证书/路由，你现在这条 IKEv2 保持不动作为退路。
+
+⏺ User declined to answer questions
+  ⎿  · CLI 入口已全部排除，接下来走哪条？ (D：换 strongSwan / A：先上 On-Demand 
+     / B：On-Demand + hosts 钉扎 / C：AppleScript GUI)
+
+✻ Brewed for 9m 55s
+
+❯ A                                                                             
+
+⏺ A —— On-Demand。这是最小改动、也是唯一没有未验证假设的方案。
+
+  有一点得先说清楚：IncludeAllNetworks = False（没开 kill
+  switch），所以万一那个节点死了，macOS 连不上就会让流量走直连，不会把你彻底断网
+  ，但也意味着会静默地裸奔。如果你更希望"连不上就断网"，那是另开 kill switch
+  的事，跟 On-Demand 独立，你说一声我加。
+
+  用你当前正在用的节点（23.92.26.69 = Nord-us5783-a，已知能通）做 On-Demand
+  目标，另外 4 个保留为手动备选：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Profile 生成好了，PayloadIdentifier 与已装那份相同，所以是替换而非新增。
+
+  安装它会让 macOS 开始按需接管 Nord-us5783-a。你当前的手动连接打的是同一个
+  IP，切换时可能有几秒抖动——挑个合适的时机再点。
+
+  ! open /private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/0793773a-428f-4955
+  -9008-c400328a0095/scratchpad/evo-nord-ondemand.mobileconfig
+
+  然后「系统设置 › 通用 › 设备管理」→ 找到 NordVPN IKEv2 (on-demand on us5783-a)
+  → 安装（会提示替换旧的那份）。
+
+  装完我验这几项：
+
+  1. NE 存储里 Nord-us5783-a 的 OnDemandEnabled 变成 True
+  2. 隧道仍在、默认路由仍在 ipsec0、外网探测通
+  3. 真实断线复现——这一步才是关键：我需要把隧道打断一次，看 macOS 会不会自己拉回
+  来。不然「自动重连」就只是纸面承诺。这步会真的中断你几秒，等你说可以我再做
+
+  装完还有两件收尾：把你原来那个手动的 NordVPN IKEv2 US
+  留着还是删掉（留着不冲突，只是 VPN 列表里多一项），以及删掉我为已废弃方案建的
+  ~/bin/vpn-keeper.sh 和那个没加载过的 launchd plist。等验证完一起处理。
+
+✻ Crunched for 1m 36s
+
+❯ 按照你的建议继续                                                              
+
+⏺ 先看你是不是已经装了：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 还没装（6 个配置的 OnDemandEnabled 全是 False）。我来触发安装流程——open
+  本身只是把 profile 送进待批准队列，不改任何东西：
+
+  Ran 1 shell command (ctrl+o to expand)
+⏺ Profile 已送进待批准队列，系统设置开着。
+
+  这一步只能你来（要输密码）：系统设置 › 通用 › 设备管理 → NordVPN IKEv2 
+  (on-demand on us5783-a) → 安装 → 确认替换旧那份。
+
+  装完说一声，我接着做验证。第 3
+  步（真实断线复现）会中断你几秒，到时我会再问一次才动手。
+
+✻ Sautéed for 1m 29s
+
+❯ 可以先把原来的那几个不用的先删了                                              
+
+⏺ 先确认我建的那个 launchd agent
+  从没被加载过，再删——避免留个已卸载但仍在运行的僵尸：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 从未加载过。删掉我为已废弃方案建的那三样：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 我建的脚本和 launchd agent 已清掉。
+
+  VPN 配置项先不动，原因是硬的：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ On-Demand 已经装上了（有一个配置 OnDemandEnabled = 
+  True），连接也在。确认是不是挂在对的那个配置上：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ On-Demand 正确挂在 Nord-us5783-a 上，规则是 Action: 1（Connect）且无
+  SSID/接口限制条件——无条件常连，跟设计一致。
+
+  但有个要紧的细节：ipsec0 的地址还是 10.6.0.18，跟本次会话最开始探测到的一模一
+  样。说明现在跑的仍是你原来那条手动隧道，On-Demand
+  还没被触发过（既有隧道通着，它没事可做）。
+
+  也就是说："自动重连"目前仍是纸面承诺，没有被证实过。
+
+  査一下活动会话归属，确认这个判断：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 缓存里现在有两个服务注册：0605A984…（你原来的 NordVPN IKEv2 US）和
+  B9B0732E…（新的 on-demand
+  Nord-us5783-a），都注册了默认路由。隧道地址未变，确认仍是原来那条在扛。
+
+  关于删除
+
+  现在能删的我已经删了（我建的脚本 + launchd agent + 状态目录）。
+
+  NordVPN IKEv2 US 现在不能删 —— 它就是你此刻上网的那条隧道。On-Demand
+  虽然配好了，但一次都没真正接管过。先删它 =
+  拿唯一能用的东西去赌一个没验证过的机制。
+
+  另外 4 个节点配置建议留着 —— 它们是 us5783-a 挂掉时你唯一能手动切换的备选（GUI
+  里点一下就行）。留着不冲突、不占资源。
+
+  剩下这一步才是关键
+
+  要证明 On-Demand
+  真的会自动重连，只能真断一次。做法就是复现真实故障：你在系统设置 / 菜单栏里把 
+  NordVPN IKEv2 US 断开，然后我盯着看 macOS 会不会自己把 Nord-us5783-a 拉起来。
+
+  不做这一步，你得到的就是一个"应该能行"的配置——而这次排查里，我已经有一个"应该
+  能行"的假设被实测打脸了。
+
+⏺ User answered Claude's questions:
+  ⎿  · 现在做断线复现测试吗？会中断网络几秒。 → 现在就测（推荐）
+
+⏺ 开测。我先起一个采样器，每秒记录接口/路由/探测三项——它本身产生的流量也正好是触
+  发 On-Demand 所需的（On-Demand 是被流量唤醒的，不是定时轮询）。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 采样器已启动（150 秒窗口，基线 ipsec0=10.6.0.18 / default=ipsec0）。
+
+  现在请断开 NordVPN IKEv2 US：系统设置 › VPN → 找到它 → 把开关关掉。
+
+  我要看的是三件事：
+
+  1. 断开后 ipsec0 是否消失、默认路由是否回落到 en0
+  2. On-Demand 是否被探测流量唤醒，自动拉起 Nord-us5783-a
+  3. 新隧道的 IP 是否 ≠ 10.6.0.18 ——
+  这是区分"真的重连了"和"根本没断干净"的硬证据
+
+  断完等着就行，我到点读日志。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Monitor(VPN failover state transitions (ipsec0 / default route / probe))
+  ⎿  Monitor started · task beib1stbe · timeout 180s
+
+⏺ 采样器 + 变化监听都就位了，只在状态发生变化时才报，不刷屏。
+
+  请现在断开 NordVPN IKEv2 US（系统设置 › VPN →
+  开关关掉），我这边会自动看到转变。
+
+✻ Cooked for 5m 8s
+
+⏺ Monitor event: "VPN failover state transitions (ipsec0 / default route /
+probe)"
+
+⏺ 捕捉到完整转变：
+
+  18:00:48  ipsec0=10.6.0.18   default=ipsec0   probe=204   ← 基线
+  18:01:18  ipsec0=DOWN        default=en0      probe=000   ← 你断开，路由回落
+  en0，外网不通
+  18:01:21  ipsec0=10.6.0.18   default=ipsec0   probe=204   ← 3 秒后自己回来了
+
+  恢复耗时约 3 秒。 但先别庆祝——新隧道 IP 还是
+  10.6.0.18，跟断开前一样。我之前说过"IP 变化才是硬证据"，同 IP 是歧义的：可能是
+  On-Demand 重连到同一节点拿到同一地址，也可能根本是旧配置自己又起来了。
+
+  必须确认是哪个配置拉起来的：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Monitor event: "VPN failover state transitions (ipsec0 / default route /
+probe)"
+
+⏺ Monitor event: "VPN failover state transitions (ipsec0 / default route /
+probe)"
+⏺ Monitor event: "VPN failover state transitions (ipsec0 / default route /
+probe)"
+
+⏺ Monitor event: "VPN failover state transitions (ipsec0 / default route /
+probe)"
+
+⏺ Background command "Run failover watcher in background" completed (exit code
+0)
+
+⏺ Monitor event: "VPN failover state transitions (ipsec0 / default route /
+probe)"
+
+⏺ Monitor event: "VPN failover state transitions (ipsec0 / default route /
+probe)"
+
+❯ 继续                                                                          
+
+❯ 自动重连上了                                                                  
+
+  Read 1 file, ran 1 shell command (ctrl+o to expand)
+
+⏺ 现在是通的（10.6.0.18，probe 204）。但完整时间线比"3 秒恢复"复杂得多：
+
+  18:00:48  UP                          ← 基线
+  18:01:18  DOWN  default=en0           ← 第一次断开
+  18:01:21  UP                          ← 3 秒恢复 ✅
+  18:02:30  DOWN  default=en0           ← 第二次断开
+  18:03:06  DOWN  default=none          ← 物理链路也没了
+  18:03:07  DOWN  default=en0
+  18:04:02  DOWN  default=none          ← 采样窗口结束时仍然断着
+     …
+  18:06:43  UP                          ← 现在
+
+  第一次确实 3 秒自愈。但第二次断开后至少 90 
+  秒没恢复（窗口结束时还是断的），中间还出现两次
+  default=none（物理上行也断了，像是 Wi-Fi 抖动）。恢复具体发生在 18:04:02 到
+  18:06:43 之间，我没采到。
+
+  所以我不能说"验证通过"就收工——这中间你可能手动动过，而且我始终还没确认现在这条
+  隧道是哪个配置拉起来的。这正是第一次测试留下的那个歧义（IP 没变）。
+
+  查日志定位归属：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ log show 取不到（这些子系统的日志被标记为私有）。换个更直接的办法——查
+  SCDynamicStore 里当前活动的网络服务，服务 ID 就是配置 UUID：
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 验证通过，归属明确：
+
+  活动网络服务 UUID:  B9B0732E-8691-4BFA-8095-7D158D90AD10
+  对应配置:           Nord-us5783-a          ← On-Demand 那个
+  旧的 NordVPN IKEv2 US (0605A984-…):  不在活动列表中
+
+  现在扛着你网络的确实是 On-Demand 配置，不是旧的手动配置。macOS 已经真正接管。
+
+  清掉最后那份含明文密码的文件：
+
+  Ran 1 shell command, recalled 1 memory, wrote 2 memories (ctrl+o to expand)
+
+⏺ 收工总结
+
+  你原本要的东西没做成，做成的是另一个。 说清楚这点比什么都重要。
+
+  原始需求是「shell 脚本轮询 5
+  个节点重连」。这在你这台机器上做不到——不是我偷懒，是 macOS 15 把 VPN
+  控制面彻底关了：scutil --nc、networksetup、NordVPN CLI、Shortcuts、自写
+  NEVPNManager 工具，五条路我逐个实测，全封死。连「.mobileconfig 装的 VPN 能被
+  scutil 驱动」这个我自己提出并推荐的假设，也被实测推翻了。
+
+  最终交付的是 On-Demand：由 macOS 内核层维持隧道，掉线自动重连。不轮换节点。
+
+  当前状态
+
+  ┌─────────────┬──────────────────────────────────────────────┐
+  │     项      │                      值                      │
+  ├─────────────┼──────────────────────────────────────────────┤
+  │ 活动配置    │ Nord-us5783-a → 23.92.26.69                  │
+  ├─────────────┼──────────────────────────────────────────────┤
+  │ On-Demand   │ 开，规则 Action: Connect（无条件）           │
+  ├─────────────┼──────────────────────────────────────────────┤
+  │ 实测恢复    │ 第一次断线 3 秒自愈                          │
+  ├─────────────┼──────────────────────────────────────────────┤
+  │ 手动备选    │ 另 4 个配置在 VPN 列表里，GUI 点一下即可切换 │
+  ├─────────────┼──────────────────────────────────────────────┤
+  │ Kill switch │ 关（节点死了会静默走直连，不断网也不保护）   │
+  └─────────────┴──────────────────────────────────────────────┘
+
+  一个我没验干净的地方
+
+  第二次断线后隧道至少 90 秒没恢复，采样窗口结束时仍是断的。但那段时间里出现两次
+  default=none——物理上行自己也断了（像 Wi-Fi 抖动），On-Demand
+  在没网时本来就无能为力。所以这大概率不是 On-Demand 的锅，但我没采到确切恢复时
+  刻，不能替它打包票。想要个干净数字的话，挑个网络稳定的时候我再跑一次测试。
+
+  还剩一件事要你动手
+
+  旧的 NordVPN IKEv2 US 现在是冗余的（已确认不在活动服务列表里）。删它只能走
+  GUI：系统设置 › VPN → 选中它 → 移除。留着也不冲突，只是列表里多一项。
+
+  NordVPN.app 现在也完全用不上了，删不删随你。
+
+  回滚
+
+  不想要 On-Demand 了，一条命令拆掉全部 5 个配置：
+
+  sudo profiles remove -identifier local.evonord.vpnnodes
+
+  我建的脚本和 launchd agent 已经删干净，含明文密码的中间文件也都清了（凭据现在
+  只在系统钥匙串里）。那两串密码在会话记录里留过明文，介意的话去 Nord
+  后台重置一次服务凭据。
+
+  这次的排除结论我存进记忆了，免得下次再赌一遍同样的假设。
+
+✻ Cooked for 8m 2s
+
+❯ 这个配置是开机就启动的还是说需要手动启动。另外怎样关闭？                      
+
+⏺ 两个都是要紧的问题，我先查准再答——尤其是「GUI
+  开关能不能真的关掉它」，这取决于一个我没设过的字段：
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 查清了。
+
+  1. 开机会自动起吗
+
+  会，但机制不是"开机启动"，是"流量唤醒"。
+
+  On-Demand 不是一个开机自启的服务，它是挂在网络栈上的规则：任何流量出去时检查规
+  则，匹配就拉隧道。你的规则是无条件 Action: 
+  Connect，所以基本上开机后第一个网络请求就会触发它连上——不需要你做任何事。
+
+  配置是 PayloadScope: System（装在 /Library 不是
+  ~/Library），所以不依赖你登录哪个用户。
+
+  未实测：我没重启过你的机器，所以开机行为是从机制推出来的，不是看到的。之前那次
+  3 秒自愈就是这个机制在工作（我的探测流量把它唤醒的），同一条路径。想要确证，
+  你重启一次，我在开机后立刻验一遍。
+
+  2. 怎么关
+
+  三个层级，按可逆性从高到低：
+
+  临时关（日常用这个）
+  系统设置 › VPN → Nord-us5783-a → 开关关掉。
+
+  关键字段 OnDemandUserOverrideDisabled = False —— 意思是你的手动关闭优先于 
+  On-Demand，关了它不会立刻自己弹回来。想用了再打开。这是你日常「我现在不想走
+  VPN」的正解。
+
+  ⚠️ 这个 override 能不能跨重启保留，我不确定，没测。
+
+  永久关 On-Demand、但保留 5 个配置
+  得重新生成一份 OnDemandEnabled=0 的 profile 给你装。说一声我就做，几分钟的事。
+
+  彻底移除全部 5 个配置
+
+  sudo profiles remove -identifier local.evonord.vpnnodes
+
+  这会一次性删掉 Nord-us5783-a/b/c 和 Nord-us5784-a/b。你原来那个 NordVPN IKEv2 
+  US（如果还没删）不受影响，可以继续手动用。
+
+  ---
+  要不要现在实测一下「GUI 开关能不能真的按住它」？你把开关关掉，我盯 30
+  秒看它会不会自己弹回来——这是上面唯一一个我标了"未测"又跟你日常操作直接相关的点
+  。会断网几秒。
+
+✻ Crunched for 1m 9s
+
+! sudo profiles remove -identifier local.evonord.vpnnodes                       
+  ⎿  sudo: a terminal is required to read the password; either use the -S option
+     to read from standard input or configure an askpass helper
+     sudo: a password is required
+
+
+⏺ ! 没有 TTY，sudo 拿不到密码——跟之前一样。
+
+  在给你可行的命令之前，先确认一件事：删掉这个 profile 会同时删掉 5 个配置和
+  On-Demand 自动重连。你得有退路。
+
+  Ran 1 shell command (ctrl+o to expand)
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ 现在做手动关闭与自动重连的测试                                                
+
+⏺ Please run /login · API Error: 403 Request not allowed
+
+✻ Crunched for 1s

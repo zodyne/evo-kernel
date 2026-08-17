@@ -1,7 +1,7 @@
 ---
 id: pal-new-provider-must-join-priority-order
 type: lesson
-status: candidate
+status: archived
 scope: global
 domain: mcp
 tags:

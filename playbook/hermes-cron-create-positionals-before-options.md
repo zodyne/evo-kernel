@@ -1,7 +1,7 @@
 ---
 id: hermes-cron-create-positionals-before-options
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: hermes
 tags: [hermes, cron, cli, argparse]
@@ -14,7 +14,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:capture-2026-08-11-07-57-12-634-t55q
 last_verified: 2026-08-12
-superseded_by: null
+superseded_by: skill:hermes-config-ops
 schema_version: 1
 related: [hermes-cron-model-drift-fail-closed]
 ---

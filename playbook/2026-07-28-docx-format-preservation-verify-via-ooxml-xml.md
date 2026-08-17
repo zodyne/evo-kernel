@@ -1,7 +1,7 @@
 ---
 id: docx-format-preservation-verify-via-ooxml-xml
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: docx
 tags: [docx, ooxml, python-docx, format-preservation, verification, zipfile]
@@ -16,7 +16,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:b4705404-11d9-41aa-89ed-740c2fedfb2b
 last_verified: 2026-07-28
-superseded_by: null
+superseded_by: skill:docx
 schema_version: 1
 ---
 # 验证 docx「改内容保格式」要落到 OOXML 的 XML / run 属性级，不能只看纯文本或渲染

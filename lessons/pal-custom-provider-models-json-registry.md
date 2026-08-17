@@ -1,7 +1,7 @@
 ---
 id: pal-custom-provider-models-json-registry
 type: lesson
-status: candidate
+status: archived
 scope: global
 domain: mcp
 tags: [pal-mcp, custom-provider, model-registry, glm]

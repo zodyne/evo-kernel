@@ -1,7 +1,7 @@
 ---
 id: clangd-per-file-upward-cdb-shadows-nested
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: tooling
 tags: [clangd, compile_commands, lsp, nvim, c]
@@ -16,7 +16,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:6e8c3b5f-c536-4bce-b8f5-937a89375e89
 last_verified: 2026-07-31
-superseded_by: null
+superseded_by: skill:nvim-lsp-troubleshooting
 schema_version: 1
 ---
 

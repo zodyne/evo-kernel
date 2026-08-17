@@ -1,7 +1,7 @@
 ---
 id: evo-slice-normalize-toolname-case-and-path-field
 type: lesson
-status: validated
+status: archived
 scope: global
 domain: tooling
 tags: [evo-kernel, evo-slice, claude-code, pi, transcript-parsing, parser, harness]

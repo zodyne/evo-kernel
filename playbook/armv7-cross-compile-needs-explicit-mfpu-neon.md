@@ -1,7 +1,7 @@
 ---
 id: armv7-cross-compile-needs-explicit-mfpu-neon
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: performance
 tags:
@@ -22,7 +22,7 @@ evidence:
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-28-06-10-06-884-mg1k.md）
 last_verified: 2026-08-12
-superseded_by: null
+superseded_by: skill:embedded-cross-compilation
 schema_version: 1
 related:
 - simd-split-along-lane-divisible-dimension

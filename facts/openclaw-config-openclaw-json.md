@@ -1,7 +1,7 @@
 ---
 id: openclaw-config-openclaw-json
 type: fact
-status: candidate
+status: archived
 scope: global
 domain: harness-config
 tags: [openclaw, api-key, provider, config]

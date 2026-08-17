@@ -1,7 +1,7 @@
 ---
 id: kimi-api-latency-streaming-thinking
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: llm-api
 tags: [kimi, api-latency, streaming, thinking, watchdog]
@@ -16,7 +16,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: none
 source: session:583c96aa+b6cf7fd7
 last_verified: 2026-07-30
-superseded_by: null
+superseded_by: skill:hermes-custom-providers
 schema_version: 1
 ---
 

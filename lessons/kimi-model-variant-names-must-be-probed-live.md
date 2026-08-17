@@ -1,7 +1,7 @@
 ---
 id: kimi-model-variant-names-must-be-probed-live
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: llm-api
 tags: [kimi, moonshot, model-name, api-config]

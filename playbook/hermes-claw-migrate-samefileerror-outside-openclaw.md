@@ -1,7 +1,7 @@
 ---
 id: hermes-claw-migrate-samefileerror-outside-openclaw
 type: bullet
-status: validated
+status: archived
 scope: global
 domain: hermes
 tags: [hermes, migration, pathlib, bug, openclaw]
