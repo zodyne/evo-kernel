@@ -1,7 +1,7 @@
 ---
 id: make-d-macro-change-skips-rebuild-silently
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: build-system
 tags: [make, makefile, compile-flags, dependency-graph, validation]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:fb616292-c015-42e4-9987-16229ad221f3
 last_verified: 2026-07-28
-superseded_by: null
+superseded_by: skill:embedded-cross-compilation
 schema_version: 1
 ---
 # -D 宏配置用 make 变量切换不会触发重编——编译标志不在依赖图里，make 静默跳过

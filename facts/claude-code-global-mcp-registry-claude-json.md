@@ -1,7 +1,7 @@
 ---
 id: claude-code-global-mcp-registry-claude-json
 type: fact
-status: candidate
+status: deprecated
 scope: global
 domain: harness-config
 tags: [claude-code, mcp, config, backup]

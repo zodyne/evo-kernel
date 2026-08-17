@@ -1,7 +1,7 @@
 ---
 id: clangd-files-outside-compile-db-need-clangd-compileflags-includes
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: tooling
 tags: [clangd, compile_commands, dot-clangd, include-path, c, nvim]

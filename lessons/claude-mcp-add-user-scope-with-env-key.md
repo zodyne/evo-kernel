@@ -1,7 +1,7 @@
 ---
 id: claude-mcp-add-user-scope-with-env-key
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: harness-config
 tags: [claude-code, mcp, scope, api-key, config, claude-mcp-add]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:9df36dfc-790a-4022-b8d8-620e0ced67ea
 last_verified: 2026-07-30
-superseded_by: null
+superseded_by: skill:claude-code
 schema_version: 1
 related: [claude-code-global-mcp-registry-claude-json, pi-mcp-adapter-global-config-path]
 ---

@@ -1,7 +1,7 @@
 ---
 id: pi-credentials-auth-json-models-store
 type: fact
-status: candidate
+status: archived
 scope: global
 domain: harness-config
 tags: [pi, api-key, provider, config]

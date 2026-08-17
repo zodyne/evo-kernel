@@ -1,7 +1,7 @@
 ---
 id: kimi-coding-endpoint-anthropic-protocol-only
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: llm-ops
 tags:

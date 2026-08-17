@@ -1,7 +1,7 @@
 ---
 id: nvim-headless-verify-lsp-root-and-diagnostics
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: tooling
 tags: [nvim, lsp, headless, clangd, diagnostics]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:6e8c3b5f-c536-4bce-b8f5-937a89375e89
 last_verified: 2026-07-31
-superseded_by: null
+superseded_by: skill:nvim-lsp-troubleshooting
 schema_version: 1
 related: [nvim-headless-blocked-by-flatten-nvim]
 ---

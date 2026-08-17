@@ -1,7 +1,7 @@
 ---
 id: claude-code-bash-default-2min-timeout-kills-slow-probes
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: harness-config
 tags:
@@ -20,7 +20,7 @@ evidence:
 verified_by: command
 source: session:583c96aa-69cd-41b3-926b-4f72d4d7c7f5
 last_verified: 2026-07-30
-superseded_by: null
+superseded_by: skill:claude-code
 schema_version: 1
 related:
 - kimi-api-latency-streaming-thinking

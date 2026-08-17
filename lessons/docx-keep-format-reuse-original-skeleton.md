@@ -1,7 +1,7 @@
 ---
 id: docx-keep-format-reuse-original-skeleton
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: docx
 tags: [docx, python-docx, format-preservation, report]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: none
 source: session:dd4c9446+b4705404
 last_verified: 2026-07-31
-superseded_by: null
+superseded_by: skill:docx
 schema_version: 1
 ---
 

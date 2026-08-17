@@ -1,7 +1,7 @@
 ---
 id: acceptance-build-ffp-contract-off
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: numerical-computing
 tags: [c, fma, ffp-contract, acceptance, numerical-parity, compiler-flags]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: 人工（整理 inbox/capture-2026-07-27-14-36-51-742-ee3f.md）
 last_verified: 2026-08-12
-superseded_by: null
+superseded_by: skill:matlab-to-python-migration
 schema_version: 1
 related: [numpy-complex-scalar-division, neon-vmlaq-f32-not-portable-bit-exact, simd-split-along-lane-divisible-dimension]
 ---

@@ -1,7 +1,7 @@
 ---
 id: tailscale-funnel-manual-enable-dns-delay
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: networking
 tags: [tailscale, funnel, dns, expose]
@@ -14,7 +14,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:capture-2026-08-11-07-13-39-325-oubb
 last_verified: 2026-08-12
-superseded_by: null
+superseded_by: skill:network-reachability-diagnosis
 schema_version: 1
 related: [tailscale-serve-preserves-host-header, tailscale-up-auth-link-timeout-expires]
 ---

@@ -1,7 +1,7 @@
 ---
 id: claude-code-sleep-blocked-poll-output
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: claude-code
 tags: [claude-code, harness, background-task, sleep-blocked, gui-launch, polling]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:6f9c92c5-482a-40a9-8810-6dd388611e95
 last_verified: 2026-07-27
-superseded_by: null
+superseded_by: skill:claude-code
 schema_version: 1
 ---
 # Claude Code 拦截 `sleep N; <cmd>`，等待后台任务就绪改用输出文件轮询

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# evo-distill —— 后台蒸馏驱动器（pi 作为 Reflector 执行层）
+# evo-distill —— 后台蒸馏驱动器（Hermes CLI 作为 Reflector 执行层，2026-08-14 起替代已退役的 pi）
 #
-# 定位：Claude Code 在前台干活 → session-refs.jsonl 登记 → 本脚本用 pi 把会话蒸馏成提案。
+# 定位：Claude Code 在前台干活 → session-refs.jsonl 登记 → 本脚本用 hermes 把会话蒸馏成提案。
 #   产出只到 ops/proposals/ + ops/log/reconcile.jsonl；入库仍须人审 evo curate（I3）。
 #   fail-open：任何一步失败都不标记 distilled，下次照常重试；绝不阻塞前台。
+#
+# 后端：hermes -z（--yolo 免审批，模型 pin deepseek-v4-pro，经现有 nanoradar 中转，不改路由）。
 #
 # 用法：
 #   ops/bin/evo-distill.sh                 处理队列（默认最多 2 个会话）
@@ -36,7 +38,9 @@ done
 
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >> "$LOG"; }
 
-command -v pi >/dev/null 2>&1 || { log "skip: pi 不在 PATH"; exit 0; }
+HERMES_PY="/Users/zodyne/.hermes/hermes-agent/venv/bin/python"
+HERMES_BIN="/Users/zodyne/.hermes/hermes-agent/hermes"
+[ -x "$HERMES_PY" ] && [ -f "$HERMES_BIN" ] || { log "skip: hermes 不在"; exit 0; }
 
 # 单实例：mkdir 是原子的。锁超过 2 小时视为残留（上次被 kill -9），清掉重来。
 if ! mkdir "$LOCK" 2>/dev/null; then
@@ -106,9 +110,10 @@ session_id：${SID}
 禁止：运行 \`${EVO} curate\`（入库必须人审）；修改 ops/proposals/ 与 ops/log/ 以外的任何文件；git commit / git push。"
 
   OUT="${ROOT}/ops/log/.distill-${SID}.out"
-  # </dev/null 不能省：循环体的 stdin 是末尾的 here-string，pi 继承后会把剩余队列行全读走，
+  # </dev/null 不能省：循环体的 stdin 是末尾的 here-string，hermes 继承后会把剩余队列行全读走，
   # 导致无论 --max 多大都只转一圈（且退出码 0，看起来像"队列处理完了"）。
-  ( cd "$ROOT" && pi -p --no-session "$PROMPT" > "$OUT" 2>&1 < /dev/null ) &
+  # --yolo 免审批（launchd 无人值守）；-m pin deepseek-v4-pro，--provider 必须显式（裸 -m 不报 provider 会 No LLM provider configured）。
+  ( cd "$ROOT" && "$HERMES_PY" "$HERMES_BIN" -z "$PROMPT" -m deepseek-v4-pro --provider deepseek-internal --yolo > "$OUT" 2>&1 < /dev/null ) &
   PID=$!
 
   # 看门狗：超时 kill，避免 launchd 下无人值守的挂死

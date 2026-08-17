@@ -1,7 +1,7 @@
 ---
 id: pal-mcp-server-pin-mcp-sdk-1x
 type: lesson
-status: candidate
+status: archived
 scope: global
 domain: mcp
 tags: [pal-mcp, pip, dependency-pin, mcp-sdk, attributeerror]

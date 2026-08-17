@@ -1,7 +1,7 @@
 ---
 id: pyqtgraph-point-picking-click-vs-drag
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: visualization
 tags:
@@ -22,7 +22,7 @@ evidence:
 verified_by: none
 source: session:b417294c
 last_verified: 2026-07-28
-superseded_by: null
+superseded_by: skill:pyside6-desktop-apps
 schema_version: 1
 related:
 - 2026-07-28-macos-qt-cmd-key-maps-to-control-modifier

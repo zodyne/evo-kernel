@@ -1,7 +1,7 @@
 ---
 id: clangd-moved-source-stale-compile-db
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: tooling
 tags: [clangd, compile-commands, lsp, interpolation, silent-fallback]
@@ -14,7 +14,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: none
 source: session:2e76dde5
 last_verified: 2026-08-03
-superseded_by: null
+superseded_by: skill:nvim-lsp-troubleshooting
 schema_version: 1
 ---
 # 源文件被拷到别处编译时，clangd 会拿错误编译数据库"插值"，AST 静默塌掉

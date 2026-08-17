@@ -1,7 +1,7 @@
 ---
 id: pal-chat-requires-working-directory-absolute-path
 type: fact
-status: candidate
+status: archived
 scope: global
 domain: mcp
 tags: [pal-mcp, api-contract, required-parameter]

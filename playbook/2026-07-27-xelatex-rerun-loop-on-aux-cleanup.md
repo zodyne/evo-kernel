@@ -1,7 +1,7 @@
 ---
 id: xelatex-rerun-loop-on-aux-cleanup
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: latex
 tags: [latex, xelatex, build, rerunfilecheck, cross-reference, aux-files]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:8eefe3a4-9aa6-49b9-a019-8895ad7d83e6
 last_verified: 2026-07-27
-superseded_by: null
+superseded_by: skill:latex-tikz-figures
 schema_version: 1
 ---
 # xelatex 编译链里 rm 删除 .aux/.out 会造成 rerunfilecheck "Rerun" 伪死循环；应连续编译两遍后再单独清理辅助文件

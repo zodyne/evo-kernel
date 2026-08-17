@@ -1,7 +1,7 @@
 ---
 id: m1-neon-speedup-overestimates-cortex-a9
 type: lesson
-status: candidate
+status: deprecated
 scope: project:ucm221-pointcloud-2-0
 domain: performance
 tags: [neon, cortex-a9, m1, simd-width, budget, extrapolation]
@@ -14,7 +14,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: none
 source: session:fb616292
 last_verified: 2026-07-28
-superseded_by: null
+superseded_by: skill:embedded-cross-compilation
 schema_version: 1
 ---
 # M1 实测的 NEON 加速比不能外推到 Cortex-A9：NEON 单元宽度差一倍

@@ -1,7 +1,7 @@
 ---
 id: claude-code-bash-timeout-backgrounded-not-failed
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: harness-config
 tags: [claude-code, bash-tool, timeout, background-task, polling]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:9df36dfc-790a-4022-b8d8-620e0ced67ea
 last_verified: 2026-07-30
-superseded_by: null
+superseded_by: skill:claude-code
 schema_version: 1
 related: [claude-code-bash-default-2min-timeout-kills-slow-probes, claude-code-sleep-blocked-poll-output]
 ---

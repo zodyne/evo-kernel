@@ -1,7 +1,7 @@
 ---
 id: test-may-pass-for-the-wrong-reason
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: testing
 tags: [smoke, regression, verification, vacuous-test, evo-kernel]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: test
 source: session:8e6bf649-a112-4ed7-a3bb-5391e23931a0
 last_verified: 2026-07-28
-superseded_by: null
+superseded_by: skill:test-driven-development
 schema_version: 1
 related: [git-add-untracked-source-path-aborts-staging, doc-selfreported-counts-drift]
 ---

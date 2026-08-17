@@ -1,7 +1,7 @@
 ---
 id: test-fixture-id-poisoned-by-upstream-seed
 type: lesson
-status: validated
+status: deprecated
 scope: global
 domain: testing
 tags: [testing, fixture, shared-state, vacuous-assertion, smoke, false-green]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:e1d54d8c-33d7-425d-88e3-901189f4090c
 last_verified: 2026-07-27
-superseded_by: null
+superseded_by: skill:test-driven-development
 schema_version: 1
 ---
 在**共享同一份状态**的测试文件里加断言时，别图省事复用一个现成的实体 id——同文件上游可能已经把它改成了你要测的相反状态，于是「触发条件」那条断言恒假、「豁免条件」那条恒真（空过）。**一红一绿最危险**：红的那条会让你去怀疑刚写的实现，而绿的那条其实什么都没证明。

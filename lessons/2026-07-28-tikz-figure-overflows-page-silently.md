@@ -1,7 +1,7 @@
 ---
 id: tikz-figure-overflows-page-silently
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: latex
 tags: [tikz, xelatex, figures, silent-failure]
@@ -16,7 +16,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:dc63fb24-b5f6-455e-87c6-6bfc029de1eb
 last_verified: 2026-07-28
-superseded_by: null
+superseded_by: skill:latex-tikz-figures
 schema_version: 1
 ---
 

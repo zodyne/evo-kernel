@@ -1,7 +1,7 @@
 ---
 id: claude-relay-outage-layered-diagnosis
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: llm-api
 tags:
@@ -22,7 +22,7 @@ evidence:
 verified_by: command
 source: capture:capture-2026-08-03-11-11-10-371-uf00
 last_verified: 2026-08-12
-superseded_by: null
+superseded_by: skill:network-reachability-diagnosis
 schema_version: 1
 related: []
 ---

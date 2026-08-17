@@ -1,7 +1,7 @@
 ---
 id: claude-auto-mode-classifier-transient-deny
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: harness-config
 tags: [claude-code, auto-mode, classifier, transient-error]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:0fe7c2be-cdd2-41a5-be17-e2cd31fe1740
 last_verified: 2026-07-29
-superseded_by: null
+superseded_by: skill:claude-code
 schema_version: 1
 related: [evo-distill-transient-connection-error-retry]
 ---

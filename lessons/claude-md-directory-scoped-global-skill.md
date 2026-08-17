@@ -1,7 +1,7 @@
 ---
 id: claude-md-directory-scoped-global-skill
 type: lesson
-status: candidate
+status: deprecated
 scope: global
 domain: claude-code
 tags: [claude-code, claude-md, skill, routing-rules]
@@ -15,7 +15,7 @@ evidence: {helpful: 0, harmful: 0}
 verified_by: none
 source: session:583c96aa
 last_verified: 2026-07-30
-superseded_by: null
+superseded_by: skill:claude-code
 schema_version: 1
 ---
 

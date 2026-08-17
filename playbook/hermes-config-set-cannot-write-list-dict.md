@@ -1,7 +1,7 @@
 ---
 id: hermes-config-set-cannot-write-list-dict
 type: bullet
-status: validated
+status: deprecated
 scope: global
 domain: hermes
 tags: [hermes, config, yaml, fail-closed, provider]
