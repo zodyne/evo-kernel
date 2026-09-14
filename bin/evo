@@ -360,6 +360,8 @@ function govWeight(e) {
 // bigram）得 0.250 通过。命中更多的输给命中更少的，激励方向是反的。
 const SCORING = process.env.EVO_SCORING || 'v0';
 const PHRASE_FLOOR = Number(process.env.EVO_PHRASE_FLOOR || 8);
+// v4：triggers 通道的最少命中 term 数（见 makeCover 上方注释）
+const MIN_TRIG_HITS = SCORING === 'v4' ? Number(process.env.EVO_MIN_TRIG_HITS || 2) : 1;
 
 // 以条目为文档单位统计 df（triggers + tags + id + 首行），供 idf 变体使用
 function buildIdf(entries) {
@@ -407,7 +409,16 @@ function recall(task, budget, session, opts) {
   const scored = [];
   for (const e of entries) {
     let trig = 0;
-    for (const t of e.triggers || []) trig = Math.max(trig, cover(taskT, terms(t)));
+    // v4：要求最少命中 MIN_TRIG_HITS 个 term。治的是「长 prompt 里偶然出现 1 个通用
+    // bigram，恰好等于阈值」——实测 L-noise-schedule（104 term 的长日程 prompt）就这样召回了
+    // bash-loop-child-steals-stdin（4-bigram trigger 命中 1 个 → 1/4 = 0.25 = 阈值）。
+    // 与 v1（分母下限）/v2（idf 加权）的区别：那两者是**改分**，这是**改准入**——
+    // 不改变已命中词的权重，只否掉「只碰到一个词」这种最薄的证据。
+    for (const t of e.triggers || []) {
+      const pt = terms(t);
+      if (MIN_TRIG_HITS > 1) { let h = 0; for (const x of pt) if (taskT.has(x)) h++; if (h < MIN_TRIG_HITS) continue; }
+      trig = Math.max(trig, cover(taskT, pt));
+    }
     // tag 通道对**全部 tag 的并集**算 cover，不取单 tag 最大值：cover 按短语自身长度归一，
     // 单词 tag（git / bash / design）只要任务里出现该词就是 1.0，×0.8 直接压过真实 triggers 匹配。
     // 实测库内 64% 的 tag 是单 term，"git rebase 冲突"曾因此注入 backup-untracked-file-before-edit。

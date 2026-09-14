@@ -244,6 +244,15 @@ BENCH_AFTER=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
   && ok "M: 检索基准四阶段可跑" || bad "M: 检索基准" "(实得: $(echo "$BENCH_OUT" | tail -1))"
 { [ "$BENCH_BEFORE" = "$BENCH_AFTER" ]; } \
   && ok "M: 基准不污染 recall.jsonl（测量与被测数据隔离）" || bad "M: 基准日志隔离" "($BENCH_BEFORE → $BENCH_AFTER 行)"
+# §5.0 回放仲裁工具必须可跑，且必须同样不污染真实日志 —— 它把「丢失清单逐条人审」里
+# 最可机械化的那一半（给每条丢失附对账精度）自动化了，是评分变更的前置依据。
+RPL_BEFORE=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+RPL_OUT=$(node "$SRC/test/retrieval-bench/replay.js" v0 v3 --limit 5 2>&1)
+RPL_AFTER=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+{ echo "$RPL_OUT" | grep -q '注入集完全一致' && echo "$RPL_OUT" | grep -q '丢失 Top'; } \
+  && ok "M: §5.0 回放工具可跑（--limit 5 冒烟）" || bad "M: 回放工具" "(实得: $(echo "$RPL_OUT" | tail -1))"
+{ [ "$RPL_BEFORE" = "$RPL_AFTER" ]; } \
+  && ok "M: 回放不污染 recall.jsonl（在临时 ROOT 副本里跑）" || bad "M: 回放日志隔离" "($RPL_BEFORE → $RPL_AFTER 行)"
 # K0a primer：安装是替换标记块而非覆盖用户配置——必须保住目标文件里的原有内容。
 # 这两个文件是用户自己的全局配置，写坏了影响每一次会话。
 PT="$TMP/primer-target.md"
