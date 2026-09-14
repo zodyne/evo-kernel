@@ -17,7 +17,7 @@ source: session:8e6bf649-a112-4ed7-a3bb-5391e23931a0
 last_verified: 2026-07-28
 superseded_by: null
 schema_version: 1
-related: [open-ended-task-plus-tools-has-no-stop-condition, independent-design-review]
+related: [open-ended-task-plus-tools-has-no-stop-condition]
 ---
 # 独立评审的误判，归因先查组包者：材料不全导致的"超做"报告不是评审员的错
 

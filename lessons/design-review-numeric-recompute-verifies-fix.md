@@ -17,7 +17,7 @@ source: session:pi-design-review.t-002
 last_verified: 2026-08-11
 superseded_by: null
 schema_version: 1
-related: [design-review-cross-check-implementation, independent-design-review]
+related: [design-review-cross-check-implementation]
 ---
 # 评审"修复是否真实有效"要数值复核：用 python 重算关键公式，不只看文字表述
 

@@ -944,6 +944,8 @@ const cmds = {
     const entries = loadEntries(SCAN_DIRS);
     const out = [];
     const now = Date.now(), DAY = 86400000;
+    const liveSessions = sessionRefStats().live;   // 判「candidate 可否复验」用
+    const unverifiable = [];                        // 不可复验的 candidate id（塔缩成一行汇总）
     // 悬挂 related 检查的解析表：含 archive（链到已归档条目不算悬挂，但要提示改指）
     const byId = new Map(loadEntries(SCAN_DIRS.concat(['ops/archive'])).map((x) => [x.id, x]));
     for (const e of entries) {
@@ -988,10 +990,22 @@ const cmds = {
       const lv = Date.parse(e.last_verified || e.created || '');
       if (!isNaN(lv)) {
         const age = Math.floor((now - lv) / DAY);
-        if (e._zone === 'lessons' && age > 30) out.push({ level: 'MID', id: e.id, why: `candidate 积压 ${age} 天未验证` });
+        // candidate 积压必须区分「可复验」与「证据已失」。
+        // 一条 candidate 只有在 source session 的 transcript 还在时才可能被复验；
+        // 本机实测 124/129 的 source transcript 已被 harness 保留期清掉 → 复验在结构上不可能。
+        // 把两者混在同一个「积压」计数里，会让一个永远无法清偿的量长期占据治理视图，
+        // 并把归因引向「没安排验证」——真因是证据已失（同覆盖率分母那次的形态）。
+        // 不可复验者塔缩成**一行汇总**，不再逐条占位（逐条也不能动——无证据可动）。
+        if (e._zone === 'lessons' && age > 30) {
+          const src = String(e.source || '').replace(/^session:/, '').trim();
+          if (src && liveSessions.has(src)) out.push({ level: 'MID', id: e.id, why: `candidate 积压 ${age} 天未验证（source transcript 仍在 → 可复验：跑 evo slice 取证后 curate/demote）` });
+          else unverifiable.push(e.id);
+        }
         if (['playbook', 'facts', 'principles'].includes(e._zone) && age > 90) out.push({ level: 'LOW', id: e.id, why: `${age} 天未复验` });
       }
     }
+    if (unverifiable.length)
+      out.push({ level: 'LOW', id: `(${unverifiable.length} 条 candidate)`, why: `source transcript 已失 → 复验在结构上不可能，属**政策性去留**：保留在 lessons/ 隔离（不入注入集）或批量 evo demote --id <id> --to archive` });
     return { entries, findings: out.sort((a, b) => a.level.localeCompare(b.level)) };
   },
 
