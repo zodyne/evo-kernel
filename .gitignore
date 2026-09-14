@@ -4,6 +4,11 @@ ops/log/reconcile.jsonl
 ops/log/degrade.jsonl
 ops/log/guard-hits.jsonl
 ops/log/manual-feedback.jsonl
+ops/log/agentic.jsonl
+# 通配符兜底：原先逐文件列，于是**新增日志默认不被 ignore**（2026-09-14 加 agentic.jsonl
+# 时实际发生，该文件直接出现在 git status 里）。改为目录通配 + 白名单 .gitkeep。
+ops/log/*
+!ops/log/.gitkeep
 ops/log/distill.log
 ops/log/distill-launchd.err
 ops/log/.distill*
