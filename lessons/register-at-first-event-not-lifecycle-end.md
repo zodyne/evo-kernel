@@ -18,7 +18,7 @@ source: session:b6cf7fd7-73c7-4cef-b538-5428b694a71b
 last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
-related: [self-registration-hook-self-pollution-loop, coverage-denominator-is-a-moving-target, claude-hook-sessionstart-no-prompt]
+related: [self-registration-hook-self-pollution-loop, coverage-denominator-is-a-moving-target]
 ---
 
 # 登记挂生命周期结束钩子实测漏掉一半：落账要前移到事件首次发生点 + 幂等 upsert

@@ -2,7 +2,7 @@
 id: m1-neon-speedup-overestimates-cortex-a9
 type: lesson
 status: deprecated
-scope: project:ucm221-pointcloud-2-0
+scope: project:suc221-pointcloud-2-0
 domain: performance
 tags: [neon, cortex-a9, m1, simd-width, budget, extrapolation]
 triggers:

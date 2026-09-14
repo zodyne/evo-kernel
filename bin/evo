@@ -933,7 +933,11 @@ const cmds = {
       for (const r of Array.isArray(e.related) ? e.related : []) {
         const t = byId.get(r);
         if (!t) out.push({ level: 'MID', id: e.id, why: `related 指向不存在的 id: ${r} → 修正或删除该链接` });
-        else if (t.superseded_by) out.push({ level: 'LOW', id: e.id, why: `related 指向已被取代的 ${r}（→ ${t.superseded_by}）→ 改指新条目` });
+        // superseded_by 的值形如 skill:<slug>（见 solidify），其目标是 skills/ 下的 SKILL.md，
+        // 而 byId = SCAN_DIRS + ops/archive，**不含 skills/** → 这个目标永远解析不到，无法改指。
+        // 旧文案「→ 改指新条目」是一条按其自身逻辑执行不了的指令：照做会写进一个 byId 找不到的 id，
+        // 下一次审计把它从 LOW 升为 MID「related 指向不存在的 id」。（2026-09-14 修）
+        else if (t.superseded_by) out.push({ level: 'LOW', id: e.id, why: `related 指向已被取代的 ${r}（→ ${t.superseded_by}）→ 删除该链接（${t.superseded_by} 不在 byId 范围，无法改指）` });
         // demote --to archive 的条目 status:deprecated 但无 superseded_by，上面两条都接不住，
         // 会静默放行——链到一条已退役条目和链到不存在的条目同样误导（pi 独立评审发现）。
         else if (t._zone === 'ops/archive') out.push({ level: 'LOW', id: e.id, why: `related 指向已归档条目 ${r}（status:${t.status || '?'}）→ 改指或删除该链接` });
@@ -1367,11 +1371,23 @@ const cmds = {
       const liveDir = path.join(homeDir(), '.hermes/agent-hooks');
       const copyDir = path.join(ROOT, 'ops/integrations/hermes-evo-hooks');
       const files = ['evo-recall.sh', 'evo-session-end.sh', 'evo-guard.sh'];
-      const drift = files.filter((f) => {
-        try { return fs.readFileSync(path.join(liveDir, f), 'utf8') !== fs.readFileSync(path.join(copyDir, f), 'utf8'); }
-        catch { return true; }
-      });
-      if (drift.length) { h16 = 'WARN'; d16 = `副本漂移: ${drift.join(', ')} → 同步 ops/integrations/hermes-evo-hooks/`; }
+      const rd = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return null; } };
+      // 三种状态必须分开判：旧实现用 catch { return true } 把「文件不存在」也算成「漂移」，
+      // 于是空实装目录被报成「副本漂移」，并给出反向的同步建议（真修复是部署到实装目录）。
+      // 漂移须先报——实装目录可能同时存在漂移项与缺失项。（2026-09-14 修）
+      const repoMissing = [], notDeployed = [], drift = [];
+      for (const f of files) {
+        const copy = rd(path.join(copyDir, f));
+        const live = rd(path.join(liveDir, f));
+        if (copy === null) repoMissing.push(f);
+        else if (live === null) notDeployed.push(f);
+        else if (live !== copy) drift.push(f);
+      }
+      const seg = [], hints = [];
+      if (drift.length) { seg.push(`副本漂移: ${drift.join(', ')}`); hints.push('漂移项：改了实装就 cp 回 ops/integrations/hermes-evo-hooks/'); }
+      if (notDeployed.length) { seg.push(`实装未部署: ${notDeployed.join(', ')}`); hints.push('未部署项：cp ops/integrations/hermes-evo-hooks/evo-*.sh ~/.hermes/agent-hooks/'); }
+      if (repoMissing.length) { seg.push(`仓库副本缺失: ${repoMissing.join(', ')}`); hints.push('仓库副本是存续件（§4.2），需人工恢复'); }
+      if (seg.length) { h16 = 'WARN'; d16 = `${seg.join('; ')} → ${hints.join('；')}`; }
       else { h16 = 'PASS'; d16 = '副本一致'; }
     } catch (e) { h16 = 'WARN'; d16 = `副本检查失败: ${e.message}`; }
     add(16, h16, 'Hermes hooks adapter 副本', d16);

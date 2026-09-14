@@ -2,7 +2,7 @@
 id: prebuilt-lib-slot-verify-symbols-not-presence
 type: lesson
 status: candidate
-scope: project:ucm221-pointcloud-2-0
+scope: project:suc221-pointcloud-2-0
 domain: c-porting
 tags:
 - prebuilt-static-lib
@@ -24,8 +24,6 @@ source: session:7c4809cc
 last_verified: 2026-08-02
 superseded_by: null
 schema_version: 1
-related:
-- armv7-cross-compile-needs-explicit-mfpu-neon
 ---
 
 # 预编译库槽位要验符号表，不能只验文件存在

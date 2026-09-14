@@ -17,7 +17,7 @@ source: session:capture-2026-08-12-01-09-50-916-ezxs
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [hermes-config-set-cannot-write-list-dict, hermes-cron-create-positionals-before-options]
+related: [hermes-config-set-cannot-write-list-dict]
 ---
 hermes cron LLM 任务有防漂移熔断（#44585）：创建时快照全局 model/provider，全局默认变了之后，未 pin 的任务 fail-closed 拒跑。
 

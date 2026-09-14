@@ -26,7 +26,6 @@ last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
 related:
-- kimi-api-latency-streaming-thinking
 - proposal-independent-review-before-curate
 ---
 

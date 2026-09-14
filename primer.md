@@ -1,6 +1,8 @@
 # K0a primer（常驻背景块）
 
-> **权威副本**。安装到 `~/.claude/CLAUDE.md`（Claude Code 单 harness；pi 已于 2026-08 退役）。
+> **权威副本**。安装到 `~/.claude/CLAUDE.md` 与 `~/AGENTS.md`（**双 harness**：pi + Claude Code）。
+> 2026-09-14 实测两者均在用（pi 会话活动 15:21 / Claude Code 12:38）——
+> 此前「单 harness（Claude Code）；pi 已于 2026-08 退役」的记述**已作废**。
 > doctor 第 17 项比对两处与本文件是否一致——改这里要重装，改那边要同步回来。
 > 安装：`evo primer --install`
 >
@@ -15,12 +17,14 @@
 > 常驻背景，用于准确理解请求意图。经验库在 `~/Dev/evo-kernel`（`evo recall` 检索）。
 > 本块 review_after 2026-09-25，过期请复核后再依赖。
 
-**画幅**：个人单用户 · 单机 macOS · 单 harness（Claude Code）· 中文交流。
+**画幅**：个人单用户 · 单机 macOS · **双 harness（pi + Claude Code，均在用）** · 中文交流。
 
 **活跃项目**（按近期会话量降序）
 - `~/Dev/agent-evo`（设计/调研）+ `~/Dev/evo-kernel`（实现）—— Agent 经验系统自研。
-  纯 frontmatter markdown + git 的经验内核，零依赖 Node CLI，经 Claude Code hook 挂载。
-- `~/Dev/ucm221-pointcloud-2-0` —— 无人机避障雷达技术研究（原代号 UCM221）。
+  纯 frontmatter markdown + git 的经验内核，零依赖 Node CLI。
+  **挂载现状（2026-09-14 实测）**：Claude Code hooks 已退役，挂载迁移至 Hermes hooks，
+  但 Hermes 三件套（pre_llm_call / on_session_end / pre_tool_call）**尚未接线** → 当前无 hook 挂载。
+- `~/Dev/suc221-pointcloud-2.0` —— 无人机避障雷达技术研究（原代号 UCM221，现名 SUC221）。
   雷达信号处理：CFAR、测角/DOA、点云、航迹；C 核心 + FreeRTOS + ARM 移植。
 - `~/Dev/algommw` —— 算法中间件。
 
