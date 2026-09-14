@@ -1,12 +1,12 @@
 ---
-id: ucm221-marginal-points-support-track-continuity
+id: suc221-marginal-points-support-track-continuity
 type: fact
 status: candidate
-scope: project:ucm221
+scope: project:suc221
 domain: tracking
-tags: [ucm221, point-cloud, tracking, marginal, ab-test, false-alarm-filter]
+tags: [suc221, point-cloud, tracking, marginal, ab-test, false-alarm-filter]
 triggers:
-  - "UCM221 点云三级标签（KEEP/MARGINAL/REJECT）放行门槛调整"
+  - "SUC221 点云三级标签（KEEP/MARGINAL/REJECT）放行门槛调整"
   - "想收紧过滤只放 KEEP 点来降点云规模"
   - "过滤改完后航迹存活帧数骤降/航迹断裂"
   - "false_alarm_filter 放行策略做 A/B 仿真对比"
@@ -17,9 +17,9 @@ source: session:40a7756a-b82e-42cf-9704-be6eafb35707
 last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
-related: [playbook-ucm221-cfar-point-cloud-filtering, episode-ucm221-project-overview]
+related: [playbook-suc221-cfar-point-cloud-filtering, episode-suc221-project-overview]
 ---
-# UCM221：MARGINAL 点对航迹连续性有实质支撑，只放 KEEP 会拉断航迹
+# SUC221：MARGINAL 点对航迹连续性有实质支撑，只放 KEEP 会拉断航迹
 
 ## 主张
 

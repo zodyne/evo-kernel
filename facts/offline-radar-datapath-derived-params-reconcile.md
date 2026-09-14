@@ -8,7 +8,7 @@ tags: [sr61, radar, chirp, config, mmwave-calculator, reconciliation]
 triggers:
   - "核对雷达波形配置是否与 mmwave_Calculator.m / MATLAB 计算器参数一致"
   - "在离线 datapath 仓库里搜 startFreq / freqSlope / idleTime 找不到（失败信号，不代表缺失）"
-  - "SR61/UCM221 配置参数对账"
+  - "SR61/SUC221 配置参数对账"
   - "判断离线处理仓库要不要改波形配置"
   - "找 SR61 仓库的 config（不在顶层，在 src/config，含 default.yaml / datapathconfig.c）"
 created: 2026-07-29

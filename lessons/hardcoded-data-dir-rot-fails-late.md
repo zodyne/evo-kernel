@@ -21,6 +21,6 @@ schema_version: 1
 
 硬编码的采集数据目录会腐烂：目录改名后，脚本不是启动即报错，而是跑到中途才 FileNotFoundError，浪费前面的计算。
 
-会话证据：`rx_pair_doa.py` 加载完 44 点缓存后才 traceback；`ls` 确认 `/Users/zodyne/Dev/ucm221/20260508暗室角度采集: No such file or directory`（目录已不存在）；`angle_survey.py` 同样在该数据集处崩溃。
+会话证据：`rx_pair_doa.py` 加载完 44 点缓存后才 traceback；`ls` 确认 `/Users/zodyne/Dev/suc221/20260508暗室角度采集: No such file or directory`（目录已不存在）；`angle_survey.py` 同样在该数据集处崩溃。
 
 做法：数据目录做成参数/配置，或 main() 开头统一校验所有输入路径存在并给出人话报错，把失败提前到启动时。

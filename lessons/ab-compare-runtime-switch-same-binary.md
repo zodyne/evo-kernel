@@ -26,4 +26,4 @@ related: [compile-flag-zero-cost-verification]
 
 编译期开关留给「旧路径是否存在于产物里」这种存在性问题，并用 `nm` 验证（默认构建不含旧路径符号、`LEGACY=1` 构建含）。
 
-**证据**（session da720f38）：libucm221 的 legacy/faf 两条点云过滤路径在同一份 `libSPX_ALG.dylib` 里运行期切换，`make ab DATA=...` 对 000028（15,040 帧）跑出 legacy vs faf 两组，`compare_runs.py` 直接对比（总点数 -21.6%）；`nm -gU` 验证默认构建 `bestIdx` 符号数为 0、LEGACY=1 构建存在。
+**证据**（session da720f38）：libsuc221 的 legacy/faf 两条点云过滤路径在同一份 `libSPX_ALG.dylib` 里运行期切换，`make ab DATA=...` 对 000028（15,040 帧）跑出 legacy vs faf 两组，`compare_runs.py` 直接对比（总点数 -21.6%）；`nm -gU` 验证默认构建 `bestIdx` 符号数为 0、LEGACY=1 构建存在。

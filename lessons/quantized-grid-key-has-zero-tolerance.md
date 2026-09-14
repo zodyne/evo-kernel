@@ -2,7 +2,7 @@
 id: quantized-grid-key-has-zero-tolerance
 type: lesson
 status: candidate
-scope: project:ucm221-pointcloud-2-0
+scope: project:suc221-pointcloud-2-0
 domain: signal-processing
 tags:
 - quantization
@@ -31,7 +31,7 @@ related: []
 
 **主张**：把连续坐标量化成网格 key（如 `round(angle/3°)` 分格）再按 key 相等做匹配，**名义上的容差参数在格边界处实际为零**——目标抖动 0.98° 就换格，前后帧永不同 key。修法：匹配时搜索相邻 27 格（3×3×3）或改用连续距离判定，不要用量化 key 的相等当"同点"。
 
-**为什么（UCM221 实例）**：faf 的跨帧持久性用体素 key 匹配，`persist_tol` 名为容差、实为硬分格。实测 ID1 目标连续检出 5 帧但 persist 帧帧为 0（角度抖 0.98° 换格），全局精确命中率仅 6.4%——持久性特征整体失效，进而把综合分数压出结构性上界（0.45 < keep 门槛 0.4597），"dop=0 且不持久"的 13,432 个点 KEEP 恰为 0。
+**为什么（SUC221 实例）**：faf 的跨帧持久性用体素 key 匹配，`persist_tol` 名为容差、实为硬分格。实测 ID1 目标连续检出 5 帧但 persist 帧帧为 0（角度抖 0.98° 换格），全局精确命中率仅 6.4%——持久性特征整体失效，进而把综合分数压出结构性上界（0.45 < keep 门槛 0.4597），"dop=0 且不持久"的 13,432 个点 KEEP 恰为 0。
 
 **边界**：网格 key 适合先做粗筛（分桶加速），但终判必须落到连续量；量化步长 ≥ 2× 真实抖动时命中率才像样，步长接近抖动量级必然崩。
 

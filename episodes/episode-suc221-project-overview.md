@@ -1,12 +1,12 @@
 ---
-id: episode-ucm221-project-overview
-name: UCM221 无人机避障雷达项目总览
+id: episode-suc221-project-overview
+name: SUC221 无人机避障雷达项目总览
 type: episode
 status: validated
 scope: [project-management]
-domains: [ucm221, radar]
+domains: [suc221, radar]
 triggers:
-  - UCM221
+  - SUC221
   - 无人机避障雷达
   - 项目总览
   - 团队分工
@@ -18,9 +18,9 @@ last_verified: '2026-07-24'
 created: '2026-04-02'
 ---
 
-# UCM221 无人机避障雷达项目总览
+# SUC221 无人机避障雷达项目总览
 
-> 原项目代号 UCM221，2026-07-24 更名为「无人机避障雷达技术研究」。
+> 原项目代号 SUC221，2026-07-24 更名为「无人机避障雷达技术研究」。
 > 本条目为项目整体上下文，用于快速了解项目范围、团队与当前状态。
 
 ## 项目范围
@@ -41,8 +41,8 @@ created: '2026-04-02'
 
 ## 关键工作区
 
-- 算法开发工作区：`workspace/projects/ucm221-pointcloud-filter/`
-- 上游原始数据：`~/Dev/ucm221/`
+- 算法开发工作区：`workspace/projects/suc221-pointcloud-filter/`
+- 上游原始数据：`~/Dev/suc221/`
 - GitLab：私有仓库（内网地址略，见 OpenClaw 原记录）
 
 ## 当前热点（截至 2026-07-24）
@@ -54,6 +54,6 @@ created: '2026-04-02'
 
 ## 来源
 
-- 原 OpenClaw 知识库：`vault/10-Projects-Active/UCM221/UCM221_Project.md`
+- 原 OpenClaw 知识库：`vault/10-Projects-Active/SUC221/SUC221_Project.md`
 - 迁移时间：2026-07-25
 - provenance: [imported] 经人审改写后 curate 入库

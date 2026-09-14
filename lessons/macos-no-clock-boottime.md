@@ -27,7 +27,7 @@ Linux/嵌入式厂商代码里常见的 `CLOCK_BOOTTIME` 在 macOS 上不存在�
 
 ## 证据
 
-libucm221 在 macOS 上编译时报：
+libsuc221 在 macOS 上编译时报：
 
 ```
 systemTime.c:8:19: error: use of undeclared identifier 'CLOCK_BOOTTIME'; did you mean '_CLOCK_REALTIME'?

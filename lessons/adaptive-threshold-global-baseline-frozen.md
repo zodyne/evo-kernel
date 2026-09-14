@@ -2,7 +2,7 @@
 id: adaptive-threshold-global-baseline-frozen
 type: lesson
 status: candidate
-scope: project:ucm221-pointcloud-2-0
+scope: project:suc221-pointcloud-2-0
 domain: methodology
 tags:
 - adaptive-threshold

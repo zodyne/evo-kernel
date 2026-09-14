@@ -389,9 +389,9 @@ for i, (en, cn, num, d1, d2, c) in enumerate(mem):
     text(s, x + 0.3, y + 1.44, 3.2, 0.7, d2, size=10, color=INK3, line=1.2)
 footer(s, 7)
 
-# ── S8 案例特写：UCM221 雷达 ───────────────────────────────────────────────
+# ── S8 案例特写：SUC221 雷达 ───────────────────────────────────────────────
 s = new_slide(); bg(s)
-header(s, "CASE STUDY", "案例特写：UCM221 雷达项目", 8)
+header(s, "CASE STUDY", "案例特写：SUC221 雷达项目", 8)
 case = card(s, 0.75, 1.70, 6.9, 3.9, edge=ACC_D, fill=PANEL)
 text(s, 1.05, 1.88, 6.3, 0.3, "episode · faf-legacy-gate-domain-bugs", size=12, color=ACCENT, font=MONO)
 text(s, 1.05, 2.22, 6.3, 0.75, "FAF 移植发现两个静默门限 bug", size=20, color=INK, bold=True)

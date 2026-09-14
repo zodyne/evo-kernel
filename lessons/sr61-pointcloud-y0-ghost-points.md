@@ -18,7 +18,7 @@ source: session:019fab6b-29cf-7267-a6a6-ec475346f32c
 last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
-related: [playbook-ucm221-cfar-point-cloud-filtering]
+related: [playbook-suc221-cfar-point-cloud-filtering]
 ---
 # SR61 点云导出 CSV：y 精确为 0 且 range 很大的点是要先剔除的无效点
 
@@ -35,5 +35,5 @@ SR61 雷达点云导出 CSV（列：frameIdx,frameCount,pointId,x,y,z,velocity,r
 ## 边界
 
 - 掩码阈值（30 m）是按该批数据（60 度共阵）定的；换数据集先看 y=0 点的 range 分布再定阈值。
-- 别和 CFAR 流水线内的虚警过滤（playbook-ucm221-cfar-point-cloud-filtering）混为一谈：本条是**导出后、离线可视化前**的清洗，发生于 pipeline 之外。
+- 别和 CFAR 流水线内的虚警过滤（playbook-suc221-cfar-point-cloud-filtering）混为一谈：本条是**导出后、离线可视化前**的清洗，发生于 pipeline 之外。
 - y=0 且 range 很小（近零）的点是否为有效近距点，会话未验证，掩码只剔了 range>30 的部分。

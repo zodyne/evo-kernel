@@ -1,8 +1,8 @@
 ---
-id: UCM221_Project
+id: SUC221_Project
 aliases:
-  - UCM221
-  - UCM221 无人机避障雷达软件系统
+  - SUC221
+  - SUC221 无人机避障雷达软件系统
 tags:
   - project
   - status/active
@@ -11,7 +11,7 @@ title: 无人机避障雷达技术研究
 
 # 无人机避障雷达技术研究
 
-> 原项目代号 UCM221，2026-07-24 更名。
+> 原项目代号 SUC221，2026-07-24 更名。
 > 该项目主笔记于 2026-04-02 为知识系统全面迁移补建，用于承接既有 progress_report 与 meeting_minutes。
 > 最后更新: 2026-07-24 (项目更名)
 
@@ -29,8 +29,8 @@ title: 无人机避障雷达技术研究
 
 > provenance: [confirmed] 分工信息由 euly 于 2026-07-03 确认。信号处理模块由 euly 主导、唐富强联合负责；其余模块由对应负责人独立推进。
 > 
-> **开发工作区**: `workspace/projects/ucm221-pointcloud-filter/` — 点云过滤算法独立工作区，核心算法/C移植/验证框架已从 `~/Dev/ucm221` 迁移。上游原始数据仍在 `~/Dev/ucm221/`。
-> **GitLab**: `http://192.168.43.44:55211/tangfuqiang/ucm221-pointcloud-filter` (私有, v1.0.0)
+> **开发工作区**: `workspace/projects/suc221-pointcloud-filter/` — 点云过滤算法独立工作区，核心算法/C移植/验证框架已从 `~/Dev/suc221` 迁移。上游原始数据仍在 `~/Dev/suc221/`。
+> **GitLab**: `http://192.168.43.44:55211/tangfuqiang/suc221-pointcloud-filter` (私有, v1.0.0)
 
 ## 📊 进度看板 (Kanban)
 
@@ -146,8 +146,8 @@ title: 无人机避障雷达技术研究
   - **时间节点**: 行人跟踪稳定后推进
   - **补充说明**:
     背景：
-    - 来源草稿: 10-Projects/Active/UCM221/temp
-    - 来源会议: 10-Projects/Active/UCM221/UCM221_算法与软件推进会议纪要
+    - 来源草稿: 10-Projects/Active/SUC221/temp
+    - 来源会议: 10-Projects/Active/SUC221/SUC221_算法与软件推进会议纪要
     - 当前优先级低于行人检测能力完善，但需要保留正式任务入口。
 
     预期：
@@ -206,9 +206,9 @@ title: 无人机避障雷达技术研究
 
 ## 🔗 资源与资料 (Resources)
 
-- 进度周报: 10-Projects/Active/UCM221/UCM221_Software_Progress
-- 会议纪要: 10-Projects/Active/UCM221/UCM221_算法与软件推进会议纪要
-- 历史草稿: 10-Projects/Active/UCM221/temp
+- 进度周报: 10-Projects/Active/SUC221/SUC221_Software_Progress
+- 会议纪要: 10-Projects/Active/SUC221/SUC221_算法与软件推进会议纪要
+- 历史草稿: 10-Projects/Active/SUC221/temp
 
 ## 📝 迁移备注
 

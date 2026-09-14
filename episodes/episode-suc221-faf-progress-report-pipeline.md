@@ -1,12 +1,12 @@
 ---
-id: episode-ucm221-faf-progress-report-pipeline
+id: episode-suc221-faf-progress-report-pipeline
 type: episode
 status: candidate
-scope: project:ucm221
+scope: project:suc221
 domain: reporting
-tags: [ucm221, faf, progress-report, matplotlib, latex, gt-eval]
+tags: [suc221, faf, progress-report, matplotlib, latex, gt-eval]
 triggers:
-  - "要更新/再生成 UCM221 faf 过滤效果的进展汇报 PDF"
+  - "要更新/再生成 SUC221 faf 过滤效果的进展汇报 PDF"
   - "faf_offline 下要做点云/航迹的 legacy vs faf 对照图"
   - "progress_report.tex / progress_plot.py 在哪、怎么重新出图"
   - "把 gt_report.tex 式的详细检测分析改成只展示结果的进展汇报"
@@ -17,13 +17,13 @@ source: session:eaa269a8-34b2-4abf-a08f-1dd23a6ff138
 last_verified: 2026-08-03
 superseded_by: null
 schema_version: 1
-related: [episode-ucm221-faf-legacy-gate-domain-bugs, fact-ucm221-libucm221-dir-gitignored]
+related: [episode-suc221-faf-legacy-gate-domain-bugs, fact-suc221-libsuc221-dir-gitignored]
 ---
-# UCM221 faf_offline 进展报告管线：progress_plot.py 出图 + gt_tables.py 出表 + progress_report.tex
+# SUC221 faf_offline 进展报告管线：progress_plot.py 出图 + gt_tables.py 出表 + progress_report.tex
 
 ## 事件
 
-用户要求把 gt_report.tex 风格的详细检测报告简化成「只展示过滤结果与跟踪差异、丰富点云与估计显示」的项目进展汇报。本次会话在 `libucm221/src/examples/faf_offline/` 下新建了一套可复用管线：
+用户要求把 gt_report.tex 风格的详细检测报告简化成「只展示过滤结果与跟踪差异、丰富点云与估计显示」的项目进展汇报。本次会话在 `libsuc221/src/examples/faf_offline/` 下新建了一套可复用管线：
 
 - **数据**：`make ab` 在 `out/<DATA>/` 下产出 legacy / faf 两组 `points_in.npy / points_out.npy / tracks.npy`（本次用 000028，15 040 帧）。
 - **评估**：`gt_eval.py out/<DATA>`——以人工确认过的 legacy 长命航迹为真值，用跟踪器当验证器评 faf（覆盖率/断裂/位置误差/供给率）。

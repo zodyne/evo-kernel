@@ -2,7 +2,7 @@
 id: temp
 aliases: []
 tags: []
-title: UCM221 历史问题跟进草稿
+title: SUC221 历史问题跟进草稿
 ---
 
 > 本笔记保留原始草稿内容，不作为唯一事实源；当前系统中的正式主数据已分流到 project / progress / meeting 笔记。
@@ -10,13 +10,13 @@ title: UCM221 历史问题跟进草稿
 
 ## 当前系统映射
 
-- 点云生成质量问题 -> 项目任务 `task-ucm221-point-quality` / 周报 `progress-ucm221-point-quality` / 会议条目 `信号处理 / 对空采集 ADC 数据近处 RD 图异常`
+- 点云生成质量问题 -> 项目任务 `task-suc221-point-quality` / 周报 `progress-suc221-point-quality` / 会议条目 `信号处理 / 对空采集 ADC 数据近处 RD 图异常`
 - RD 距离 189 附近底噪凸起 -> 项目任务 `task-69ce2b17-08aac` / 周报 `progress-69ce2b17-5f684` / 会议条目 `信号处理 / RD 距离 189 附近底噪凸起`
 - 中频 4M 固定点问题 -> 项目任务 `task-69ce2b17-57d46` / 周报 `progress-69ce2b17-9ade9` / 会议条目 `信号处理 / 中频 4M 固定点问题`
 - 测角算法与 FPGA 不完全一致 -> 项目任务 `task-69bd580d-77310` / 周报 `progress-69bd580d-77310` / 会议条目 `信号处理 / 测角算法与 FPGA 不完全一致`
 - 点云输出切换为动目标 -> 已进入会议纪要条目，若后续持续演进可再拆成独立 project/progress task
 - 动目标检测条件下的地杂波抑制算法研究 -> 项目任务 `task-69ce2b17-169f6` / 周报 `progress-69ce2b17-a7045` / 会议条目 `信号处理 / 动目标检测条件下的地杂波抑制算法研究`
-- 行人检测能力完善 -> 项目任务 `task-ucm221-tracking-optimization` / 周报 `progress-ucm221-tracking-optimization` / 会议条目 `数据处理 / 行人检测能力完善`
+- 行人检测能力完善 -> 项目任务 `task-suc221-tracking-optimization` / 周报 `progress-suc221-tracking-optimization` / 会议条目 `数据处理 / 行人检测能力完善`
 - 无人机检测能力完善 -> 项目任务 `task-69ce2b17-ce1bc` / 周报 `progress-69ce2b17-5e35b` / 会议条目 `数据处理 / 无人机检测能力完善`
 
 
@@ -73,7 +73,7 @@ title: UCM221 历史问题跟进草稿
 ## 信号处理/动目标检测条件下的地杂波抑制算法研究
 
 1. 计划
-   通过实际UCM221的ADC数据研究在动亩标情况下抑制地杂波提高检测质量（MTI/MTD）
+   通过实际SUC221的ADC数据研究在动亩标情况下抑制地杂波提高检测质量（MTI/MTD）
 2. 状态
    开启
 

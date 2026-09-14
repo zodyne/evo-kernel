@@ -62,7 +62,7 @@
       "phase": "learning",
       "query": "CFAR 点云虚警过滤怎么做",
       "expect_ids": [
-        "playbook-ucm221-cfar-point-cloud-filtering"
+        "playbook-suc221-cfar-point-cloud-filtering"
       ],
       "note": "近 triggers，基线下限"
     },
@@ -134,7 +134,7 @@
       "phase": "transfer",
       "query": "雷达出的目标点里混了很多根本不存在的回波，想把它们筛掉",
       "expect_ids": [
-        "playbook-ucm221-cfar-point-cloud-filtering"
+        "playbook-suc221-cfar-point-cloud-filtering"
       ],
       "note": "避开 点云 / 虚警 / CFAR / 峰值剪枝"
     },

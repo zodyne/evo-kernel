@@ -27,4 +27,4 @@ related: [backup-untracked-file-before-edit]
 1. `tar -czf <外部目录>/backup.tgz <工作树内容>`（连未跟踪文件一起）；
 2. `git diff > <外部目录>/worktree.diff`（已跟踪改动的可读形态，方便后续 `awk '/^diff --git/'` 按文件捞取）。
 
-**证据**（session da720f38）：对 libucm221 克隆先做了 tar 备份 + 3545 行 diff 落盘，再 `git reset --hard origin/dev && git clean -fdx`；随后从备份 `tar -x` 解出并把 `faf.h/faf.c/fpga_frame.*` 等文件 `cp` 回新分支继续工作——备份当天就被实际用到，不是摆设。
+**证据**（session da720f38）：对 libsuc221 克隆先做了 tar 备份 + 3545 行 diff 落盘，再 `git reset --hard origin/dev && git clean -fdx`；随后从备份 `tar -x` 解出并把 `faf.h/faf.c/fpga_frame.*` 等文件 `cp` 回新分支继续工作——备份当天就被实际用到，不是摆设。

@@ -1,11 +1,11 @@
 ---
-id: ucm221-chamber-doa-bin3-fixed-gate-rx-pair
+id: suc221-chamber-doa-bin3-fixed-gate-rx-pair
 type: bullet
 status: validated
-scope: project:ucm221
+scope: project:suc221
 domain: radar-doa
 tags:
-- ucm221
+- suc221
 - doa
 - 暗室
 - 距离门
@@ -13,7 +13,7 @@ tags:
 - eta校准
 - 相位约定
 triggers:
-- UCM221 暗室数据测角，选距离门/峰值搜索
+- SUC221 暗室数据测角，选距离门/峰值搜索
 - 峰值搜索结果塌缩、六通道零相位（失败信号：被 bin0 DC 劫持）
 - 用 Rx 对（Rx1/Rx2 方位、Rx4/Rx5 俯仰）做解耦测角
 - 评估 Rx 对/稀疏阵测角能否达到工程精度
@@ -27,10 +27,10 @@ last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
 related:
-- episode-ucm221-uneven-array-doa
-- ucm221-doa-reverify-fixed-gate-survives-bin0-hijack
+- episode-suc221-uneven-array-doa
+- suc221-doa-reverify-fixed-gate-survives-bin0-hijack
 ---
-# UCM221 暗室测角链路三结论：固定 bin3、y 向相位约定 -1、Rx 对解耦需 eta 校准
+# SUC221 暗室测角链路三结论：固定 bin3、y 向相位约定 -1、Rx 对解耦需 eta 校准
 
 从零复现验证（2026-07-29）的三个可复用结论：
 
@@ -42,4 +42,4 @@ related:
 
 **反例/边界**：结论基于暗室干净数据；外场高杂波场景的边界见 related 复验条目。固定 bin3 的前提是目标落在 bin3 距离附近。
 
-**证据**：capture-2026-07-29-03-16-43-941-afn6；实现 `ucm221 analysis/rx_pair_doa.py`（task/array-layout-doa-perf 分支）。
+**证据**：capture-2026-07-29-03-16-43-941-afn6；实现 `suc221 analysis/rx_pair_doa.py`（task/array-layout-doa-perf 分支）。

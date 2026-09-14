@@ -2,9 +2,9 @@
 id: track-gap-attribution-viewport-gate-vs-filter
 type: lesson
 status: candidate
-scope: project:ucm221
+scope: project:suc221
 domain: tracking
-tags: [ucm221, tracking, attribution, viewport-gate, faf, ab-test]
+tags: [suc221, tracking, attribution, viewport-gate, faf, ab-test]
 triggers:
   - "faf/过滤器输出的航迹覆盖率不满、中间或尾部断裂"
   - "航迹断裂第一反应怪过滤器误杀或跟踪器丢失"
@@ -17,7 +17,7 @@ source: session:019fbb55-aff3-7aa0-937b-51eaddbeab92
 last_verified: 2026-08-01
 superseded_by: null
 schema_version: 1
-related: [ucm221-marginal-points-support-track-continuity]
+related: [suc221-marginal-points-support-track-continuity]
 ---
 # 航迹覆盖缺口归因：逐帧回溯"原始点还在不在"，先分清视场门限筛除 vs 过滤误杀
 

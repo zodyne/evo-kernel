@@ -1,10 +1,10 @@
 ---
-id: ucm221-mti-mean-vs-frame-cancellation
+id: suc221-mti-mean-vs-frame-cancellation
 type: bullet
 status: validated
-scope: project:ucm221
+scope: project:suc221
 domain: radar-signal
-tags: [ucm221, mti, 静杂波, 对消, 机理, 实测]
+tags: [suc221, mti, 静杂波, 对消, 机理, 实测]
 triggers:
   - "MTI 对消参考选型：滑窗均值(mean) vs 相邻帧(frame)"
   - "mean 与 frame 对消深度不同但检出率相同，想解释机理"
@@ -17,9 +17,9 @@ source: capture:capture-2026-08-03-08-22-58-089-gjhg
 last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
-related: [ucm221-static-clutter-notch-beats-mti]
+related: [suc221-static-clutter-notch-beats-mti]
 ---
-随机帧间相位抖动模型下，mean 对消与 frame 对消的检出能力等价（UCM221 静止地面数据实测闭环）。
+随机帧间相位抖动模型下，mean 对消与 frame 对消的检出能力等价（SUC221 静止地面数据实测闭环）。
 
 **机理**：mean 对消深度优 4.3dB（实测 +3.8dB），但被噪底差异抵消——mean 噪底 −1.25dB vs frame +3.0dB，两者均与理论 σ²(1−1/N)/2σ² 精确吻合；对消后杂波残差 SNR 分布相同（中位 +6.2/+5.7dB），CFAR 自适应门限下检出率相同。但检测集合是两套近独立的随机泄漏子集（Jaccard 仅 0.28）。
 

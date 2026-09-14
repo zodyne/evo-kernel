@@ -17,7 +17,7 @@ source: session:019febb9-0322-7070-b2cc-57b137bdeda1
 last_verified: 2026-08-10
 superseded_by: null
 schema_version: 1
-related: [backup-untracked-file-before-edit, ucm221-tracker-macros-in-ucm221-track-repo]
+related: [backup-untracked-file-before-edit, suc221-tracker-macros-in-suc221-track-repo]
 ---
 # 删除 untracked 生成物前，先 grep 代码库确认它不再被生成
 
@@ -35,5 +35,5 @@ algommw 仓库清理会话（本 session）：
 
 ## 反例/边界
 
-- grep 全空 ≠ 文件没有出处：宏/拼接路径/生成脚本可能搜不到字面文件名（见 `ucm221-tracker-macros-in-ucm221-track-repo` 的教训），全空时要换概念词再搜或降级为移 Trash 观察。
+- grep 全空 ≠ 文件没有出处：宏/拼接路径/生成脚本可能搜不到字面文件名（见 `suc221-tracker-macros-in-suc221-track-repo` 的教训），全空时要换概念词再搜或降级为移 Trash 观察。
 - 本条的确认强度来自「命中明确的决策注释」；只有沉默证据（搜不到引用）时结论要降一档。

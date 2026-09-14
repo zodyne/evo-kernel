@@ -2,9 +2,9 @@
 id: filter-relaxation-quantify-keep-increment
 type: lesson
 status: candidate
-scope: project:ucm221
+scope: project:suc221
 domain: filtering
-tags: [ucm221, point-cloud, filter-tuning, specificity-cost, npy, keep-increment]
+tags: [suc221, point-cloud, filter-tuning, specificity-cost, npy, keep-increment]
 triggers:
   - "评估放宽过滤条件换召回的提议（改 persist/dop/门槛）"
   - "faf 参数调整前想量化会多放进多少杂波"
@@ -17,7 +17,7 @@ source: session:019fbb55-aff3-7aa0-937b-51eaddbeab92
 last_verified: 2026-08-01
 superseded_by: null
 schema_version: 1
-related: [ucm221-marginal-points-support-track-continuity, npy-mmap-for-million-point-intermediate-data]
+related: [suc221-marginal-points-support-track-continuity, npy-mmap-for-million-point-intermediate-data]
 ---
 # 放宽过滤条件换召回前：用落盘点云统计 KEEP 规模增量百分比，拿数字做取舍
 

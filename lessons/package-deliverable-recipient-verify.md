@@ -25,4 +25,4 @@ schema_version: 1
 
 **边界**：交付物附 README（跑法、数据要求、依赖版本、cal 指纹）+ requirements.txt + run.sh；打包后按 README 在干净目录完整走一遍才算完。
 
-**证据**：2026-07-29 ucm221 viewer_filtered.py 打包会话（ucm221-viewer-filtered-20260729.tar.gz，8 文件）。
+**证据**：2026-07-29 suc221 viewer_filtered.py 打包会话（suc221-viewer-filtered-20260729.tar.gz，8 文件）。
