@@ -215,6 +215,13 @@ printf -- '---\nid: zz-dangling\ntype: lesson\nstatus: candidate\ntriggers: ["�
 { $EVO audit 2>&1 | grep -q 'related 指向不存在的 id'; } \
   && ok "F: audit 检出悬挂 related（建链治理出口）" || bad "F: 悬挂 related" "(audit 未检出)"
 rm -f "$EVO_ROOT/lessons/zz-dangling.md"
+# recall() 只按 superseded_by 过滤、**不看 status**（loadEntries(RECALL_DIRS).filter(e => !e.superseded_by)），
+# 所以 status 说退役、却仍留在 RECALL_DIRS 且无 superseded_by 的条目照常进每一次会话。
+# 这种「状态与行为脱钩」必须被检出，否则「已退役」只是一句文案。（2026-09-14 实测 12 条）
+printf -- '---\nid: zz-retired-but-injected\ntype: fact\nstatus: archived\ntriggers: ["退役注入探针"]\n---\n正文\n' > "$EVO_ROOT/facts/zz-retired-but-injected.md"
+{ $EVO audit 2>&1 | grep -q '但仍在注入集'; } \
+  && ok "F: audit 检出 status 退役但仍在注入集" || bad "F: 退役但仍在注入集" "(audit 未检出)"
+rm -f "$EVO_ROOT/facts/zz-retired-but-injected.md"
 # 检索基准的契约：跑得起来、四阶段齐全、且**不写真实 ops/log**（recall.jsonl 是 §7.1 精度与
 # §5.0 回放的数据源，基准查询混进去会污染判据）。此处不守护阈值——阈值要先有基线才能定。
 BENCH_BEFORE=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
