@@ -1,7 +1,7 @@
 ---
 id: claude-code-global-mcp-registry-claude-json
 type: fact
-status: deprecated
+status: validated
 scope: global
 domain: harness-config
 tags: [claude-code, mcp, config, backup]
@@ -14,7 +14,7 @@ created: 2026-07-29
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:019fae52-a170-7aba-bfe6-f7e1676655d0
-last_verified: 2026-07-29
+last_verified: 2026-09-14
 superseded_by: null
 schema_version: 1
 related: [pi-mcp-adapter-global-config-path, backup-untracked-file-before-edit]

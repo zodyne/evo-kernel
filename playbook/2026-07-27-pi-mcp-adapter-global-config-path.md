@@ -1,7 +1,7 @@
 ---
 id: pi-mcp-adapter-global-config-path
 type: lesson
-status: archived
+status: validated
 scope: global
 domain: harness-config
 tags: [pi, mcp, config, harness]
@@ -14,7 +14,7 @@ created: 2026-07-27
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:019f8a68-b1c6-7794-80e8-e6afa0c28aa1
-last_verified: 2026-07-27
+last_verified: 2026-09-14
 superseded_by: null
 schema_version: 1
 ---

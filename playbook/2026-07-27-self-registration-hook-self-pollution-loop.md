@@ -1,7 +1,7 @@
 ---
 id: self-registration-hook-self-pollution-loop
 type: lesson
-status: archived
+status: validated
 scope: global
 domain: harness-config
 tags: [hook, self-registration, feedback-loop, background-process, sentinels]
@@ -14,7 +14,7 @@ created: 2026-07-27
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:e1d54d8c-33d7-425d-88e3-901189f4090c
-last_verified: 2026-07-27
+last_verified: 2026-09-14
 superseded_by: null
 schema_version: 1
 ---
