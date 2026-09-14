@@ -83,10 +83,18 @@ session_id：${SID}
 
 1. 跑 \`${EVO} slice --session ${FILE} --ids ${SID}\`。**只基于它的输出工作**，禁止凭记忆、猜测或常识补写经验。
 
-2. 切片开头 \`injected:\` 行列出本次注入过的条目 id。逐个判四态并写入：
+2. 切片开头 \`injected:\` 行列出本次**词法自动注入**过的条目 id。逐个判四态并写入：
    \`${EVO} reconcile --ids <id> --state <adopted|relevant-unused|irrelevant|misleading> --session ${SID}\`
    判据：adopted=切片里有证据显示这条被遵循；relevant-unused=与任务相关但证据里没用上；irrelevant=与任务无关；misleading=导致返工或错误结论。
    \`injected: (无)\` 时跳过本步。
+
+2b. 切片开头 \`agentic-picked:\` 行列出**你自己用 \`evo get\` 拉取过**的条目 id（2026-09-14 起记录）。
+   这批要**单独对账** —— 它走的是另一条通道，必须分开统计精度：
+   \`${EVO} reconcile --ids <id> --state <四态> --session ${SID} --channel agentic\`
+   判据名词同上，但**问的问题不同**：自动注入是你没选就被塞进来的；这批是你**主动挑的** —— 要问「我挑得对不对」，并拿切片里的证据说清它有没有真派上用场。
+   \`agentic-picked: (无)\` 时跳过本步。
+   ⚠️ **别把两批混进同一句 reconcile**：混了就把两条通道合成一个数，
+   而实测它们 precision 差 18pp（词法 53% vs agent 自选 71%）—— 合成后无法判断该优化哪条。
 
 3. 先定主张，再查重。把切片里**有硬证据支撑**的经验各归纳成一句话主张，然后对每条主张查重：
    \`${EVO} catalog | grep -i -E '<主张里的关键词1|关键词2>'\`

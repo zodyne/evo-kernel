@@ -152,6 +152,9 @@ function lowPrecisionIds() {
       try {
         const j = JSON.parse(line);
         if (!j.id) continue;
+        // 闸门只管**自动注入**通道（它要对的正是那条路径的噪声）；agent 自选的不受闸门限制
+        // —— 否则就是用一条通道的统计去封锁另一条通道，而实测后者 precision 反而高 18pp。
+        if ((j.channel || 'recall') !== 'recall') continue;
         const t = c.get(j.id) || { n: 0, rel: 0 };
         t.n++;
         if (j.state === 'adopted' || j.state === 'relevant-unused') t.rel++;
@@ -803,7 +806,7 @@ const cmds = {
     if (!ids.length) return 'usage: evo ' + kind + ' --ids id1,id2';
     const ts = new Date().toISOString();
     for (const id of ids) {
-      appendLog(RECONCILE_LOG, { ts, session: null, id, task: '', state, helpful_delta: hDelta, harmful_delta: hmDelta, judged_by: 'human' });
+      appendLog(RECONCILE_LOG, { ts, session: null, id, task: '', state, channel: 'recall', helpful_delta: hDelta, harmful_delta: hmDelta, judged_by: 'human' });
     }
     return `${kind} recorded for ${ids.length} 条（index rebuild 后计入 manifest）`;
   },
@@ -815,14 +818,21 @@ const cmds = {
     const ids = parseIds(args);
     const state = argGet(args, '--state');
     const delta = RECONCILE_STATES[state];
-    if (!ids.length || !delta) return `usage: evo reconcile --ids a,b --state <${Object.keys(RECONCILE_STATES).join('|')}> [--session sid] [--task "..."]`;
+    // --channel：这条对账针对哪条检索通道产生的条目。
+    // **为何要分**：`recall`（词法自动注入）与 `agentic`（agent 自己 candidates+get）
+    // 是两条机制完全不同的路径 —— 实测 precision 53% vs 71%、recall 30% vs 67%。
+    // 混进同一个 precision 数里，就是本库反复犯的「形态混淆」。
+    // 注意：**delta（helpful/harmful）不分通道** —— 它服务于治理（这条经验好不好），
+    // 与该条从哪条通道来无关；只有 precision 是通道属性。
+    const channel = argGet(args, '--channel') || 'recall';
+    if (!ids.length || !delta) return `usage: evo reconcile --ids a,b --state <${Object.keys(RECONCILE_STATES).join('|')}> [--session sid] [--channel recall|agentic] [--task "..."]`;
     const ts = new Date().toISOString();
     const session = argGet(args, '--session') || null;
     const task = argGet(args, '--task') || '';
     for (const id of ids) {
-      appendLog(RECONCILE_LOG, { ts, session, id, task, state, helpful_delta: delta[0], harmful_delta: delta[1], judged_by: 'reflector' });
+      appendLog(RECONCILE_LOG, { ts, session, id, task, state, channel, helpful_delta: delta[0], harmful_delta: delta[1], judged_by: 'reflector' });
     }
-    return `reconcile: ${ids.length} 条记为 ${state}（judged_by: reflector）`;
+    return `reconcile: ${ids.length} 条记为 ${state}（channel: ${channel}, judged_by: reflector）`;
   },
 
   // §M0.4 queue —— 待蒸馏队列（后台驱动器的输入）：未蒸馏 ∧ transcript 未失效 ∧ 体量达标
@@ -983,11 +993,14 @@ const cmds = {
         } catch {} // 逐行容错：跳过坏行
       }
     } catch (e) { warn(`slice: ${e.message}`); }
-    // §2.9 步骤 3：从 recall.jsonl 拉取该 session 的注入清单
+    // 从 recall.jsonl 拉该 session 的**自动注入**清单；再从 agentic.jsonl 拉**agent 自选**清单。
+    // 两者必须分行报 —— 混成一行，Reflector 会把两条通道的条目放在同一个 precision 里数。
     const sid = argGet(args, '--ids');
     let injected = [];
+    let picked = [];
     if (sid) {
       try { injected = fs.readFileSync(RECALL_LOG, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((j) => j && j.session === sid).flatMap((j) => j.ids || []); } catch {}
+      try { picked = fs.readFileSync(AGENTIC_LOG, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((j) => j && j.session === sid && j.cmd === 'get').flatMap((j) => j.ids || []); } catch {}
     }
     const cmdLines = order.map((id) => {
       const c = calls[id];
@@ -997,6 +1010,7 @@ const cmds = {
       '# 硬证据切片',
       `session: ${file}`,
       `injected: ${injected.join(', ') || '(无)'}`,
+      `agentic-picked: ${picked.join(', ') || '(无)'}`,
       '',
       `## 命令 ↔ 结果（${order.length} 条）`,
       ...cmdLines,
@@ -1206,22 +1220,39 @@ const cmds = {
 
     // reconcile.jsonl 分析（§7.1 精度测量）
     let reconciled = 0, adopted = 0, relUnused = 0, irrelevant = 0, misleading = 0;
+    // 对账行解析失败计数 —— **不要让 catch 静默**。本块曾因 achan 作用域写错抛
+    // ReferenceError 被空 catch 吞掉，结果每条记录都被跳过、召回精度静默变 0%，而报告照常排版。
+    let recParseErr = 0;
     const recByJudge = {};
     // 按 id 累计四态：irrelevant / relevant-unused 的 delta 都是 (0,0)，在 evidence 汇总里
     // 完全惰性——一条被注入 N 次、N 次都判 irrelevant 的条目，其 evidence 与新条目无异，
     // 永远够不着 harmful>0 的退役线。这里直接读日志原始四态，把出口补上。
     const recById = {};
+    // agentic 通道单独累计 —— 与 recall 分开算 precision。实测两条精度差 18pp、召回差 37pp，
+    // 混在一起会把「该优化哪条通道」这个判断直接抹平（本库反复犯的形态混淆）。
+    const recByIdA = {};
     // (session,id) 对集合：用于把「可对账域」与「结构性不可对账」分开（见下方覆盖率口径）
     const donePairs = new Set();
     try {
       for (const line of fs.readFileSync(RECONCILE_LOG, 'utf8').split('\n')) {
         if (!line.trim()) continue;
+        // 通道判定**提到 try 外的循环体作用域**。曾经它声明在 `if (j.id) {}` 块内、用在块外，
+        // 抛 ReferenceError 被空 catch 吞掉 ⇒ 每条记录都被跳过 ⇒ **召回精度静默变成 0%（0/225）**，
+        // 而报告照常排版。与 m1分母口径、低精度闸门同一类：数字错而不是报错。
+        let achan = false;
         try {
-          const j = JSON.parse(line); reconciled++;
+          const j = JSON.parse(line);
+          achan = (j.channel || 'recall') === 'agentic';
+          // reconciled 是 **recall 通道专有**的计数：它既是 precision 的分母，
+          // 又是「M1 对账覆盖率」的分母（覆盖率问的是「自动注入的实例里有多少被对过账」）。
+          // 曾经把 ++ 放在 achan 判断之前，于是分子不变、分母涨，比值被静默揨低。
+          if (!achan) reconciled++;
           if (j.session && j.id) donePairs.add(`${j.session}\u0000${j.id}`);
           recByJudge[j.judged_by] = (recByJudge[j.judged_by] || 0) + 1;
           if (j.id) {
-            const t = recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0, rel: 0 };
+            const t = achan
+              ? (recByIdA[j.id] = recByIdA[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0, rel: 0 })
+              : (recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0, rel: 0 });
             t.n++;
             if (j.state === 'adopted') { t.adopted++; t.rel++; }
             // misleading 单独计数：它是「有害」的唯一**日志**来源
@@ -1233,11 +1264,16 @@ const cmds = {
             // 它把「无关」（噪声）与「相关但没被用上」（任务不需要）混为一谈，见下方空转判据注释。
             else if (j.state === 'irrelevant') t.dead++;
           }
+          // 聚合计数器（reconciled / adopted / relUnused / …）**也必须分通道** ——
+          // 只分 recById 不够：`precision = relevantN/reconciled` 用的是聚合值，
+          // 漏了这里，一条 agentic 记录就会同时抬高分子与分母（实测 90/225 → 91/226），
+          // 即两条通道又被悄悄合回了同一个数。
+          if (achan) continue;
           if (j.state === 'adopted') adopted++;
           else if (j.state === 'relevant-unused') relUnused++;
           else if (j.state === 'irrelevant') irrelevant++;
           else if (j.state === 'misleading') misleading++;
-        } catch {}
+        } catch { recParseErr++; }
       }
     } catch {}
     // §7.1 精度必须拆成两个数（依据 playbook/injection-precision-must-split-recall-vs-adoption）：
@@ -1307,6 +1343,16 @@ const cmds = {
       '| 判据 | 当前值 | 阈值 | 状态 |',
       '|---|---|---|---|',
       `| M1 召回精度（检索层） | ${precision}%（${relevantN}/${reconciled}） | <50% 连续2周期 | ${reconciled ? (precision < 50 ? '命中' : '未命中') : '无数据'} |`,
+      // L3b agentic 通道的独立精度 —— **必须与上一行分开**。
+      // 两条通道机制完全不同（词法匹配 vs agent 语义挑选），实测 precision 53% vs 71%、
+      // recall 30% vs 67%。合进同一个数会把「该优化哪条通道」这个判断直接抹平。
+      (() => {
+        const rows = Object.values(recByIdA);
+        const n = rows.reduce((s, t) => s + t.n, 0);
+        const rel = rows.reduce((s, t) => s + t.rel, 0);
+        const p = n ? Math.round((rel / n) * 100) : 0;
+        return `| L3b agentic 通道精度 | ${n ? `${p}%（${rel}/${n}）` : '无对账'} | 应高于召回精度 | ${n ? (p > precision ? 'ok' : '⚠ 低于词法通道') : '观察'} |`;
+      })(),
       // 采纳率是观察项不是闸门：阈值需要数据才能定，先攒着（定阈值前不要拿它做决策）。
       // 必须与 misleading 并列读：misleading 是与 adopted 互斥的第四态（误导了执行方向），
       // 它不在采纳率分子里，但危害比"相关未用"大，只看采纳率会漏掉它。
@@ -1347,7 +1393,7 @@ const cmds = {
       `| 硬约束观察期（warn 命中） | 见各约束 countGuardHits | ≥5 候选升 block | — |`,
       '',
       '## 对账详情（reconcile.jsonl / §7.1 四态）',
-      `已对账 ${reconciled} 例：adopted=${adopted} relevant-unused=${relUnused} irrelevant=${irrelevant} misleading=${misleading}（判定者：${Object.entries(recByJudge).map(([k, v]) => `${k}:${v}`).join(' ') || 'n/a'}）`,
+      `已对账 ${reconciled} 例（recall 通道）：adopted=${adopted} relevant-unused=${relUnused} irrelevant=${irrelevant} misleading=${misleading}（判定者：${Object.entries(recByJudge).map(([k, v]) => `${k}:${v}`).join(' ') || 'n/a'}）${recParseErr ? `　⚠ 解析失败 ${recParseErr} 行（统计可能漏计）` : ''}`,
       ...(() => {
         try {
           const c = JSON.parse(fs.readFileSync(path.join(ROOT, 'ops/judge-calibration.json'), 'utf8'));
