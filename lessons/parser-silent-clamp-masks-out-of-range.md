@@ -24,8 +24,6 @@ source: session:a522a07c-f185-4449-9fd7-d0f755c0b02f
 last_verified: 2026-08-01
 superseded_by: null
 schema_version: 1
-related:
-- suc221-off-disk-uv-geometric-reject
 ---
 
 解析/转换层**不要静默 clamp 越界输入**：越界样本应显式返回 NaN 并附布尔标志位（如 `off_disk`），把"数据有问题"保留为可诊断信号。

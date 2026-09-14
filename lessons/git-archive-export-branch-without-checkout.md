@@ -25,7 +25,6 @@ last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
 related:
-- package-deliverable-recipient-verify
 - package-html-deadlinks-missing-assets
 ---
 # 不切换分支导出另一分支内容：`git archive <branch> | tar -x -C <目录>`

@@ -356,3 +356,5 @@
 {"ts":"2026-08-18T03:05:19.638Z","session":"cron_56cb07fbe7c8_20260818_110515","transcript":"?","harness":"hermes","distilled":false,"ended":true}
 {"ts":"2026-09-14T07:34:17.262Z","session":"?","transcript":"?","harness":"claude","distilled":false,"ended":true}
 {"ts":"2026-09-14T07:44:19.305Z","session":"01a09edf-b999-76d9-84aa-847d8074ad2a","transcript":"/Users/zodyne/.pi/agent/sessions/--private-tmp--/2026-09-14T07-44-17-306Z_01a09edf-b999-76d9-84aa-847d8074ad2a.jsonl","harness":"pi","distilled":false,"ended":true}
+{"ts":"2026-09-14T08:33:53.893Z","session":"cron_56cb07fbe7c8_20260914_093009","transcript":"/Users/zodyne/.hermes/sessions-export/cron_56cb07fbe7c8_20260914_093009.jsonl","harness":"hermes","distilled":false,"ended":true}
+{"ts":"2026-09-14T08:35:19.818Z","session":"20260914_163517_39f3e8","transcript":"/Users/zodyne/.hermes/sessions-export/20260914_163517_39f3e8.jsonl","harness":"hermes","distilled":false,"ended":true}
