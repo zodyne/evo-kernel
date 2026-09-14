@@ -278,6 +278,45 @@ function sessionRefStats() {
   return st;
 }
 
+// agentic 通道（candidates/get）使用统计 —— 与 sessionRefStats 同属「共用统计」原则：
+// reflect 与后续任何判据都读这一处，避免各写各的。
+//
+// **建它的原因**：这条通道是唯一能做语义匹配的路径（词法层实测 recall 天花板 63%），
+// 而它原先完全不写日志 —— 于是「路由修好了」只能是断言，不是测量。
+// 更关键的是 **session**：没有它，agent 选了哪些 id 无法与当时的 query 关联 ⇒
+// 就永远比较不了「形态 B 的命中率 vs 自动注入 P1」。
+function agenticStats() {
+  const st = { cand: 0, get: 0, ids: new Set(), lastTs: null, sessions: new Set() };
+  try {
+    for (const line of fs.readFileSync(AGENTIC_LOG, 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const j = JSON.parse(line);
+        if (j.cmd === 'candidates') st.cand++;
+        else if (j.cmd === 'get') { st.get++; for (const i of j.ids || []) st.ids.add(i); }
+        if (j.ts) st.lastTs = j.ts;
+        if (j.session) st.sessions.add(j.session);
+      } catch {}
+    }
+  } catch {}
+  return st;
+}
+
+// 最近一次带 session 的 recall 的 session —— agentic 日志的 session 靠它回填。
+// `evo get` 是 agent 直调的 shell 命令，拿不到自己的 session_id；单用户单机下
+// 「最近的 recall 来自当前会话」是成立的近似。取不到就记 null，不编造。
+function lastRecallSession() {
+  try {
+    const lines = fs.readFileSync(RECALL_LOG, 'utf8').split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!lines[i].trim()) continue;
+      const j = JSON.parse(lines[i]);
+      if (j.session) return j.session;
+    }
+  } catch {}
+  return null;
+}
+
 function* walk(dir) {
   let es;
   try { es = fs.readdirSync(dir, { withFileTypes: true }); }
@@ -1020,7 +1059,7 @@ const cmds = {
   candidates() {
     const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by);
     if (!entries.length) return '';
-    appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'candidates', n: entries.length });
+    appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'candidates', session: lastRecallSession(), n: entries.length });
     const lines = entries.sort((a, b) => ((b.evidence || {}).helpful || 0) - ((a.evidence || {}).helpful || 0)).map((e) =>
       `[id:${e.id}] ${e._zone}/${e.domain || '-'} · verified:${e.verified_by || 'none'} · +${(e.evidence || {}).helpful || 0}/-${(e.evidence || {}).harmful || 0}\n  ${e._firstLine.slice(0, 120)}${(e.triggers || []).length ? '\n  triggers: ' + e.triggers.slice(0, 3).join(' | ') : ''}`);
     return `[evo-candidates · ${entries.length} 条 validated+ 条目]\n` + lines.join('\n');
@@ -1041,7 +1080,7 @@ const cmds = {
     }
     // 记录 agent 实际选了哪些 id —— 那是「agent 的语义判断」的可测痕迹，也是
     // 用同一套盲标口径衡量形态 B 的唯一入口（自动注入 P1 vs agent 自选）。
-    appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'get', ids, found });
+    appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'get', session: lastRecallSession(), ids, found });
     return out.join('\n\n');
   },
 
@@ -1289,6 +1328,13 @@ const cmds = {
       `| M2 条目数 | ${entryCount} | ≥500 | ${entryCount >= 500 ? '命中' : '未命中'} |`,
       `| P4 空命中关系型特征 | ${misses.length} 个空命中 | 真实多跳需求 | ${misses.length >= 10 ? '观察' : '未触发'} |`,
       `| 蒸馏节律（登记未蒸馏且 transcript 失效） | ${refsStale}/${refsTotal} (${refsTotal ? Math.round(refsStale / refsTotal * 100) : 0}%) | 占比升高→缩短周期 | ${refsTotal && refsStale / refsTotal > 0.5 ? '⚠ 失效比例偏高' : 'ok'} |`,
+      // L3b agentic 通道：词法层实测 recall 天花板 63%（1292 对盲标），剩下 37% 只能靠
+      // agent 自己粗筛。所以「这条通道有没有被用」是 M1 能否突破的直接观测点。
+      (() => {
+        const a = agenticStats();
+        const val = a.cand || a.get ? `candidates ${a.cand} 次 · get ${a.get} 次（${a.ids.size} 个不同 id）` : '从未使用';
+        return `| L3b agentic 通道使用 | ${val} | 应持续 > 0 | ${a.cand || a.get ? 'ok' : '⚠ 词法层够不着时 agent 未走第二条通道'} |`;
+      })(),
       `| 降级盘点（§7.2） | ${degradeN} 次 ${Object.entries(degradeByComp).map(([k, v]) => `${k}:${v}`).join(' ') || ''} | 连续2周期同类→提案 | ${degradeN ? '观察' : 'ok'} |`,
       `| 存续检查（remote） | 见 \`evo doctor\` | — | 每季度恢复演练（§4.2） |`,
       `| 硬约束观察期（warn 命中） | 见各约束 countGuardHits | ≥5 候选升 block | — |`,
