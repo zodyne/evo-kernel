@@ -500,6 +500,13 @@ RF=$($EVO reflect 2>&1)
 $EVO reconcile --ids $DEADID --state adopted >/dev/null 2>&1
 { ! $EVO reflect 2>&1 | grep -q "退役候选（空转）: \[$DEADID\]"; } \
   && ok "J: adopted≥1 即豁免空转退役（不误杀活条目）" || bad "J: 空转退役误杀" "(adopted 后仍在候选)"
+# 提案幂等：demote 之后条目落到 lessons/（**仍在 SCAN_DIRS 内**），判据若不限定
+# 「当前在注入集内」，下一轮 reflect 会把同一条原样再提一遍——提案永久重复。
+# 指纹：同批 solidify 落 ops/archive（不在 SCAN_DIRS）而正确地消失；这个不对称即判据缺 zone 检查。
+mv "$EVO_ROOT/playbook/seed-failure-lessons-as-templates.md" "$EVO_ROOT/lessons/"
+{ ! $EVO reflect 2>&1 | grep -q "退役候选（空转）: \[$DEADID\]"; } \
+  && ok "J: 已出注入集的条目不进退役候选（demote 幂等）" || bad "J: 提案幂等" "(已移入 lessons 仍被提议)"
+mv "$EVO_ROOT/lessons/seed-failure-lessons-as-templates.md" "$EVO_ROOT/playbook/"
 
 # ════════════ K. doctor（M0.4，唯一非零退出命令） ════════════
 echo "——— K. doctor（部署自检） ———"
