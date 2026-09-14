@@ -1032,7 +1032,7 @@ const cmds = {
       }
     }
     if (unverifiable.length)
-      out.push({ level: 'LOW', id: `(${unverifiable.length} 条 candidate)`, why: `source transcript 已失 → 复验在结构上不可能，属**政策性去留**：保留在 lessons/ 隔离（不入注入集）或批量 evo demote --id <id> --to archive` });
+      out.push({ level: 'LOW', id: `(${unverifiable.length} 条 candidate)`, why: `source transcript 已失 → 复验在结构上不可能；**保留隔离即可，勿归档**：catalog() 只读 SCAN_DIRS（含 lessons、不含 ops/archive），归档会丢掉查重覆盖 → 同一条经验会被重学一遍，而它们本就不进注入集（I2 已排 candidate），归档零收益。状态 candidate 也准确（确实未验证）` });
     return { entries, findings: out.sort((a, b) => a.level.localeCompare(b.level)) };
   },
 
