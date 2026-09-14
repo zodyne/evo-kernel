@@ -32,10 +32,10 @@
 | 类型 | 用例 | 含义 |
 |---|---|---|
 | 空命中（够不着） | T-timeout, T-heredoc, T-cfar | relevance 全部低于阈值，召回层没能力 |
-| 召回了错条目（更糟） | T-arxiv→arxiv-download-proxy-truncation, T-gitadd→episode-ucm221-fpga-cache-mismatch, T-docdrift→nav-doc-pinned-head-goes-stale | 不只是漏，还挤占预算注入噪声 |
+| 召回了错条目（更糟） | T-arxiv→arxiv-download-proxy-truncation, T-gitadd→episode-suc221-fpga-cache-mismatch, T-docdrift→nav-doc-pinned-head-goes-stale | 不只是漏，还挤占预算注入噪声 |
 
 第二类比第一类严重：空命中至少不污染 context，而 `T-gitadd`（git 暂存问题）召回到
-`episode-ucm221-fpga-cache-mismatch`（雷达 FPGA 缓存）说明中文 bigram 通道会产生
+`episode-suc221-fpga-cache-mismatch`（雷达 FPGA 缓存）说明中文 bigram 通道会产生
 跨领域的伪相关。这是选择改进方向时应优先攻击的部分。
 
 **尚未测量**：净收益。本基准不回答"注入经验是否让任务做得更好"——那需要 LLM 实跑
@@ -51,7 +51,7 @@
 
 **根因定位**：`cover = hits / |phrase|` 按短语自身长度归一，导致 **trigger 写得越具体越难召回**。
 实例（T-gitadd）：目标条目命中 2 词得 `0.143` 被阈值 0.25 滤掉；噪声条目
-`episode-ucm221-fpga-cache-mismatch` 仅命中 1 词（"结果"，其 trigger "结果不一致" 只有 4 个
+`episode-suc221-fpga-cache-mismatch` 仅命中 1 词（"结果"，其 trigger "结果不一致" 只有 4 个
 bigram）得 `0.250` 通过。**命中更多的输给命中更少的**，激励方向是反的。
 同一缺陷当年已在 tag 通道用"取并集"修过，triggers 通道被漏下。
 
@@ -84,7 +84,7 @@ bigram）得 `0.250` 通过。**命中更多的输给命中更少的**，激励�
 ```
 注入集完全一致 11 ｜ 两侧均空 37 ｜ 丢失 189 ｜ 新增 1
 丢失 Top: 35× episode-agent-evo-research / 25× seed-failure-lessons-as-templates
-         24× ai-agent-book-as-self-evolution-reference / 20× episode-ucm221-project-overview
+         24× ai-agent-book-as-self-evolution-reference / 20× episode-suc221-project-overview
          16× design-review-cross-check-implementation / 14× independent-design-review
 按查询长度: 长查询(>200字) 丢失 83 / 保留 49；短查询 丢失 106 / 保留 62
 ```

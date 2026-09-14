@@ -1,10 +1,10 @@
 ---
-id: episode-ucm221-uneven-array-doa
-name: UCM221 非均匀阵列暗室测角问题定位
+id: episode-suc221-uneven-array-doa
+name: SUC221 非均匀阵列暗室测角问题定位
 type: episode
 status: validated
 scope: [debugging, signal-processing]
-domains: [ucm221, radar, doa]
+domains: [suc221, radar, doa]
 triggers:
   - 非均匀阵列
   - 暗室测角
@@ -19,7 +19,7 @@ last_verified: '2026-06-26'
 created: '2026-07-25'
 ---
 
-# UCM221 非均匀阵列暗室测角问题定位
+# SUC221 非均匀阵列暗室测角问题定位
 
 ## 问题现象
 
@@ -46,6 +46,6 @@ created: '2026-07-25'
 
 ## 来源
 
-- 原 OpenClaw 知识库：`vault/10-Projects-Active/UCM221/UCM221_Software_Progress.md`
+- 原 OpenClaw 知识库：`vault/10-Projects-Active/SUC221/SUC221_Software_Progress.md`
 - 迁移时间：2026-07-25
 - provenance: [imported] 经人审改写后 curate 入库

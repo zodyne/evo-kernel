@@ -2,7 +2,7 @@
 id: npy-mmap-for-million-point-intermediate-data
 type: lesson
 status: candidate
-scope: project:ucm221-pointcloud-2-0
+scope: project:suc221-pointcloud-2-0
 domain: data-engineering
 tags: [npy, mmap, numpy, pointcloud, viewer]
 triggers:

@@ -1,8 +1,8 @@
 ---
-id: ucm221-lab-to-field-transfer-check-coverage
+id: suc221-lab-to-field-transfer-check-coverage
 type: lesson
 status: candidate
-scope: project:ucm221-pointcloud-2-0
+scope: project:suc221-pointcloud-2-0
 domain: signal-processing
 tags: [ccmf, field-data, lab-to-field, noise-floor, coverage-check]
 triggers:

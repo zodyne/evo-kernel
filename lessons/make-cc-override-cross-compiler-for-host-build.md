@@ -22,7 +22,7 @@ related: [native-posix-freertos-preview-before-mcu]
 ---
 交叉编译工程的 Makefile 若用 `CC ?= ...` 或普通变量定义编译器，**`make CC=cc` 命令行变量覆盖优先级最高**，无需改任何文件即可换成本机编译器做构建验证。
 
-**为什么**：UCM221 libucm221 移植核查会话中，Makefile 面向交叉编译，直接用 `make CC=cc` 在本机完成构建（"构建完成"、libSPX_ALG.dylib 生成），并反复用它做"改一处→重编→nm 验证"的快速反馈环。命令行变量是 GNU make 覆盖优先级最高的来源（高于文件内赋值，除非用了 override 指令），是零侵入的本机验证手段。
+**为什么**：SUC221 libsuc221 移植核查会话中，Makefile 面向交叉编译，直接用 `make CC=cc` 在本机完成构建（"构建完成"、libSPX_ALG.dylib 生成），并反复用它做"改一处→重编→nm 验证"的快速反馈环。命令行变量是 GNU make 覆盖优先级最高的来源（高于文件内赋值，除非用了 override 指令），是零侵入的本机验证手段。
 
 **边界**：若 Makefile 用 `override CC :=` 写死或在规则里硬编码编译器路径，此法失效，需改文件或用 `-e` 环境变量覆盖；交叉专属编译选项（-mcpu 等）在本机编译器下可能报错，需另行处理。
 

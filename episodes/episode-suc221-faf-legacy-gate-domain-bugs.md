@@ -1,12 +1,12 @@
 ---
-id: episode-ucm221-faf-legacy-gate-domain-bugs
+id: episode-suc221-faf-legacy-gate-domain-bugs
 type: episode
 status: candidate
-scope: project:ucm221
+scope: project:suc221
 domain: signal-processing
-tags: [ucm221, false-alarm-filter, direction-cosine, elevation-gate, dead-code, embedded-port]
+tags: [suc221, false-alarm-filter, direction-cosine, elevation-gate, dead-code, embedded-port]
 triggers:
-  - "给 UCM221 FAF 调方位/俯仰门限或改 v 域限制"
+  - "给 SUC221 FAF 调方位/俯仰门限或改 v 域限制"
   - "faf 去掉 v < sin30(0.5) 限制、按新参数重跑 gt 评估"
   - "legacy 过滤代码里门限直接和 elevation（弧度）比较——作用在错误的量上（失败信号）"
   - "移植 legacy 过滤算法时发现某门限是从未生效的死代码"
@@ -18,9 +18,9 @@ source: session:7c4809cc-6484-46a8-ad6b-dc591541577a
 last_verified: 2026-08-02
 superseded_by: null
 schema_version: 1
-related: [ucm221-filter-direction-cosine-native]
+related: [suc221-filter-direction-cosine-native]
 ---
-# UCM221 FAF 移植发现两个门限 bug：俯仰门限比错量（弧度 vs sin）、方位门限是死代码
+# SUC221 FAF 移植发现两个门限 bug：俯仰门限比错量（弧度 vs sin）、方位门限是死代码
 
 ## 事件
 

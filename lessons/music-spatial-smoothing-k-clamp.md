@@ -2,9 +2,9 @@
 id: music-spatial-smoothing-k-clamp
 type: lesson
 status: candidate
-scope: project:ucm221
+scope: project:suc221
 domain: radar-doa
-tags: [music, doa, spatial-smoothing, coherent-sources, parameter-clamp, ucm221, radar]
+tags: [music, doa, spatial-smoothing, coherent-sources, parameter-clamp, suc221, radar]
 triggers:
   - "给 MUSIC/子空间类 DOA 算法配空间平滑档位"
   - "空间平滑后仍按全阵列设默认信源数 K，结果异常（失败信号）"
@@ -26,7 +26,7 @@ schema_version: 1
 
 ## 证据
 
-pi-design-review.t-002 评审 UCM221 测角方案时，round-0 blocking finding **B1** 即「MUSIC 默认参数 K=6 vs L−1=4 冲突」；round-1 修复方案（§2.3 新增平滑语义与 K 钳制）经 python 数值复核逐档验证：
+pi-design-review.t-002 评审 SUC221 测角方案时，round-0 blocking finding **B1** 即「MUSIC 默认参数 K=6 vs L−1=4 冲突」；round-1 修复方案（§2.3 新增平滑语义与 K 钳制）经 python 数值复核逐档验证：
 
 ```
 s=0: L=8, 子阵数=1(应=s+1=1), K_eff=6, 噪声子空间维数=2

@@ -1,8 +1,8 @@
 ---
-id: ucm221-single-scene-calibration-fragile
+id: suc221-single-scene-calibration-fragile
 type: lesson
 status: candidate
-scope: project:ucm221-pointcloud-2-0
+scope: project:suc221-pointcloud-2-0
 domain: signal-processing
 tags: [calibration, threshold, generalization, gt-scarcity, faf]
 triggers:

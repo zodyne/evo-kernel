@@ -31,4 +31,4 @@ schema_version: 1
 **证据**（session fb616292）：
 - 冲突源：`grep -rn "typedef.*float32_t" include src` → `include/common/neon/NE10_types.h:76:typedef float ne10_float32_t;`，嵌入式侧另有 `typedef float float32_t;`。
 - 修复：`perl -pi -e 's/\bfloat32_t\b/FafFloat32_t/g; s/\bfloat64_t\b/FafFloat64_t/g' faf.h faf.c fpga_frame.* faf_pyapi.c test/main_golden.c`。
-- 验证：libucm221 内 `make` 成功、golden 复跑 `[PASS]`、`nm -gU libSPX_ALG.dylib | grep Faf` 导出 `_vFafComputeFrameFeatures` 等符号。
+- 验证：libsuc221 内 `make` 成功、golden 复跑 `[PASS]`、`nm -gU libSPX_ALG.dylib | grep Faf` 导出 `_vFafComputeFrameFeatures` 等符号。

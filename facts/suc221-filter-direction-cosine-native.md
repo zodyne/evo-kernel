@@ -1,15 +1,15 @@
 ---
-id: ucm221-filter-direction-cosine-native
+id: suc221-filter-direction-cosine-native
 type: fact
 status: candidate
-scope: project:ucm221
+scope: project:suc221
 domain: signal-processing
-tags: [ucm221, false-alarm-filter, direction-cosine, doa, point-cloud]
+tags: [suc221, false-alarm-filter, direction-cosine, doa, point-cloud]
 triggers:
-  - "问 UCM221 过滤算法是否按角度（az/el 度数）做限制"
+  - "问 SUC221 过滤算法是否按角度（az/el 度数）做限制"
   - "在 false_alarm_filter.py / faf_c 里找角度阈值找不到（失败信号，不代表缺失）"
-  - "给 UCM221 点云过滤加方位/俯仰角门限"
-  - "理解 UCM221 测角输出是方向余弦 (u,v) 还是角度"
+  - "给 SUC221 点云过滤加方位/俯仰角门限"
+  - "理解 SUC221 测角输出是方向余弦 (u,v) 还是角度"
 created: 2026-07-30
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
@@ -17,13 +17,13 @@ source: session:253e3346-4c15-4372-829d-5360cbe67d66
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related: [playbook-ucm221-cfar-point-cloud-filtering, ucm221-marginal-points-support-track-continuity]
+related: [playbook-suc221-cfar-point-cloud-filtering, suc221-marginal-points-support-track-continuity]
 ---
-# UCM221 过滤链路以方向余弦 (u,v) 为原生量，逐点不做角度换算
+# SUC221 过滤链路以方向余弦 (u,v) 为原生量，逐点不做角度换算
 
 ## 主张
 
-UCM221 点云过滤链路（false_alarm_filter.py / faf_c）**全链路以方向余弦 (u,v) 为原生量，逐点不做角度换算**；过滤条件若有空间限制，表达形式是 u/v 域阈值而非角度（az/el 度数）阈值。回答"过滤是否做了角度限制"或在代码里搜 angle/角度 找不到阈值时，应去查 u/v 域的过滤条件，而不是断言"没有角度限制"或"漏了"。
+SUC221 点云过滤链路（false_alarm_filter.py / faf_c）**全链路以方向余弦 (u,v) 为原生量，逐点不做角度换算**；过滤条件若有空间限制，表达形式是 u/v 域阈值而非角度（az/el 度数）阈值。回答"过滤是否做了角度限制"或在代码里搜 angle/角度 找不到阈值时，应去查 u/v 域的过滤条件，而不是断言"没有角度限制"或"漏了"。
 
 ## 证据
 

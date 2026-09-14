@@ -27,4 +27,4 @@ Hermes 的 `agent.log`/`errors.log`/`sessions/*.json` 都不直接记录 session
 
 **边界**：这只是间接推断，不是权威归属；如果一个 turn 里用户没提任何文件路径/项目相关关键词，这条方法失效，需要换手段（比如直接问用户，或深挖 `tui_gateway.server` 的 `ui_session` 关联表——本次未验证这条路是否可行）。
 
-**证据**：2026-09-02，用这个方法把 session `20260902_112432_d74033` 归属到 `~/Dev/ucm221-pointcloud-2.0`（凭 `docs/dbf_filter_spec.tex` / `docs/dbf_algorithm_design.tex` 引用，`find`/`ls` 确认文件真实存在于该项目 `docs/` 目录下）。
+**证据**：2026-09-02，用这个方法把 session `20260902_112432_d74033` 归属到 `~/Dev/suc221-pointcloud-2.0`（凭 `docs/dbf_filter_spec.tex` / `docs/dbf_algorithm_design.tex` 引用，`find`/`ls` 确认文件真实存在于该项目 `docs/` 目录下）。

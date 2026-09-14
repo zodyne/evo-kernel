@@ -21,7 +21,7 @@ related: [parser-silent-clamp-masks-out-of-range]
 
 数据里一旦引入 NaN（无效点/缺失值），**必须审查下游所有 min/max/量程类聚合**：`np.min/np.max` 遇 NaN 直接传染成 nan，参考系量程、网格、色标会整体崩掉且不报错。
 
-为什么：UCM221 把出圆点改为 NaN 后，参考系 `r_max = nan`（不滤 NaN 时），网格直接画不出来；滤 NaN 后 `r_max = 317.8` 正常。NaN 传染是静默的——不抛异常，只让结果全变 nan，定位时容易先去怀疑绘图层。
+为什么：SUC221 把出圆点改为 NaN 后，参考系 `r_max = nan`（不滤 NaN 时），网格直接画不出来；滤 NaN 后 `r_max = 317.8` 正常。NaN 传染是静默的——不抛异常，只让结果全变 nan，定位时容易先去怀疑绘图层。
 
 对策：聚合前显式滤 NaN（`r[~np.isnan(r)]`）或改用 `np.nanmin/np.nanmax`；改数据语义（引入 NaN）时把"下游聚合点清单"作为改动的一部分。
 

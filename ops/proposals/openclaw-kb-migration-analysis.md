@@ -38,7 +38,7 @@ OpenClaw 知识库位于 `~/.openclaw/workspace/knowledge-base/`，其 `README.m
 │   ├── INDEX.md                 # 自动生成导航
 │   ├── 10-Projects-Active/      # 活跃项目（10 个 .md）
 │   │   ├── Track/
-│   │   └── UCM221/
+│   │   └── SUC221/
 │   ├── 20-Areas/                # 领域（1 个 .md）
 │   ├── 30-Resources/            # 参考资料（45 个 .md + 648 个非文本附件，7.5M）
 │   │   ├── Algorithms/
@@ -49,7 +49,7 @@ OpenClaw 知识库位于 `~/.openclaw/workspace/knowledge-base/`，其 `README.m
 │   │   └── ti-radar-toolbox-4.00.00.05/
 │   ├── Daily/                   # 日报（23 个 .md）
 │   └── System-Knowledge-System/ # 系统知识（GBrain 工作流 SOP 等）
-└── archive/                     # 归档（旧版 SDML、UCM221 rollup 等）
+└── archive/                     # 归档（旧版 SDML、SUC221 rollup 等）
 ```
 
 此外，OpenClaw 还有两个相关资产：
@@ -67,7 +67,7 @@ OpenClaw 知识库位于 `~/.openclaw/workspace/knowledge-base/`，其 `README.m
 
 | 类别 | 主要内容 | 规模估算 |
 |---|---|---|
-| 项目记录 | UCM221 点云/雷达、Track 跟踪系统 | ~10 篇 |
+| 项目记录 | SUC221 点云/雷达、Track 跟踪系统 | ~10 篇 |
 | 技术参考资料 | TI mmWave SDK、DFP、DPC、DDMA、Radar Toolbox | ~45 篇 + 648 附件 |
 | 日报 | 2026-03 至 2026-07 工作日志 | ~23 篇 |
 | 系统/流程 | GBrain 知识工作流 SOP、SDML 设计说明 | ~5 篇 |
@@ -210,7 +210,7 @@ triggers:
 
 - **frontmatter 转换工作量**：约 80 篇文件需要不同程度的手动补全；
 - **附件/二进制文件**：Evo-Kernel 是纯文本系统，PDF/图片等无法入库，只能保留链接；
-- **domain/scope 设计**：需要为 OpenClaw 项目定义一套 domain 体系（如 `ucm221`、`track`、`mmwave-sdk`、`openclaw` 等）。
+- **domain/scope 设计**：需要为 OpenClaw 项目定义一套 domain 体系（如 `suc221`、`track`、`mmwave-sdk`、`openclaw` 等）。
 
 ## 5. 推荐执行计划（分阶段，不立即执行）
 
@@ -261,7 +261,7 @@ triggers:
 
 ## 7. 立即可做的三件小事（仍属分析/准备，不迁移）
 
-1. **起草 domain 命名规范**：定义 `openclaw`、`ucm221`、`track`、`mmwave-sdk`、`ti-radar`、`claude-code` 等 domain；
+1. **起草 domain 命名规范**：定义 `openclaw`、`suc221`、`track`、`mmwave-sdk`、`ti-radar`、`claude-code` 等 domain；
 2. **做一份试点清单**：选出 3-5 篇最有迁移价值的资料，作为阶段 0 试点；
 3. **写一个预处理脚本骨架**：用于把 OpenClaw/Obsidian frontmatter 转换为 Evo-Kernel 提案 frontmatter，先跑在只读模式。
 

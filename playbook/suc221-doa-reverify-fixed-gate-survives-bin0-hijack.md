@@ -1,11 +1,11 @@
 ---
-id: ucm221-doa-reverify-fixed-gate-survives-bin0-hijack
+id: suc221-doa-reverify-fixed-gate-survives-bin0-hijack
 type: bullet
 status: validated
-scope: project:ucm221
+scope: project:suc221
 domain: radar-doa
 tags:
-- ucm221
+- suc221
 - doa
 - 暗室
 - 固定门
@@ -13,7 +13,7 @@ tags:
 - 数据质量
 - 采集完整性
 triggers:
-- UCM221 新采集数据集上复验测角，bin0/bin3 比值接近或超过 1
+- SUC221 新采集数据集上复验测角，bin0/bin3 比值接近或超过 1
 - 看到 bin0>bin3 就判测角失效（失败信号：只杀峰值搜索不杀固定门）
 - 大角度测角误差增大，要区分算法极限还是数据质量
 - 跨采集会话复用 eta 校准 LUT
@@ -28,9 +28,9 @@ last_verified: 2026-08-12
 superseded_by: null
 schema_version: 1
 related:
-- ucm221-chamber-doa-bin3-fixed-gate-rx-pair
+- suc221-chamber-doa-bin3-fixed-gate-rx-pair
 ---
-# UCM221 测角复验：固定门不怕 bin0 反超；大角度失效是数据质量；eta 需逐会话 LUT
+# SUC221 测角复验：固定门不怕 bin0 反超；大角度失效是数据质量；eta 需逐会话 LUT
 
 在 20260713 暗室数据集上参数化复跑（`analysis/rx_pair_doa.py --chamber`）的四条结论：
 

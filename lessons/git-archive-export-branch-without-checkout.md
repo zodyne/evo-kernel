@@ -38,4 +38,4 @@ related:
 - `git archive` 只导出 git 跟踪的文件；未被跟踪的静态资产/数据不会进包（参见 package-html-deadlinks-missing-assets 的同类坑）。
 - 导出后应以收件人视角实跑验证（如 python import 冒烟），文件齐≠能跑（参见 package-verify-as-recipient）。
 
-**证据**：会话中当前分支 `feat/faf-embedded-port` 在工作，用户要求打包 `main` 分支的 ADC/暗室/测角代码且禁止切分支。用 `git ls-tree -r main` + 抽样循环确认文件存在后，`git archive main | tar -x -C ~/Dev/ucm221-research-bundle/` 导出 11 MB 成功，末条总结确认「未碰当前工作分支」，导出后 python import 冒烟立刻抓到 `doa_calibration.load_coarray_cal_table` 的加载失败。
+**证据**：会话中当前分支 `feat/faf-embedded-port` 在工作，用户要求打包 `main` 分支的 ADC/暗室/测角代码且禁止切分支。用 `git ls-tree -r main` + 抽样循环确认文件存在后，`git archive main | tar -x -C ~/Dev/suc221-research-bundle/` 导出 11 MB 成功，末条总结确认「未碰当前工作分支」，导出后 python import 冒烟立刻抓到 `doa_calibration.load_coarray_cal_table` 的加载失败。

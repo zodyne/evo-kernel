@@ -1,8 +1,8 @@
 ---
-id: ucm221-off-disk-uv-geometric-reject
+id: suc221-off-disk-uv-geometric-reject
 type: lesson
 status: candidate
-scope: project:ucm221-pointcloud-2-0
+scope: project:suc221-pointcloud-2-0
 domain: signal-processing
 tags: [doa, direction-cosine, off-disk, hard-reject, silent-clip, viewer]
 triggers:
