@@ -10,7 +10,8 @@
       "nontask": "非任务 prompt（斜杠命令/系统通知）⇒ 只测「该不该零注入」，不进分子分母",
       "indeterminate": "query 文本本身残缺 ⇒ 方法学上无效，排除（理由须是先验的，不能因结果排除）"
     },
-    "borderline_handling": "**报区间**而非丢弃：下界把 borderline 当 I，上界把 borderline 当 R。两个数一起报，不确定性就显式了 —— 比\"丢掉不管\"诚实，也比\"我替你定了\"安全。"
+    "borderline_handling": "**报区间**而非丢弃：下界把 borderline 当 I，上界把 borderline 当 R。两个数一起报，不确定性就显式了 —— 比\"丢掉不管\"诚实，也比\"我替你定了\"安全。",
+    "round2": "2026-09-14 第二轮：query 集 9 → 20，新增 11 条由另 3 名盲标者标注（同样未读 recall.jsonl）。n=10 由标者独立建议归 indeterminate（与 n=1 同因：100 字硬截断）。"
   },
   "labels": {
     "1": {
@@ -148,6 +149,156 @@
       "borderline": [],
       "note": "非任务 prompt（斜杠命令 + 抱怨「分析一下不工作」）—— 真值即「应零注入」",
       "layer": "nontask"
+    },
+    "10": {
+      "relevant": [
+        "agent-self-evolution-landscape",
+        "agent-system-deployability-falsifiable-value-claim",
+        "ai-agent-book-as-self-evolution-reference"
+      ],
+      "borderline": [
+        "benchmark-traffic-isolated-from-telemetry",
+        "community-research-rss-api-first",
+        "design-review-cross-check-implementation",
+        "evo-distill-transient-connection-error-retry",
+        "evo-slice-normalize-toolname-case-and-path-field",
+        "greenfield-rebuild-via-spec-patch",
+        "injection-precision-must-split-recall-vs-adoption",
+        "nan-score-key-breaks-comparison-sort",
+        "proposal-independent-review-before-curate",
+        "recall-failure-empty-vs-noise-taxonomy",
+        "scoring-cutover-replay-historical-queries",
+        "seed-failure-lessons-as-templates"
+      ],
+      "layer": "indeterminate",
+      "indeterminate_reason": "query 在 recall.jsonl 里被硬截断在 100 字处，且截断点落在 Evo-Kernel 身份括号内 —— 100 字全被身份描述吃掉，**任务动词整体丢失**（只剩对象、没有要做什么）。原始 transcript 不可寻。理由是先验的（文本残缺），不是因为「它恰好是个漏」。**由盲标者独立提出同一建议** —— 与 n=1 同因。"
+    },
+    "11": {
+      "relevant": [
+        "design-review-cross-check-implementation",
+        "doc-selfreported-counts-drift",
+        "nav-doc-pinned-head-goes-stale",
+        "stamp-baseline-before-review"
+      ],
+      "borderline": [
+        "2026-07-27-git-mv-bulk-verify-byte-identical-renames",
+        "auto-script-git-add-all-sweeps-unrelated-files",
+        "bytes-exact-oracle-gate-for-pipeline-port",
+        "native-posix-freertos-preview-before-mcu",
+        "report-schema-claims-need-live-ground-truth",
+        "review-packet-completeness-is-assemblers-duty",
+        "string-replace-outside-block-corrupts-body",
+        "three-review-passes-catch-different-layers",
+        "validation-params-readable-from-artifact"
+      ]
+    },
+    "12": {
+      "relevant": [
+        "community-research-rss-api-first",
+        "greenfield-rebuild-via-spec-patch"
+      ],
+      "borderline": [
+        "agent-self-evolution-landscape",
+        "agent-system-deployability-falsifiable-value-claim",
+        "ai-agent-book-as-self-evolution-reference",
+        "design-review-cross-check-implementation",
+        "native-posix-freertos-preview-before-mcu",
+        "proposal-independent-review-before-curate",
+        "report-schema-claims-need-live-ground-truth",
+        "unverified-arxiv-ids",
+        "verify-external-references"
+      ],
+      "note": "天生泛指（「分析当前项目」无指认）：任务类型清楚（调研+重设计）但对象不明 ⇒ 留在 task 层，用宽区间表达"
+    },
+    "13": {
+      "relevant": [
+        "episode-suc221-uneven-array-doa",
+        "suc221-chamber-doa-bin3-fixed-gate-rx-pair",
+        "suc221-doa-reverify-fixed-gate-survives-bin0-hijack"
+      ],
+      "borderline": [
+        "suc221-cross-angle-dataset-record"
+      ]
+    },
+    "14": {
+      "relevant": [
+        "hermes-config-set-cannot-write-list-dict"
+      ],
+      "borderline": [
+        "hermes-cron-model-drift-fail-closed",
+        "hermes-fallback-providers-turn-scoped-auto-restore",
+        "macos-dual-nic-intranet-subnet-needs-per-service-route"
+      ]
+    },
+    "15": {
+      "relevant": [
+        "backup-untracked-file-before-edit"
+      ],
+      "borderline": [
+        "auto-script-git-add-all-sweeps-unrelated-files",
+        "git-add-untracked-source-path-aborts-staging",
+        "git-status-has-no-cached-flag",
+        "string-replace-outside-block-corrupts-body",
+        "stamp-baseline-before-review",
+        "doc-selfreported-counts-drift"
+      ],
+      "note": "天生泛指（「你来修改，并将修改记录起来」无宾语）：6 条 borderline 全部源于「无法确定改动对象」，区间宽度即信息"
+    },
+    "16": {
+      "relevant": [
+        "macos-no-timeout-command"
+      ],
+      "borderline": [],
+      "note": "信息完备的对照组：与条目逐字对应，0 borderline"
+    },
+    "17": {
+      "relevant": [
+        "proposal-independent-review-before-curate",
+        "three-review-passes-catch-different-layers"
+      ],
+      "borderline": [
+        "design-review-cross-check-implementation",
+        "pal-clink-cli-client-name-fixed-triplet",
+        "pi-subagent-tool-silent-failure-pitfalls",
+        "review-packet-completeness-is-assemblers-duty",
+        "unverified-arxiv-ids"
+      ],
+      "note": "无对象泛指（「解决方案」不知为何物、模型数与通道未指定）"
+    },
+    "18": {
+      "relevant": [
+        "vim-fs-normalize-expands-tilde"
+      ],
+      "borderline": [
+        "bash-source-root-breaks-when-script-moved",
+        "lua-gsub-multireturn-pitfall-in-fn-args"
+      ]
+    },
+    "19": {
+      "relevant": [],
+      "borderline": [
+        "arxiv-download-proxy-truncation",
+        "evo-distill-transient-connection-error-retry",
+        "searxng-all-engines-fail-check-outgoing-proxy",
+        "streaming-protocol-snapshot-vs-delta",
+        "macos-dual-nic-intranet-subnet-needs-per-service-route",
+        "hermes-fallback-providers-turn-scoped-auto-restore"
+      ],
+      "note": "「慢」未指明延迟/吞吐/排队，也未指明调用链 ⇒ 全库没有一条讲 LLM 服务延迟归因的条目 ⇒ R 为空、borderline 6 条"
+    },
+    "20": {
+      "relevant": [
+        "bytes-exact-oracle-gate-for-pipeline-port"
+      ],
+      "borderline": [
+        "2026-07-27-git-mv-bulk-verify-byte-identical-renames",
+        "approval-gate-written-only-in-prompt-is-not-enforceable",
+        "recalibrate-thresholds-before-comparing-sets",
+        "scoring-cutover-replay-historical-queries",
+        "stamp-baseline-before-review",
+        "validation-params-readable-from-artifact"
+      ],
+      "note": "关键词串而非叙述：没说重构对象、「闸门」形态、「1000」指什么"
     }
   }
 }
