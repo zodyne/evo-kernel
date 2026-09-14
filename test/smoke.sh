@@ -593,13 +593,19 @@ for i in 1 2 3; do $EVO reconcile --ids zz-log-backed --state adopted >/dev/null
   && ok "J: 有日志支撑（adopted=3、evidence.helpful=0）才进固化候选" \
   || bad "J: 固化正向对照" "(有日志仍未提议)"
 rm -f "$EVO_ROOT/playbook/zz-log-backed.md"
-# 逐条精度闸门（M1 精度修复）：对账样本 ≥3 且精度 <50% 的条目**不进自动注入**，
+# 逐条精度闸门（M1 精度修复）：对账样本够且精度低的条目**不进自动注入**，
 # 但直调 recall 照常可取。机制缺口：irrelevant 的 delta 是 (0,0)、govWeight 的 evW
-# 又有 0.3 下限 → 被反复判无関的条目权重不降、无限期被继续注入（实测 182 次注入 12 例全无関）。
+# 又有 0.3 下限 → 被反复判无关的条目权重不降、无限期被继续注入（实测 182 次注入 12 例全无关）。
+#
+# **参数 2026-09-14 由 n≥5/<50% 收窄为 n≥10/<20%**，依据穷举盲标实测：按条目聚合的精度
+# 分不出「窄但准」与「通常不准」—— 相关性是 (条目, query) 对的属性。实例
+# `macos-no-timeout-command` 精度仅 20%（1/5），但盲标确认它在「macOS 上 timeout 命令用不了」
+# 这条 query 上**确实相关**，而那是整晚唯一命中的短 query；旧参数把它连同 6 条一起砍了。
+# 故本测试造 **10** 条无关记录（旧门槛下只需 5 条，会测不到新参数）。
 printf -- '---\nid: zz-lowprec\ntype: bullet\nstatus: validated\ntriggers: ["低精度闸门探针"]\n---\n正文\n' > "$EVO_ROOT/playbook/zz-lowprec.md"
-for i in 1 2 3 4 5; do $EVO reconcile --ids zz-lowprec --state irrelevant >/dev/null 2>&1; done
+for i in 1 2 3 4 5 6 7 8 9 10; do $EVO reconcile --ids zz-lowprec --state irrelevant >/dev/null 2>&1; done
 { ! printf '{"session_id":"zz-gate-%s","prompt":"低精度闸门探针是什么"}' $RANDOM | $EVO hook-recall 2>&1 | grep -q 'zz-lowprec'; } \
-  && ok "J: 低精度条目不进自动注入（无関 3/3 → 闸门排除）" || bad "J: 精度闸门" "(无关 5/5 仍被自动注入)"
+  && ok "J: 低精度条目不进自动注入（无关 10/10 → 闸门排除）" || bad "J: 精度闸门" "(无关 10/10 仍被自动注入)"
 { $EVO recall --task "低精度闸门探针是什么" --budget 600 2>&1 | grep -q 'zz-lowprec'; } \
   && ok "J: 直调 recall 不受精度闸门限制（人明确要检索时照做）" || bad "J: 直调不受限" "(被闸门误伤)"
 rm -f "$EVO_ROOT/playbook/zz-lowprec.md"

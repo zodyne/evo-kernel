@@ -132,11 +132,18 @@ const argGet = (args, k, dflt) => { const i = args.indexOf(k); return i !== -1 ?
 // 直调 `evo recall` 与 `evo get --ids` 取到；人明确要检索时必须照做。
 //
 // 判据只读 reconcile 日志（不读人工维护、会漂移的 evidence 字段，见 reflect 三判据）。
-// 样本量门槛取 5，与内核自身「够证据才动」的惯例（DEAD_MIN=5）一致：3 例判一条条目的罪太薄，
-// 实测那样会误伤 arxiv-download-proxy-truncation（3 例 33%）这条 smoke 期望命中的条目。
+//
+// **2026-09-14 收窄（n 5→10、精度 50%→20%），依据穷举盲标实测**：
+// 按条目聚合的精度**分不出「窄但准」和「通常不准」** —— 因为
+// **相关性是 (条目, query) 对的属性，不是条目的属性**。
+// 实例：`macos-no-timeout-command` 的 reconcile 精度是 20%（1/5），但盲标确认它在
+// 「macOS 上 timeout 命令用不了」这条 query 上**确实相关** —— 而那是整晚唯一命中的短 query。
+// 旧参数（n≥5 且 <50%）把它连那 7 条一起砍了，代价是 12 个命中里的 1 个（8% 召回）。
+// 按实测漏/误 = 3.44、且字符预算只 3% 打满 ⇒ **省 token 换丢命中是亏的**。
+// 收窄后仍排除 arxiv-api-rate-limit（0/12）与 claude-hook-sessionstart-no-prompt（2/22）两条真坏的。
 // EVO_PRECISION_MIN / _MIN_N 可调。
-const PRECISION_MIN = Number(process.env.EVO_PRECISION_MIN || 0.5);
-const PRECISION_MIN_N = Number(process.env.EVO_PRECISION_MIN_N || 5);
+const PRECISION_MIN = Number(process.env.EVO_PRECISION_MIN || 0.2);
+const PRECISION_MIN_N = Number(process.env.EVO_PRECISION_MIN_N || 10);
 function lowPrecisionIds() {
   const c = new Map();
   try {
