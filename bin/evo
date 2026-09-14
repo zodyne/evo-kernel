@@ -929,6 +929,13 @@ const cmds = {
       // MID：lessons 中 status ≠ candidate（规则违反）
       if (e._zone === 'lessons' && e.status && e.status !== 'candidate')
         out.push({ level: 'MID', id: e.id, why: `lessons/ 中 status=${e.status}（规则：只存 candidate）→ 迁出` });
+      // MID：RECALL_DIRS 内 status=archived|deprecated 但 superseded_by 为空
+      // recall() 只按 superseded_by 过滤（loadEntries(RECALL_DIRS).filter(e => !e.superseded_by)），
+      // **不看 status** → 这类条目照常进注入集，与 status 声明矛盾。此前无任何检查覆盖这种组合：
+      // 2026-09-14 实测 12 条处干此状态，其中一条陈旧 fact 已被 recall 实际注入。
+      // SCHEMA ⑮：加字段就必须同时给出治理出口——下面三选一都是可执行的。
+      if (RECALL_DIRS.includes(e._zone) && ['archived', 'deprecated'].includes(e.status) && !e.superseded_by)
+        out.push({ level: 'MID', id: e.id, why: `status:${e.status} 但仍在注入集（recall 只按 superseded_by 过滤、不看 status）→ 三选一：git mv 出 ${e._zone}/ ｜ 置 superseded_by ｜ 改回 status:validated` });
       // SCHEMA ⑮ 建链规则：悬挂 related 比没有链接更误导，加字段就必须同时给出治理出口
       for (const r of Array.isArray(e.related) ? e.related : []) {
         const t = byId.get(r);
