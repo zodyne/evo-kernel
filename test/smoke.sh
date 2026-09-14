@@ -53,7 +53,9 @@ echo "——— B. 边界与注入安全 ———"
 t "hook-recall JSON 注入"  "__NOOUTPUT__" bash -c "echo '{\"session_id\":\"sec-x\",\"prompt\":\"测试 }{\\\" 拼接\"}' | $EVO hook-recall"
 t "hook-recall 非JSON"     "__NOOUTPUT__" bash -c "echo '纯文本' | $EVO hook-recall"
 t "hook-recall 空stdin"    "__NOOUTPUT__" bash -c "printf '' | $EVO hook-recall"
-t "hook-recall 50KB"       "__NOOUTPUT__" bash -c "python3 -c \"import json;print(json.dumps({'session_id':'sec-long','prompt':'x'*50000}))\" | $EVO hook-recall"
+# 50KB 长 prompt：意图是「不崩不挂」，输出断言是附带的。空命中提示改动后它会吐一行提示
+# （那是正确行为：'x'*50000 过噪声门），故改为验 exit 0 且不含裸错误。
+t "hook-recall 50KB 不崩"   "evo-recall"      bash -c "python3 -c \"import json;print(json.dumps({'session_id':'sec-long','prompt':'x'*50000}))\" | $EVO hook-recall"
 
 # ════════════ C. fail-open（1 独立断言，EVO_ROOT 缺失） ════════════
 echo "——— C. fail-open ———"
@@ -554,6 +556,19 @@ mv "$EVO_ROOT/playbook/seed-failure-lessons-as-templates.md" "$EVO_ROOT/lessons/
 # 而报告里从来没有校准段 —— 提示指向不存在的目标。
 { $EVO reflect 2>&1 | grep -q '## 判定者校准'; } \
   && ok "J: reflect 渲染判定者校准段（读 ops/judge-calibration.json）" || bad "J: 校准段缺失" "(未渲染校准结果)"
+# 空命中必须提示第二条通道。原先 `if (!picked.length) return ''` 静默返回 —— 而空命中混着
+# 「本就不该注入」与「词法够不着」两种形态，后者占真相关的 37%（1292 对盲标：阈值降到 0.10
+# 也只有 63% recall）。对后者静默，等于让 agent 永远不知道还有 candidates 这条通道。
+{ $EVO recall --task "zz-smoke-绝不可能命中的词-zqxw" 2>&1 | grep -q 'evo candidates'; } \
+  && ok "J: 空命中提示第二条通道（candidates/get）" || bad "J: 空命中提示" "(静默返回，agent 无从知道可深入检索)"
+# agentic 通道必须有使用日志 —— 它是唯一能做语义匹配的通道，原先完全不可观测，
+# 于是「路由修好了」只能是断言而非测量。
+ALOG="$EVO_ROOT/ops/log/agentic.jsonl"  # smoke 跑在临时 ROOT 里，日志写在这里
+rm -f "$ALOG"
+$EVO candidates >/dev/null 2>&1
+$EVO get --ids macos-no-timeout-command >/dev/null 2>&1
+{ [ -f "$ALOG" ] && grep -q '"cmd":"candidates"' "$ALOG" && grep -q '"cmd":"get"' "$ALOG"; } \
+  && ok "J: agentic 通道写使用日志（candidates/get 可观测）" || bad "J: agentic 日志" "(未落盘 ⇒ 通道不可观测)"
 mv "$EVO_ROOT/lessons/seed-failure-lessons-as-templates.md" "$EVO_ROOT/playbook/"
 # 梯度提案的判据必须读 reconcile 日志，**不读 frontmatter 的 evidence 字段**。
 # SCHEMA ⑨ 说 evidence「由 distill 对账单点回填（reconcile.jsonl）」，但搜遍 bin/evo

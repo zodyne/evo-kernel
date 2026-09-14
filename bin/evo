@@ -58,6 +58,10 @@ const RECALL_LOG = path.join(LOG_DIR, 'recall.jsonl');
 const RECONCILE_LOG = path.join(LOG_DIR, 'reconcile.jsonl'); // I4 计数单点写
 const DEGRADE_LOG = path.join(LOG_DIR, 'degrade.jsonl'); // v4 §7.2 降级事件
 const GUARD_LOG = path.join(LOG_DIR, 'guard-hits.jsonl');
+// agentic 通道（candidates/get）的使用记录。**建此日志的起因**：它是唯一能做语义匹配
+// 的通道，而设计上完全不可观测 —— 无人知道它到底有没有在被用、用了之后命中如何。
+// 没有它，「路由修好了」只能是一个断言，不是一个测量。
+const AGENTIC_LOG = path.join(LOG_DIR, 'agentic.jsonl');
 // manual-feedback.jsonl 为存量遗留格式，绿地不创建（§11 歧义 D3 / §3.8）
 
 const SESSION_REFS = path.join(ROOT, 'inbox/session-refs.jsonl'); // git 跟踪，无 prompt 明文（§3.9）
@@ -453,7 +457,21 @@ function recall(task, budget, session, opts) {
     backend: BACKEND,
   });
 
-  if (!picked.length) return ''; // §4.3 空命中：无头部、无 hint、无任何输出
+  // §4.3 空命中。**2026-09-14 改动**：原先直接返回 `''`（无头部、无 hint、无任何输出）。
+  // 但空命中混着两种形态 —— 「本就不该注入」与「词法够不着」—— 而后者是真相关的主要流失：
+  // 1292 对穷举盲标显示，降到阈值 0.10 也只有 **63% recall**（precision 已崩到 18%），
+  // 即 37% 的真相关在词法上完全够不着，任何阈值都救不了。对这部分静默，等于让 agent
+  // 永远不知道还有第二条通道（`evo candidates` + `get --ids`）。
+  // 这同时是本库自己那条原则的应用：**warn/可用性必须当下可见，不能只写在静态背景里**
+  // （见 `warn-rule-must-be-visible-to-user`）。
+  // 代价：每次空命中多一行（729 次调用里 202 次空命中）；实测漏/误 = 3.44 ⇒ 划算。
+  // **但必须过噪声门**：空任务、`test`（词权 4 < 12）、斜杠命令这些本来就该静默 ——
+  // 对它们吐提示只是噪声。初版忘了这道门，直接把 smoke 里三条「应该无输出」的断言打挂了，
+  // 而那些断言是对的。
+  if (!picked.length) {
+    if (noisyPrompt(task)) return '';
+    return '[evo-recall · 无词法命中。若本话题确实与经验库相关（只是用词不同），可跑 `evo candidates` 浏览全量摘要自行挑选，再用 `evo get --ids a,b` 取全文]\n';
+  }
   const more = scored.length - picked.length;
   // §4.2 尾部 hint：仅当有未纳入候选
   const hint = more > 0
@@ -1002,6 +1020,7 @@ const cmds = {
   candidates() {
     const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by);
     if (!entries.length) return '';
+    appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'candidates', n: entries.length });
     const lines = entries.sort((a, b) => ((b.evidence || {}).helpful || 0) - ((a.evidence || {}).helpful || 0)).map((e) =>
       `[id:${e.id}] ${e._zone}/${e.domain || '-'} · verified:${e.verified_by || 'none'} · +${(e.evidence || {}).helpful || 0}/-${(e.evidence || {}).harmful || 0}\n  ${e._firstLine.slice(0, 120)}${(e.triggers || []).length ? '\n  triggers: ' + e.triggers.slice(0, 3).join(' | ') : ''}`);
     return `[evo-candidates · ${entries.length} 条 validated+ 条目]\n` + lines.join('\n');
@@ -1013,11 +1032,16 @@ const cmds = {
     if (!ids.length) return 'usage: evo get --ids id1,id2';
     const all = loadEntries([...RECALL_DIRS, 'lessons']);
     const out = [];
+    let found = 0;
     for (const id of ids) {
       const e = all.find((x) => x.id === id);
       if (!e) { out.push(`--- [id:${id}] 未找到`); continue; }
+      found++;
       out.push(`--- [id:${e.id}] ${e._zone} · status:${e.status} · verified:${e.verified_by || 'none'}\n` + fs.readFileSync(e._path, 'utf8').trim());
     }
+    // 记录 agent 实际选了哪些 id —— 那是「agent 的语义判断」的可测痕迹，也是
+    // 用同一套盲标口径衡量形态 B 的唯一入口（自动注入 P1 vs agent 自选）。
+    appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'get', ids, found });
     return out.join('\n\n');
   },
 
@@ -1690,12 +1714,23 @@ const cmds = {
     // 13. ops/log 已 gitignore（§4.4：含 prompt 明文的日志未 ignore = FAIL）
     let h13 = 'FAIL', d13 = '无 .gitignore';
     try {
-      const gi = fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8');
-      const need = ['recall.jsonl', 'reconcile.jsonl', 'degrade.jsonl', 'guard-hits.jsonl'];
-      const missing = need.filter((n) => !gi.includes(n));
-      if (!missing.length) { h13 = 'PASS'; d13 = '敏感日志全 ignore'; }
-      else { h13 = 'FAIL'; d13 = `含敏感日志未 ignore: ${missing.join(', ')}`; }
-    } catch {}
+      // **按文件行为查，不按 .gitignore 的文本查**。
+      // 原实现是 `['recall.jsonl',...].filter(n => !gi.includes(n))` —— 只检查 .gitignore
+      // 文本里含那 4 个固定名字。于是**新增日志文件默认不被 ignore，而这一项照样 PASS**
+      // （2026-09-14 加 agentic.jsonl 时实际发生：它直接出现在 git status 里，
+      // 而 doctor 报「敏感日志全 ignore」）。验证器自己没人验，又一次。
+      // 非 git 仓库（如 smoke 的临时 ROOT）无法用 git check-ignore 判 ⇒ WARN 而非 FAIL
+      execSync('git rev-parse --git-dir', { cwd: ROOT, stdio: 'pipe' });
+      const files = fs.readdirSync(LOG_DIR).filter((f) => !f.startsWith('.') && fs.statSync(path.join(LOG_DIR, f)).isFile());
+      const leak = files.filter((f) => {
+        try { execSync(`git check-ignore -q ${JSON.stringify(path.join('ops/log', f))}`, { cwd: ROOT, stdio: 'pipe' }); return false; }
+        catch { return true; }
+      });
+      if (!leak.length) { h13 = 'PASS'; d13 = `ops/log ${files.length} 个文件已全部 ignore`; }
+      else { h13 = 'FAIL'; d13 = `未 ignore: ${leak.join(', ')}`; }
+    } catch (e) {
+      if (h13 !== 'FAIL') { h13 = 'WARN'; d13 = `ROOT 不是 git 仓库（或 git 不可用）：${String(e.message).slice(0, 40)}`; }
+    }
     add(13, h13, 'ops/log 已 gitignore', d13);
 
     // 14. 降级事件近期
