@@ -113,6 +113,45 @@ const noisyPrompt = (p) => {
 };
 
 const argGet = (args, k, dflt) => { const i = args.indexOf(k); return i !== -1 ? args[i + 1] : dflt; };
+
+// 逐条精度闸门（M1 精度修复，2026-09-14）—— **只作用于自动注入路径**（hook 传 auto:true）。
+//
+// 机制缺口：RECONCILE_STATES 里 irrelevant 的 delta 是 (0,0)（不惩罚），govWeight 的 evW
+// 又有 0.3 下限 —— 于是一条被注入 N 次、N 次都判无关的条目，权重与全新条目无异，
+// 会**无限期地继续被注入**。实测：`arxiv-api-rate-limit` 注入 182 次、12 例全无关，仍在现役集。
+//
+// 为什么不做全局砍（v3）：实测现役集 95 例精度 42%、已移出 130 例 38% —— 两组几乎一致，
+// 说明是机制级过度注入；而 v3 的 189 条丢失清单逐条对账后**被否决**（丢失 Top 里 5/7
+// 是高精度条目：69% / 100% / 71% / 67% / 84%，丢它们=回归）。所以走逐条闸门，不做全局砍。
+//
+// 「内容准确」与「值得自动注入」是两个不同判断 —— 本闸门只判后者。被排除的条目仍可经
+// 直调 `evo recall` 与 `evo get --ids` 取到；人明确要检索时必须照做。
+//
+// 判据只读 reconcile 日志（不读人工维护、会漂移的 evidence 字段，见 reflect 三判据）。
+// 样本量门槛取 5，与内核自身「够证据才动」的惯例（DEAD_MIN=5）一致：3 例判一条条目的罪太薄，
+// 实测那样会误伤 arxiv-download-proxy-truncation（3 例 33%）这条 smoke 期望命中的条目。
+// EVO_PRECISION_MIN / _MIN_N 可调。
+const PRECISION_MIN = Number(process.env.EVO_PRECISION_MIN || 0.5);
+const PRECISION_MIN_N = Number(process.env.EVO_PRECISION_MIN_N || 5);
+function lowPrecisionIds() {
+  const c = new Map();
+  try {
+    for (const line of fs.readFileSync(RECONCILE_LOG, 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const j = JSON.parse(line);
+        if (!j.id) continue;
+        const t = c.get(j.id) || { n: 0, rel: 0 };
+        t.n++;
+        if (j.state === 'adopted' || j.state === 'relevant-unused') t.rel++;
+        c.set(j.id, t);
+      } catch {}
+    }
+  } catch {}
+  const out = new Set();
+  for (const [id, t] of c) if (t.n >= PRECISION_MIN_N && t.rel / t.n < PRECISION_MIN) out.add(id);
+  return out;
+}
 const parseIds = (args) => {
   const v = argGet(args, '--ids');
   return v ? String(v).split(',').map((s) => s.trim()).filter(Boolean) : [];
@@ -353,7 +392,7 @@ function makeCover(entries) {
   };
 }
 
-function recall(task, budget, session) {
+function recall(task, budget, session, opts) {
   const taskT = terms(task);
   // I2 守恒（SCHEMA §2.2:35）：`inbox/`（未审）与 `candidate` 永不进自动注入通道；
   // `superseded_by` 非空条目也排除。
@@ -361,7 +400,9 @@ function recall(task, budget, session) {
   // 而 I2 把「永不注入」限定在 zones(inbox/lessons)，于是 candidate 一旦住在
   // facts/playbook/episodes/principles 就绕过 I2 被注入。实测本机 10 条 candidate
   // 处于该状态（facts 5 / episodes 3 / playbook 2），且 probe 验证它们确实会命中。
-  const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by && e.status !== 'candidate');
+  // 自动注入路径（hook）额外过逐条精度闸门；直调 `evo recall` 不走闸门（人明确要检索时必须照做）
+  const lowP = opts && opts.auto ? lowPrecisionIds() : null;
+  const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by && e.status !== 'candidate' && !(lowP && lowP.has(e.id)));
   const cover = makeCover(entries); // 遮蔽模块级 cover：变体只作用于召回层，不动导出的 cover
   const scored = [];
   for (const e of entries) {
@@ -657,7 +698,7 @@ const cmds = {
       if (sid && injectedSessions().has(sid)) return null; // 同 session 去重（空命中不占名额）
       if (noisyPrompt(j.prompt || j.message || '')) return null; // 噪声门槛：不检索也不记 recall.jsonl（护住 M1 分母）
       // 双字段兜底：prompt || message（§11 M5）
-      const out = recall(j.prompt || j.message || '', 1500, sid);
+      const out = recall(j.prompt || j.message || '', 1500, sid, { auto: true });
       if (out) console.log(out);
     } catch (e) { warn(`hook-recall: ${e.message}`); }
     return null;
@@ -1099,14 +1140,17 @@ const cmds = {
           if (j.session && j.id) donePairs.add(`${j.session}\u0000${j.id}`);
           recByJudge[j.judged_by] = (recByJudge[j.judged_by] || 0) + 1;
           if (j.id) {
-            const t = recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0 };
+            const t = recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0, rel: 0 };
             t.n++;
-            if (j.state === 'adopted') t.adopted++;
+            if (j.state === 'adopted') { t.adopted++; t.rel++; }
             // misleading 单独计数：它是「有害」的唯一**日志**来源
             // （evidence.harmful 是人工字段，会与日志漂移）
             else if (j.state === 'misleading') t.misleading++;
-            // dead = 注入了却没产生价值（无关 + 相关但没用上）
-            else if (j.state === 'irrelevant' || j.state === 'relevant-unused') t.dead++;
+            // rel = 相关（被采用 + 相关但未用上）；precision = rel/n
+            else if (j.state === 'relevant-unused') t.rel++;
+            // dead = 注入了却没产生价值（无关 + 相关但没用上）—— 仅作展示，**不作为退役判据**：
+            // 它把「无关」（噪声）与「相关但没被用上」（任务不需要）混为一谈，见下方空转判据注释。
+            else if (j.state === 'irrelevant') t.dead++;
           }
           if (j.state === 'adopted') adopted++;
           else if (j.state === 'relevant-unused') relUnused++;
@@ -1231,9 +1275,14 @@ const cmds = {
           // 有害：日志判过 misleading（唯一的有害来源）。
           if (t && t.misleading > 0 && RECALL_DIRS.includes(e._zone))
             g.push(`退役候选: [${e.id}] 日志 misleading=${t.misleading}（共 ${t.n} 次注入）→ evo demote --id ${e.id} --to archive`);
-          // 空转退役：注入够多次却一次没被采用。EVO_DEAD_MIN 可调（默认 5）。
-          if (t && t.adopted === 0 && t.dead >= DEAD_MIN && !e.superseded_by && RECALL_DIRS.includes(e._zone))
-            g.push(`退役候选（空转）: [${e.id}] 注入 ${t.n} 次 adopted=0（irrelevant/relevant-unused ${t.dead}）→ evo demote --id ${e.id} --to lessons`);
+          // 退役（低精度）：判据用**精度**而非 dead —— dead = irrelevant + relevant-unused 把两者
+          // 混为一谈，于是「11 次相关但没被用上 + 2 次无关」（精度 85%）的条目也会被提议退役。
+          // 实测（2026-09-14）：playbook-suc221-cfar-point-cloud-filtering 就这样被 4-A 退役，
+          // 而检索基准（独立信号）里它是 “CFAR 点云虚警过滤” 两条正例的期望目标。
+          // 「相关但没被用上」是任务当时不需要，不是条目有问题。
+          // 保留 adopted===0 做合取：只要被真采用过一次就不提议（宁可漏杀不可误杀）。
+          if (t && t.adopted === 0 && t.rel / t.n < PRECISION_MIN && t.n >= DEAD_MIN && !e.superseded_by && RECALL_DIRS.includes(e._zone))
+            g.push(`退役候选（低精度）: [${e.id}] 对账 ${t.n} 例精度 ${Math.round(t.rel / t.n * 100)}%（相关 ${t.rel}、采用 0）→ evo demote --id ${e.id} --to lessons`);
         }
         for (const c of loadConstraints()) {
           if (c.mode !== 'warn') continue;
