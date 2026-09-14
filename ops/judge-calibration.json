@@ -1,0 +1,11 @@
+{
+  "date": "2026-09-14",
+  "n": 11,
+  "disagreements": 1,
+  "rate": 9,
+  "threshold": 20,
+  "strata": "分层 adopted 3 / relevant-unused 4 / irrelevant 5",
+  "method": "从 ops/log/reconcile.jsonl 分层抽样 12 例（1 例因该行缺 task 字段、无证据可判而剔除）。逐例取回三样证据：条目主张原文、当时触发注入的 prompt（由同 session 的 recall.jsonl 行反查）、reflector 的四态判定。判据：条目内容是否会**实质影响**当时任务；反对标是「同项目但不同子问题」（那不构成相关）。",
+  "caveat": "样本小（11 例，置信区间很宽）、余量薄（9% 下界 ~ 18% 上界 vs 阈值 20%），属「暂时可解读」而非「已校准」，建议每季度重抽一次。上界 18% 来自另一例边缘判定（独立评审条目 vs「已做完评审请分析实施」）。",
+  "note": "分歧率未超阈值 → 现有精度数据可解读。注意分歧的**方向**：唯一明确分歧是 reflector 把「同项目不同子问题」判成 relevant-unused（宽松方向），即会轻微**高估**精度；未发现「把直接同题的条目判成 irrelevant」这类有害方向的分歧。"
+}

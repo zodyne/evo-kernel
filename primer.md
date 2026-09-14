@@ -31,7 +31,11 @@
   `before_agent_start`→`hook-recall`（recall.jsonl）、`tool_call`→`guard`（guard-hits.jsonl，
   两条规则均为 warn 观察期、非 block）、`session_shutdown`→`hook-session-end`
   （session-refs.jsonl，`harness:"pi"` 标注正确）。
-  Claude hooks 已退役（设计迁 Hermes）；**Hermes `config.yaml` 的 hooks 段仍未写**。
+  **Claude Code 是有意不接入 evo**（使用与接入是两件事）—— 它的 hooks 已退役且无替代桥接，
+  故 Claude 侧会话既不回流经验也得不到 recall 注入，此为设计取舍。**不要再当缺口处理**：
+  2026-09-14 曾把登记数下降（7月 121 → 8月 67 → 9月 1）误盘成「半个 harness 失效」。
+  Hermes 侧已接：三件套 + 二期导出（`evo-session-end.sh` 调 `hermes sessions export`
+  回填真实 transcript 路径，否则其每次注入都落在「结构性不可对账」）。
 - `~/Dev/suc221-pointcloud-2.0` —— 无人机避障雷达技术研究（原代号 UCM221，现名 SUC221）。
   雷达信号处理：CFAR、测角/DOA、点云、航迹；C 核心 + FreeRTOS + ARM 移植。
 - `~/Dev/algommw` —— 算法中间件。

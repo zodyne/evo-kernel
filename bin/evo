@@ -1238,7 +1238,18 @@ const cmds = {
       } |`,
       `| M1 对账覆盖率（可对账域） | ${covPct}%（${reconciled}/${covDenom}） | <30% 精度不可解读 | ${covDenom && reconciled / covDenom < 0.3 ? '⚠ 覆盖率过低，先修蒸馏纪律' : 'ok'} |`,
       `| M1 结构性不可对账 | ${unreconcilable}/${instances}（${unrecPct}%） | — | ${unrecPct >= 30 ? '⚠ transcript 保留期不足，历史证据已失效（非纪律问题）' : 'ok'} |`,
-      `| M1 判定者分歧率 | (待人工抽≥10例复核) | >20% 精度不可解读 | ${recByJudge.reflector ? '⚠ 见下方校准' : 'n/a'} |`,
+      (() => {
+        // 判定者校准结果存于 ops/judge-calibration.json（人工抽样复核，§7.3 M1 分歧率）。
+        // 此前该行写死「待人工抽≥10例复核 ⚠ 见下方校准」，而**下方从来没有校准段** ——
+        // 提示指向不存在的目标（同 audit「改指 skill」/doctor「同步 ops/integrations/」一类）。
+        try {
+          const c = JSON.parse(fs.readFileSync(path.join(ROOT, 'ops/judge-calibration.json'), 'utf8'));
+          const bad = c.rate > c.threshold;
+          return `| M1 判定者分歧率 | ${c.rate}%（${c.disagreements}/${c.n}，${c.date} 复核） | >${c.threshold}% 精度不可解读 | ${bad ? '⚠ 分歧率超标，精度不可解读' : 'ok'} |`;
+        } catch {
+          return `| M1 判定者分歧率 | (待人工抽≥10例复核) | >20% 精度不可解读 | ⚠ 尚未复核（结果写入 ops/judge-calibration.json 后本行自动读它） |`;
+        }
+      })(),
       `| M1 recall 累计 | ${calls} 次 | ≥200 | ${calls >= 200 ? '命中' : '未命中'} |`,
       `| M2 条目数 | ${entryCount} | ≥500 | ${entryCount >= 500 ? '命中' : '未命中'} |`,
       `| P4 空命中关系型特征 | ${misses.length} 个空命中 | 真实多跳需求 | ${misses.length >= 10 ? '观察' : '未触发'} |`,
@@ -1249,6 +1260,16 @@ const cmds = {
       '',
       '## 对账详情（reconcile.jsonl / §7.1 四态）',
       `已对账 ${reconciled} 例：adopted=${adopted} relevant-unused=${relUnused} irrelevant=${irrelevant} misleading=${misleading}（判定者：${Object.entries(recByJudge).map(([k, v]) => `${k}:${v}`).join(' ') || 'n/a'}）`,
+      ...(() => {
+        try {
+          const c = JSON.parse(fs.readFileSync(path.join(ROOT, 'ops/judge-calibration.json'), 'utf8'));
+          return ['', '## 判定者校准（§7.3 M1 分歧率）',
+            `${c.date} · 人工抽样复核 **${c.n} 例**（${c.strata || '分层'}）→ 分歧 **${c.disagreements} 例 = ${c.rate}%**（阈值 ${c.threshold}%）`,
+            c.method ? `**方法**：${c.method}` : '',
+            c.caveat ? `**保留意见**：${c.caveat}` : '',
+            c.note ? `**结论**：${c.note}` : ''].filter(Boolean);
+        } catch { return []; }
+      })(),
       '',
       '## 治理发现（audit）',
       findings.length ? findings.map((f) => `${f.level} [${f.id}] ${f.why}`).join('\n') : '✓ 无',

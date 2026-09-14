@@ -530,6 +530,10 @@ $EVO reconcile --ids $DEADID --state adopted >/dev/null 2>&1
 mv "$EVO_ROOT/playbook/seed-failure-lessons-as-templates.md" "$EVO_ROOT/lessons/"
 { ! $EVO reflect 2>&1 | grep -q "退役候选（低精度）: \[$DEADID\]"; } \
   && ok "J: 已出注入集的条目不进退役候选（demote 幂等）" || bad "J: 提案幂等" "(已移入 lessons 仍被提议)"
+# 判定者校准结果必须可持久化并被读回：此前该判据行写死「待人工抽≥10例复核 ⚠ 见下方校准」，
+# 而报告里从来没有校准段 —— 提示指向不存在的目标。
+{ $EVO reflect 2>&1 | grep -q '## 判定者校准'; } \
+  && ok "J: reflect 渲染判定者校准段（读 ops/judge-calibration.json）" || bad "J: 校准段缺失" "(未渲染校准结果)"
 mv "$EVO_ROOT/lessons/seed-failure-lessons-as-templates.md" "$EVO_ROOT/playbook/"
 # 梯度提案的判据必须读 reconcile 日志，**不读 frontmatter 的 evidence 字段**。
 # SCHEMA ⑨ 说 evidence「由 distill 对账单点回填（reconcile.jsonl）」，但搜遍 bin/evo
