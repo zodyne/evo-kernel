@@ -253,6 +253,17 @@ RPL_AFTER=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
   && ok "M: §5.0 回放工具可跑（--limit 5 冒烟）" || bad "M: 回放工具" "(实得: $(echo "$RPL_OUT" | tail -1))"
 { [ "$RPL_BEFORE" = "$RPL_AFTER" ]; } \
   && ok "M: 回放不污染 recall.jsonl（在临时 ROOT 副本里跑）" || bad "M: 回放日志隔离" "($RPL_BEFORE → $RPL_AFTER 行)"
+# 穷举盲标评测器必须能跑出**非零**的两数。曾经的失败模式：根目录路径算错 ⇒ 临时 ROOT 为空
+# ⇒ 所有 query 零注入 ⇒ 两数全 0，而输出看起来"正常"。所以这里不只查"能跑"，还查"有注入"。
+EV_BEFORE=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+EV_OUT=$(node "$SRC/test/retrieval-bench/labeling/run-eval.js" 2>&1)
+EV_AFTER=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+{ echo "$EV_OUT" | grep -q 'precision' && echo "$EV_OUT" | grep -q 'recall'; } \
+  && ok "M: 盲标评测器可跑（同时报 precision 与 recall）" || bad "M: 盲标评测器" "(实得: $(echo "$EV_OUT" | tail -1))"
+{ echo "$EV_OUT" | grep -qE '命中 [1-9][0-9]* ·'; } \
+  && ok "M: 评测器环境正确（有非零注入，非空 ROOT 假象）" || bad "M: 评测器环境" "(命中 0 ⇒ 先查临时 ROOT 是否搭起来了，别先怀疑被测系统)"
+{ [ "$EV_BEFORE" = "$EV_AFTER" ]; } \
+  && ok "M: 评测器不污染 recall.jsonl" || bad "M: 评测器日志隔离" "($EV_BEFORE → $EV_AFTER 行)"
 # K0a primer：安装是替换标记块而非覆盖用户配置——必须保住目标文件里的原有内容。
 # 这两个文件是用户自己的全局配置，写坏了影响每一次会话。
 PT="$TMP/primer-target.md"
