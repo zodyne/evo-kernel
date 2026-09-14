@@ -7,6 +7,8 @@ ops/log/manual-feedback.jsonl
 ops/log/distill.log
 ops/log/distill-launchd.err
 ops/log/.distill*
+# Hermes 执行日志（同含 prompt 明文，同 §4.4 红线；2026-09-14 补）
+.hermes-exec/
 
 # 系统
 .DS_Store
