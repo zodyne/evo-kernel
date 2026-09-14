@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "produced": "2026-09-14，由 3 名盲标者产出（干净上下文：未读 ops/log/recall.jsonl、不知系统实际注入内容）",
+    "rubric": "见同目录 SPEC.md：R = 与任务本身实质相关（读到不觉得跑题）；判「是否相关」而非「是否被采用」",
+    "unit": "每个 query × 全部 76 条通读一遍，列出判 R 的 id；未列者默认 I",
+    "known_limit": "n=1 的 query 在 recall.jsonl 里被截到 100 字（停在「调研范围：1.」），标注按可见部分判定，建议补全原文后复标",
+    "borderline_meaning": "标者明确表示拿不准的条目 —— 这是最需要人工复核的部分，当前的 precision/recall 计算**未计入** borderline（按 I 处理）"
+  },
+  "labels": {
+    "1": {
+      "relevant": ["agent-self-evolution-landscape", "agent-system-deployability-falsifiable-value-claim", "ai-agent-book-as-self-evolution-reference", "doc-selfreported-counts-drift", "greenfield-rebuild-via-spec-patch", "injection-precision-must-split-recall-vs-adoption", "recall-failure-empty-vs-noise-taxonomy", "scoring-cutover-replay-historical-queries", "stamp-baseline-before-review"],
+      "borderline": ["benchmark-traffic-isolated-from-telemetry", "bytes-exact-oracle-gate-for-pipeline-port", "community-research-rss-api-first", "nav-doc-pinned-head-goes-stale", "proposal-independent-review-before-curate", "seed-failure-lessons-as-templates", "report-schema-claims-need-live-ground-truth", "evo-slice-normalize-toolname-case-and-path-field", "approval-gate-written-only-in-prompt-is-not-enforceable"]
+    },
+    "2": {
+      "relevant": ["design-review-cross-check-implementation", "doc-selfreported-counts-drift", "native-posix-freertos-preview-before-mcu", "nav-doc-pinned-head-goes-stale", "report-schema-claims-need-live-ground-truth"],
+      "borderline": ["stash-patch-apply-check-freeze-uncommitted", "git-status-has-no-cached-flag", "greenfield-rebuild-via-spec-patch", "bytes-exact-oracle-gate-for-pipeline-port", "stamp-baseline-before-review"]
+    },
+    "3": {
+      "relevant": ["design-review-cross-check-implementation", "doc-selfreported-counts-drift", "greenfield-rebuild-via-spec-patch", "three-review-passes-catch-different-layers"],
+      "borderline": ["agent-self-evolution-landscape", "agent-system-deployability-falsifiable-value-claim", "ai-agent-book-as-self-evolution-reference", "proposal-independent-review-before-curate", "review-packet-completeness-is-assemblers-duty", "stamp-baseline-before-review", "verify-external-references"]
+    },
+    "4": {
+      "relevant": ["macos-dual-nic-intranet-subnet-needs-per-service-route"],
+      "borderline": ["arxiv-download-proxy-truncation", "searxng-all-engines-fail-check-outgoing-proxy"]
+    },
+    "5": {
+      "relevant": ["stamp-baseline-before-review", "three-review-passes-catch-different-layers"],
+      "borderline": ["design-review-cross-check-implementation", "review-packet-completeness-is-assemblers-duty", "doc-selfreported-counts-drift", "warn-rule-must-be-visible-to-user", "substring-matcher-cannot-tell-exec-from-mention"]
+    },
+    "6": {
+      "relevant": ["vim-fs-normalize-expands-tilde"],
+      "borderline": ["lua-gsub-multireturn-pitfall-in-fn-args", "backup-untracked-file-before-edit", "verify-external-references"]
+    },
+    "7": {
+      "relevant": ["agent-self-evolution-landscape", "agent-system-deployability-falsifiable-value-claim", "ai-agent-book-as-self-evolution-reference", "arxiv-download-proxy-truncation", "community-research-rss-api-first", "report-schema-claims-need-live-ground-truth", "unverified-arxiv-ids", "verify-external-references"],
+      "borderline": ["approval-gate-written-only-in-prompt-is-not-enforceable", "injection-precision-must-split-recall-vs-adoption", "pandoc-gzip-html-garbage", "pi-subagent-tool-silent-failure-pitfalls", "recall-failure-empty-vs-noise-taxonomy", "scoring-cutover-replay-historical-queries", "searxng-all-engines-fail-check-outgoing-proxy"]
+    },
+    "8": {
+      "relevant": ["agent-self-evolution-landscape", "evo-distill-transient-connection-error-retry", "evo-slice-normalize-toolname-case-and-path-field", "proposal-independent-review-before-curate", "seed-failure-lessons-as-templates", "self-registration-hook-self-pollution-loop"],
+      "borderline": ["approval-gate-written-only-in-prompt-is-not-enforceable", "benchmark-traffic-isolated-from-telemetry", "claude-code-workflow-subagent-internals", "episode-suc221-project-overview", "js-yaml-silently-parses-iso-date-to-object", "string-replace-outside-block-corrupts-body"]
+    },
+    "9": {
+      "relevant": [],
+      "borderline": [],
+      "note": "非任务 prompt（斜杠命令 + 抱怨「分析一下不工作」）—— 真值即「应零注入」"
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "blind": "本文件**不含**系统实际注入了什么 —— 标注必须对系统输出盲，否则是合理化而非真值",
+    "unit": "一个 (query, 条目) 对 → 一个二元标签",
+    "howto": "对每个 query，通读 claims.txt 的 76 条，列出判为 R 的条目 id；其余默认 I"
+  },
+  "queries": [
+    {
+      "n": 1,
+      "kind": "task_长",
+      "layer": "task",
+      "query": "Task: 深度盘点 Evo-Kernel 项目（一个平台无关的 Agent 经验内核，纯文件+git，自研）的现状架构，为后续的\"是否该改用成熟框架重建\"的重新设计提供现状基线。\n\n调研范围：\n1."
+    },
+    {
+      "n": 2,
+      "kind": "task_长",
+      "layer": "task",
+      "query": "Task: 侦察 /Users/zodyne/Dev/algommw 仓库，目标是回答\"当前项目工作进度到哪了\"。这是一个净室重写的毫米波雷达离线信号处理链（C 语言，host + embedded 双目标），处理链为 ADC → RangeFFT → DopplerFFT → CFAR → DOA → EKF 群跟踪。\n\n请完成以下侦察并返回压缩结论（中文）：\n\n1. **阶段计划与进度**：读 docs/EXECUTION_PLAN.md，总结阶段划分（阶段 0-4）、各阶段闸门定义、当前标记为已完成/未完成的阶段。\n2. **git 历史**：跑 `git log --oneline -30` 和 `git status`、`git diff --stat HEAD`（如有未提交改动），总结最近的开发活动主题、最近在做什么、有没有进行中的未提交工作。\n3. **里程碑线索**：CLAUDE.md 里提到 M0、M5、B1 等里程碑（如 M0 = 测试 assert 修复、M5 = profile 配置）。在 docs/ 和 git log 里找这些里程碑的定义与完成状态，列出已到"
+    },
+    {
+      "n": 3,
+      "kind": "task_中",
+      "layer": "task",
+      "query": "我在 @Dev/agent-evo/design/blueprint.md 中使用claude进行了一轮评审，请分析进行研究和实施"
+    },
+    {
+      "n": 4,
+      "kind": "task_中",
+      "layer": "task",
+      "query": "公司在内网有一个中转站，它中转了deepseek，我的电脑可以链接外网，我想中转到云服务器中的openclaw中使用"
+    },
+    {
+      "n": 5,
+      "kind": "task_短",
+      "layer": "task",
+      "query": "已经修改请扫描审查"
+    },
+    {
+      "n": 6,
+      "kind": "task_短",
+      "layer": "task",
+      "query": "解决当前nvim中出现的lsp报错问题"
+    },
+    {
+      "n": 7,
+      "kind": "agent",
+      "layer": "task",
+      "query": "Task: 你是技术调研员。任务：调研 2025–2026 年**当前最先进的 Agent 记忆（memory）框架/系统**，为一个自研的\"Agent 经验内核\"项目（Evo-Kernel）做选型调"
+    },
+    {
+      "n": 8,
+      "kind": "agent",
+      "layer": "task",
+      "query": "你是 Evo-Kernel 的后台 Reflector。对一个已结束的会话做蒸馏，产出提案，不入库。\n\n内核根目录：/Users/zodyne/Dev/evo-kernel\nevo CLI（不在 PATH，必须用绝对路径）：/Users/zodyne/Dev/evo-kernel/bin/evo\n会话文件：/Users/zodyne/.claude/projects/-Users-zodyne-Dev-suc221/06d00000-c5a0-4247-9e4a-de361d19d25e.jsonl\nsession_id：06d00000-c5a0-4247-9e4a-de361d19d25e\n\n按顺序做：\n\n1. 跑 `/Users/zodyne/Dev/evo-kernel/bin/evo slice --session /Users/zodyne/.claude/projects/-Users-zodyne-Dev-suc221/06d00000-c5a0-4247-9e4a-de361d19d25e.jsonl --ids 06d00000-c5a0-4247-9e4a-de3"
+    },
+    {
+      "n": 9,
+      "kind": "nontask",
+      "layer": "nontask",
+      "query": "/grill-me  分析一下不工作"
+    }
+  ]
+}
