@@ -352,8 +352,13 @@ function makeCover(entries) {
 
 function recall(task, budget, session) {
   const taskT = terms(task);
-  // I2 守恒：只读 RECALL_DIRS，排除 superseded_by 非空条目（含 ops/archive 固化条目）
-  const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by);
+  // I2 守恒（SCHEMA §2.2:35）：`inbox/`（未审）与 `candidate` 永不进自动注入通道；
+  // `superseded_by` 非空条目也排除。
+  // 2026-09-14 修：原实现只读 RECALL_DIRS + 排 superseded_by，**没有 status 过滤**——
+  // 而 I2 把「永不注入」限定在 zones(inbox/lessons)，于是 candidate 一旦住在
+  // facts/playbook/episodes/principles 就绕过 I2 被注入。实测本机 10 条 candidate
+  // 处于该状态（facts 5 / episodes 3 / playbook 2），且 probe 验证它们确实会命中。
+  const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by && e.status !== 'candidate');
   const cover = makeCover(entries); // 遮蔽模块级 cover：变体只作用于召回层，不动导出的 cover
   const scored = [];
   for (const e of entries) {
