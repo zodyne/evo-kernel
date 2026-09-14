@@ -344,6 +344,13 @@ rm -f "$EVO_ROOT/inbox/i2-inbox-trap.md"
 # I2: lessons candidate 不注入
 printf -- '---\nid: i2-lessons-trap\ntype: lesson\nstatus: candidate\ntriggers:\n  - "arxiv 下载陷阱"\n---\nI should never be injected from lessons\n' > "$EVO_ROOT/lessons/i2-lessons-trap.md"
 t "I2 lessons 不注入" "__NEG__i2-lessons-trap" $EVO recall --task "arxiv 下载"
+# I2: candidate 即使住在 RECALL_DIRS 内也不注入 —— I2 的声明是「inbox/ 与 candidate
+# 永不进自动注入通道」，是按 **status** 而非仅按 zone。2026-09-14 实测本机有 10 条
+# candidate 住在 facts/playbook/episodes 里并被实际注入，是声明与实现脱钩；
+# 原实现只读 RECALL_DIRS + 排 superseded_by，没有 status 过滤。
+printf -- '---\nid: i2-candidate-in-recall-dir\ntype: fact\nstatus: candidate\ntriggers:\n  - "候选态在注入区内也不应注入"\n---\nI should never be injected despite living in a RECALL_DIR\n' > "$EVO_ROOT/facts/i2-candidate-in-recall-dir.md"
+t "I2 candidate 在 RECALL_DIR 内不注入" "__NEG__i2-candidate-in-recall-dir" $EVO recall --task "候选态在注入区内"
+rm -f "$EVO_ROOT/facts/i2-candidate-in-recall-dir.md"
 # I2: superseded 排除（设 superseded_by 后不再命中）
 printf -- '---\nid: i2-superseded\ntype: bullet\nstatus: validated\ntriggers:\n  - "superseded 不应注入"\nsuperseded_by: skill:fake\n---\nretired\n' > "$EVO_ROOT/playbook/i2-superseded.md"
 t "I2 superseded 排除" "__NEG__i2-superseded" $EVO recall --task "superseded"
