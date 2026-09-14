@@ -1017,11 +1017,14 @@ const cmds = {
     // 完全惰性——一条被注入 N 次、N 次都判 irrelevant 的条目，其 evidence 与新条目无异，
     // 永远够不着 harmful>0 的退役线。这里直接读日志原始四态，把出口补上。
     const recById = {};
+    // (session,id) 对集合：用于把「可对账域」与「结构性不可对账」分开（见下方覆盖率口径）
+    const donePairs = new Set();
     try {
       for (const line of fs.readFileSync(RECONCILE_LOG, 'utf8').split('\n')) {
         if (!line.trim()) continue;
         try {
           const j = JSON.parse(line); reconciled++;
+          if (j.session && j.id) donePairs.add(`${j.session}\u0000${j.id}`);
           recByJudge[j.judged_by] = (recByJudge[j.judged_by] || 0) + 1;
           if (j.id) {
             const t = recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0 };
@@ -1055,13 +1058,47 @@ const cmds = {
     } catch {}
 
     // session-refs transcript 失效比例（§M0.4 时效约束③）
+    // 2026-09-14 修：原实现只数 transcript==='?'（哨兵），**没数「有路径但文件已不在」**。
+    // 后者是 harness 保留期 prune 造成的真失效，本机实测 176 条（占登记 49%）被漏掉，
+    // 于是本行报 50%（贴着阈值）而真实不可用率是 99%——分母口径错会把归因引向错方向。
     let refsTotal = 0, refsStale = 0;
+    const liveSessions = new Set();
     try {
       for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
         if (!line.trim()) continue;
-        try { const j = JSON.parse(line); refsTotal++; if (j.transcript === '?') refsStale++; } catch {}
+        try {
+          const j = JSON.parse(line); refsTotal++;
+          const t = j.transcript || '?';
+          if (t === '?') refsStale++;
+          else if (fs.existsSync(t)) { if (j.session) liveSessions.add(j.session); }
+          else refsStale++;
+        } catch {}
       }
     } catch {}
+
+    // 对账覆盖率的分母必须排除「结构性不可对账」的注入实例（2026-09-14 修）。
+    // 一次注入实例只有在「所属 session 的 transcript 还在」时才可能被判四态；transcript 一旦
+    // 被 harness 保留期清掉，该实例就永远拿不到证据。把它留在分母里，覆盖率会被一个**结构性**
+    // 原因永久压在 30% 阈值下，并把归因引向「先修蒸馏纪律」——而真因是 transcript 保留。
+    // 新口径：覆盖率 = 已对账 / (已对账 + 当前仍可对账的未对账) ← 只回答「该蒸的漏了没」；
+    // 结构性损失单独成行报出，不再污染纪律判定。
+    let judgeableNow = 0, judgedFromJudgeable = 0;
+    try {
+      for (const line of fs.readFileSync(RECALL_LOG, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const j = JSON.parse(line);
+          if (!j.ids || !j.ids.length) continue;
+          if (!liveSessions.has(j.session)) continue;
+          judgeableNow += j.ids.length;
+          judgedFromJudgeable += j.ids.filter((id) => donePairs.has(`${j.session}\u0000${id}`)).length;
+        } catch {}
+      }
+    } catch {}
+    const unreconcilable = Math.max(0, instances - judgeableNow);
+    const covDenom = reconciled + Math.max(0, judgeableNow - judgedFromJudgeable);
+    const covPct = covDenom ? Math.round((reconciled / covDenom) * 100) : 0;
+    const unrecPct = instances ? Math.round((unreconcilable / instances) * 100) : 0;
 
     const entryCount = entries.length;
     const r = [
@@ -1092,7 +1129,8 @@ const cmds = {
       } | 观察项（阈值待数据） | ${
         relevantN ? (misleading ? `⚠ 另有 misleading ${misleading} 例，须并读` : '观察') : reconciled ? '⚠ 召回层已失效，先看召回精度' : '无数据'
       } |`,
-      `| M1 对账覆盖率 | ${instances ? Math.round((reconciled / instances) * 100) : 0}%（${reconciled}/${instances}） | <30% 精度不可解读 | ${instances && reconciled / instances < 0.3 ? '⚠ 覆盖率过低，先修蒸馏纪律' : 'ok'} |`,
+      `| M1 对账覆盖率（可对账域） | ${covPct}%（${reconciled}/${covDenom}） | <30% 精度不可解读 | ${covDenom && reconciled / covDenom < 0.3 ? '⚠ 覆盖率过低，先修蒸馏纪律' : 'ok'} |`,
+      `| M1 结构性不可对账 | ${unreconcilable}/${instances}（${unrecPct}%） | — | ${unrecPct >= 30 ? '⚠ transcript 保留期不足，历史证据已失效（非纪律问题）' : 'ok'} |`,
       `| M1 判定者分歧率 | (待人工抽≥10例复核) | >20% 精度不可解读 | ${recByJudge.reflector ? '⚠ 见下方校准' : 'n/a'} |`,
       `| M1 recall 累计 | ${calls} 次 | ≥200 | ${calls >= 200 ? '命中' : '未命中'} |`,
       `| M2 条目数 | ${entryCount} | ≥500 | ${entryCount >= 500 ? '命中' : '未命中'} |`,
@@ -1141,7 +1179,9 @@ const cmds = {
       '- HIGH 级发现优先处理（reject 或退役）',
       '- 空命中多的领域 → distill 补经验 或 调整 triggers',
       '- candidate 积压 → 安排验证（硬反馈）或清理',
-      '- 对账覆盖率 <30% → 先修蒸馏纪律（/learn），不解读失真精度',
+      covDenom && reconciled / covDenom < 0.3
+        ? '- 对账覆盖率 <30% → 先修蒸馏纪律（/learn），不解读失真精度'
+        : `- 对账覆盖率达标（${covPct}%），精度可解读；若结构性不可对账偏高（${unrecPct}%），那是 transcript 保留问题，不是纪律问题`,
       '- 连续被采用多次的 candidate → 提案固化（须过 §8 准入四条件）',
     ];
     const report = r.join('\n');
@@ -1426,6 +1466,24 @@ const cmds = {
       }
     } catch { d17 = 'primer.md 读取失败'; }
     add(17, h17, 'K0a primer 装载', d17);
+
+    // 18. 后台蒸馏驱动器已装载 —— 未装载 = 对账覆盖率不再增长，而这件事此前**没有任何信号**：
+    //     2026-09-14 实测：distill.log 停在 2026-08-25（20 天无人发现），覆盖率冻在 8%，
+    //     且被 reflect 归因为「先修蒸馏纪律」——真因只是服务没装。
+    //     查 HOME 下的 plist 文件（~/Library/LaunchAgents 由登录自动装载），
+    //     并与仓库副本比对内容防漂移（同第 16 项口径）。smoke 以隔离 HOME 测试，不读真实机器。
+    let h18 = 'WARN', d18 = '未检查';
+    try {
+      const live = path.join(homeDir(), 'Library/LaunchAgents/com.evo.distill.plist');
+      const copy = path.join(ROOT, 'ops/bin/com.evo.distill.plist');
+      const rd2 = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return null; } };
+      const liveTxt = rd2(live), copyTxt = rd2(copy);
+      if (copyTxt === null) { h18 = 'WARN'; d18 = '仓库副本缺失 ops/bin/com.evo.distill.plist'; }
+      else if (liveTxt === null) { h18 = 'WARN'; d18 = '未装载 → cp ops/bin/com.evo.distill.plist ~/Library/LaunchAgents/ && launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.evo.distill.plist'; }
+      else if (liveTxt !== copyTxt) { h18 = 'WARN'; d18 = '已装载但与仓库副本漂移 → 同步 ops/bin/com.evo.distill.plist 后重装'; }
+      else { h18 = 'PASS'; d18 = '已装载且与副本一致'; }
+    } catch (e) { h18 = 'WARN'; d18 = `检查失败: ${e.message}`; }
+    add(18, h18, '后台蒸馏驱动器（launchd）', d18);
 
     // 8. skills 软链完整
     const claudeSkills = path.join(homeDir(), '.claude/skills');
