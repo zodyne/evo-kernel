@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "purpose": "穷举标注的 query 集（N=76 语料 ⇒ 每 query × 76 条全标，无需 pooling）",
+    "metric_split": "只标「是否相关」；「是否被采用」属另一指标（采纳率），不在本集",
+    "layers": "task=用户/agent 任务 prompt，计入召回率分母；nontask=系统通知/斜杠命令，单列，只测「该不该零注入」",
+    "prefilter": "已按当前噪声门（bin/evo noisyPrompt，权重≥12）过滤，保证评测集反映**当前**系统而非历史"
+  },
+  "queries": [
+    {
+      "layer": "task",
+      "kind": "task_长",
+      "gate_weight": 149,
+      "len": 100,
+      "query": "Task: 深度盘点 Evo-Kernel 项目（一个平台无关的 Agent 经验内核，纯文件+git，自研）的现状架构，为后续的\"是否该改用成熟框架重建\"的重新设计提供现状基线。\n\n调研范围：\n1.",
+      "ids_at_recall": [
+        "independent-design-review",
+        "claude-hook-sessionstart-no-prompt",
+        "agent-self-evolution-landscape",
+        "episode-agent-evo-research",
+        "arxiv-api-rate-limit",
+        "parallel-research-delegation"
+      ]
+    },
+    {
+      "layer": "task",
+      "kind": "task_长",
+      "gate_weight": 629,
+      "len": 500,
+      "query": "Task: 侦察 /Users/zodyne/Dev/algommw 仓库，目标是回答\"当前项目工作进度到哪了\"。这是一个净室重写的毫米波雷达离线信号处理链（C 语言，host + embedded 双目标），处理链为 ADC → RangeFFT → DopplerFFT → CFAR → DOA → EKF 群跟踪。\n\n请完成以下侦察并返回压缩结论（中文）：\n\n1. **阶段计划与进度**：读 docs/EXECUTION_PLAN.md，总结阶段划分（阶段 0-4）、各阶段闸门定义、当前标记为已完成/未完成的阶段。\n2. **git 历史**：跑 `git log --oneline -30` 和 `git status`、`git diff --stat HEAD`（如有未提交改动），总结最近的开发活动主题、最近在做什么、有没有进行中的未提交工作。\n3. **里程碑线索**：CLAUDE.md 里提到 M0、M5、B1 等里程碑（如 M0 = 测试 assert 修复、M5 = profile 配置）。在 docs/ 和 git log 里找这些里程碑的定义与完成状态，列出已到",
+      "ids_at_recall": [
+        "arxiv-api-rate-limit",
+        "independent-design-review",
+        "claude-hook-sessionstart-no-prompt",
+        "nav-doc-pinned-head-goes-stale",
+        "string-replace-outside-block-corrupts-body",
+        "playbook-suc221-cfar-point-cloud-filtering",
+        "backup-untracked-file-before-edit",
+        "2026-07-27-stash-patch-apply-check-freeze-uncommitted",
+        "doc-selfreported-counts-drift"
+      ]
+    },
+    {
+      "layer": "task",
+      "kind": "task_中",
+      "gate_weight": 85,
+      "len": 65,
+      "query": "我在 @Dev/agent-evo/design/blueprint.md 中使用claude进行了一轮评审，请分析进行研究和实施",
+      "ids_at_recall": [
+        "independent-design-review",
+        "episode-agent-evo-research",
+        "claude-hook-sessionstart-no-prompt"
+      ]
+    },
+    {
+      "layer": "task",
+      "kind": "task_中",
+      "gate_weight": 97,
+      "len": 58,
+      "query": "公司在内网有一个中转站，它中转了deepseek，我的电脑可以链接外网，我想中转到云服务器中的openclaw中使用",
+      "ids_at_recall": []
+    },
+    {
+      "layer": "task",
+      "kind": "task_短",
+      "gate_weight": 18,
+      "len": 9,
+      "query": "已经修改请扫描审查",
+      "ids_at_recall": []
+    },
+    {
+      "layer": "task",
+      "kind": "task_短",
+      "gate_weight": 31,
+      "len": 19,
+      "query": "解决当前nvim中出现的lsp报错问题",
+      "ids_at_recall": []
+    },
+    {
+      "layer": "task",
+      "kind": "agent",
+      "gate_weight": 134,
+      "len": 100,
+      "query": "Task: 你是技术调研员。任务：调研 2025–2026 年**当前最先进的 Agent 记忆（memory）框架/系统**，为一个自研的\"Agent 经验内核\"项目（Evo-Kernel）做选型调",
+      "ids_at_recall": [
+        "arxiv-download-proxy-truncation",
+        "claude-hook-sessionstart-no-prompt",
+        "verify-external-references",
+        "agent-self-evolution-landscape",
+        "episode-agent-evo-research",
+        "arxiv-api-rate-limit",
+        "parallel-research-delegation",
+        "seed-failure-lessons-as-templates"
+      ]
+    },
+    {
+      "layer": "task",
+      "kind": "agent",
+      "gate_weight": 526,
+      "len": 500,
+      "query": "你是 Evo-Kernel 的后台 Reflector。对一个已结束的会话做蒸馏，产出提案，不入库。\n\n内核根目录：/Users/zodyne/Dev/evo-kernel\nevo CLI（不在 PATH，必须用绝对路径）：/Users/zodyne/Dev/evo-kernel/bin/evo\n会话文件：/Users/zodyne/.claude/projects/-Users-zodyne-Dev-suc221/06d00000-c5a0-4247-9e4a-de361d19d25e.jsonl\nsession_id：06d00000-c5a0-4247-9e4a-de361d19d25e\n\n按顺序做：\n\n1. 跑 `/Users/zodyne/Dev/evo-kernel/bin/evo slice --session /Users/zodyne/.claude/projects/-Users-zodyne-Dev-suc221/06d00000-c5a0-4247-9e4a-de361d19d25e.jsonl --ids 06d00000-c5a0-4247-9e4a-de3",
+      "ids_at_recall": [
+        "verify-external-references",
+        "claude-hook-sessionstart-no-prompt",
+        "seed-failure-lessons-as-templates",
+        "independent-design-review",
+        "episode-suc221-project-overview",
+        "git-add-untracked-source-path-aborts-staging",
+        "auto-script-git-add-all-sweeps-unrelated-files",
+        "git-empty-commit-error-in-stdout-not-message",
+        "sed-delimiter-collision-use-python-pathlib",
+        "evo-slice-normalize-toolname-case-and-path-field"
+      ]
+    },
+    {
+      "layer": "nontask",
+      "kind": "nontask",
+      "gate_weight": 23,
+      "len": 18,
+      "query": "/grill-me  分析一下不工作",
+      "ids_at_recall": []
+    }
+  ]
+}
