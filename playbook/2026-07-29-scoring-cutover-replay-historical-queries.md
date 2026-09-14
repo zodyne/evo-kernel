@@ -18,7 +18,7 @@ source: session:8e6bf649-a112-4ed7-a3bb-5391e23931a0
 last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
-related: [rerank-channel-design]
+
 ---
 
 # 换检索/评分后端前用真实历史查询回放对账：丢失的旧命中逐条人审，裁决不了就不切默认
