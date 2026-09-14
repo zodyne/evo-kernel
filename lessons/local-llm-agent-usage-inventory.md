@@ -18,8 +18,7 @@ source: session:019fd501-7918-7619-aa0a-818486c62829
 last_verified: 2026-08-06
 superseded_by: null
 schema_version: 1
-related: [pi-credentials-auth-json-models-store, openclaw-config-openclaw-json, mask-secrets-when-reading-config]
----
+related: [mask-secrets-when-reading-config]---
 
 **主张**：盘点本机 LLM/coding agent 使用情况不要凭记忆列举，按五路取证一次跑通：① `command -v` 枚举 CLI（claude / pi / codex / aider / gemini / openclaw…）；② `ls -d ~/.claude ~/.pi ~/.codex ~/.gemini ~/.openclaw …` 找配置目录；③ grep shell rc 里的 `*_API_KEY` 确认供应商通道；④ `ollama list` + manifests 查本地模型；⑤ 模型用量从各 agent 本地会话文件聚合——pi 在 `~/.pi/agent/sessions/*.jsonl`、claude 在 `~/.claude/projects/` 的 history 文件、codex 在 `~/.codex` sessions，python `collections.Counter` 统计模型字段即可。汇总报表用 openpyxl 写 xlsx。
 

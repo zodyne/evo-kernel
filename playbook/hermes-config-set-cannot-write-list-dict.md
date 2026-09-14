@@ -1,7 +1,7 @@
 ---
 id: hermes-config-set-cannot-write-list-dict
 type: bullet
-status: deprecated
+status: validated
 scope: global
 domain: hermes
 tags: [hermes, config, yaml, fail-closed, provider]
@@ -14,7 +14,7 @@ created: 2026-08-12
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:capture-2026-08-12-01-09-40-611-3769
-last_verified: 2026-08-12
+last_verified: 2026-09-14
 superseded_by: null
 schema_version: 1
 related: [hermes-cron-model-drift-fail-closed]

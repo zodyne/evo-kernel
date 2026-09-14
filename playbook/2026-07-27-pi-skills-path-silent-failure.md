@@ -1,7 +1,7 @@
 ---
 id: pi-skills-path-silent-failure
 type: lesson
-status: archived
+status: validated
 scope: global
 domain: harness-config
 tags: [pi, skills, settings-json, silent-failure, harness-config, path-config]
@@ -14,7 +14,7 @@ created: 2026-07-27
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:d2f8d5b2-2b60-4913-958b-59d2f937ed95
-last_verified: 2026-07-27
+last_verified: 2026-09-14
 superseded_by: null
 schema_version: 1
 ---
