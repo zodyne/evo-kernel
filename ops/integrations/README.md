@@ -5,7 +5,7 @@
 
 | 副本 | 实际安装位置 | 装法 |
 |---|---|---|
-| `pi-evo-kernel.ts` | ~~`~/.pi/agent/extensions/evo-kernel.ts`~~ | **已退役**（pi harness 2026-08 移除，文件仅存溯源） |
+| `pi-evo-kernel.ts` | `~/.pi/agent/extensions/evo-kernel.ts` | `cp ops/integrations/pi-evo-kernel.ts ~/.pi/agent/extensions/evo-kernel.ts`（**2026-09-14 已部署**）。pi 2026-09 真实回归后从 `ops/archive/pi-retired-2026-08-12/` 取消归档；同日逐条复核与 pi 0.85.1 API 兼容（`registerCommand` / `sessionManager.getSessionId`、`getSessionFile` / `ctx.hasUI` / `before_agent_start` 的 `{message:{customType,content,display}}` / `tool_call` 的 `{block:true,reason}`）|
 | `hermes-evo-hooks/*.sh` | `~/.hermes/agent-hooks/`（3 个 adapter） | `cp ops/integrations/hermes-evo-hooks/evo-*.sh ~/.hermes/agent-hooks/` |
 
 Claude 侧的 hook 接线在 `~/.claude/settings.json`（三条：UserPromptSubmit→hook-recall、

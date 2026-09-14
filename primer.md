@@ -1,8 +1,11 @@
 # K0a primer（常驻背景块）
 
-> **权威副本**。安装到 `~/.claude/CLAUDE.md` 与 `~/AGENTS.md`（**双 harness**：pi + Claude Code）。
-> 2026-09-14 实测两者均在用（pi 会话活动 15:21 / Claude Code 12:38）——
-> 此前「单 harness（Claude Code）；pi 已于 2026-08 退役」的记述**已作废**。
+> **权威副本**。安装到 `~/.claude/CLAUDE.md` 与 `~/AGENTS.md`（**双 harness**）。
+> 2026-09-14 订正：**pi 已真实回归，作为主力 harness**（日常会话在 pi；本文件下方的
+> 知识检索协议即 2026-09-12 改写的「pi 实况版」）。
+> 「pi 已于 2026-08 退役」对应的是 2026-08-12 的一次**正式退役**（留档
+> `ops/archive/pi-retired-2026-08-12/`），但该决定**已被推翻**——
+> 那是已失效的旧状态，**不是临时回归**，后续不要把 pi 当过渡态处理。
 > doctor 第 17 项比对两处与本文件是否一致——改这里要重装，改那边要同步回来。
 > 安装：`evo primer --install`
 >
@@ -17,13 +20,18 @@
 > 常驻背景，用于准确理解请求意图。经验库在 `~/Dev/evo-kernel`（`evo recall` 检索）。
 > 本块 review_after 2026-09-25，过期请复核后再依赖。
 
-**画幅**：个人单用户 · 单机 macOS · **双 harness（pi + Claude Code，均在用）** · 中文交流。
+**画幅**：个人单用户 · 单机 macOS · **双 harness（pi 主力 + Claude Code）** · 中文交流。
 
 **活跃项目**（按近期会话量降序）
 - `~/Dev/agent-evo`（设计/调研）+ `~/Dev/evo-kernel`（实现）—— Agent 经验系统自研。
   纯 frontmatter markdown + git 的经验内核，零依赖 Node CLI。
-  **挂载现状（2026-09-14 实测）**：Claude Code hooks 已退役，挂载迁移至 Hermes hooks，
-  但 Hermes 三件套（pre_llm_call / on_session_end / pre_tool_call）**尚未接线** → 当前无 hook 挂载。
+  **挂载现状（2026-09-14）**：**pi 侧桥接已恢复并实测生效** —— 扩展
+  `~/.pi/agent/extensions/evo-kernel.ts`（存续件 `ops/integrations/pi-evo-kernel.ts`，
+  同日从 `ops/archive/pi-retired-2026-08-12/` 取消归档）。三个钩子均有落盘证据：
+  `before_agent_start`→`hook-recall`（recall.jsonl）、`tool_call`→`guard`（guard-hits.jsonl，
+  两条规则均为 warn 观察期、非 block）、`session_shutdown`→`hook-session-end`
+  （session-refs.jsonl，`harness:"pi"` 标注正确）。
+  Claude hooks 已退役（设计迁 Hermes）；**Hermes `config.yaml` 的 hooks 段仍未写**。
 - `~/Dev/suc221-pointcloud-2.0` —— 无人机避障雷达技术研究（原代号 UCM221，现名 SUC221）。
   雷达信号处理：CFAR、测角/DOA、点云、航迹；C 核心 + FreeRTOS + ARM 移植。
 - `~/Dev/algommw` —— 算法中间件。
