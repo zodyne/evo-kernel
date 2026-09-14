@@ -455,17 +455,24 @@ PREC=$(node -e "console.log(Math.round($RELN/$RECN*100))")
 { echo "$REFL_OUT" | grep -q "M1 召回精度（检索层） | ${PREC}%（${RELN}/${RECN}）"; } \
   && ok "J: 精度计算（召回精度 = ${PREC}%（${RELN}/${RECN}），按实际四态算）" \
   || bad "J: 精度计算" "(期望 ${PREC}%（${RELN}/${RECN}）, 实得: $(echo "$REFL_OUT" | grep 'M1 召回精度'))"
-# §7.1 对账覆盖率的分母是**注入实例数**（Σ|ids|），不是 recall 调用数——用调用数当分母会虚高数倍，
-# 而这个数决定「精度可不可解读」。分母从 recall.jsonl 现算，不硬编码。
+# §7.1 对账覆盖率的分母是**注入实例数**（Σ|ids|），不是 recall 调用数——用调用数当分母会虚高数倍。
+# 2026-09-14 起拆为两行：可对账域（真·纪律指标）+ 结构性不可对账（transcript 被保留期清掉的永久损失）。
+# 后者必须用全量实例数当分母，否则那些永远拿不到证据的实例会被算成「纪律没做」。分母从 recall.jsonl 现算，不硬编码。
 INST=$(node -e "
 const fs=require('fs');let n=0;
 for(const l of fs.readFileSync('$EVO_ROOT/ops/log/recall.jsonl','utf8').split('\n')){
   if(!l.trim())continue; try{const j=JSON.parse(l); n+=(j.ids||[]).length;}catch{}
 }
 console.log(n);")
-{ echo "$REFL_OUT" | grep -q "M1 对账覆盖率 | .*（${RECN}/${INST}）"; } \
-  && ok "J: 对账覆盖率分母 = 注入实例数 Σ|ids|（${RECN}/${INST}）" \
-  || bad "J: 对账覆盖率分母" "(期望分母 ${INST} 个实例, 实得: $(echo "$REFL_OUT" | grep '对账覆盖率'))"
+{ echo "$REFL_OUT" | grep -q "M1 结构性不可对账 | [0-9]*/${INST}（[0-9]*%）"; } \
+  && ok "J: 结构性不可对账以全量实例数为分母（${INST}）" \
+  || bad "J: 结构性不可对账分母" "(期望分母 ${INST}，实得: $(echo "$REFL_OUT" | grep '结构性不可对账'))"
+{ echo "$REFL_OUT" | grep -q "M1 对账覆盖率（可对账域） | .*（${RECN}/[0-9]*）"; } \
+  && ok "J: 对账覆盖率按可对账域计算（分子 ${RECN}）" \
+  || bad "J: 对账覆盖率（可对账域）" "(实得: $(echo "$REFL_OUT" | grep '对账覆盖率'))"
+# 旧口径单行必须消失：残留即意味着结构性损失又回到了纪律分母里
+{ echo "$REFL_OUT" | grep -q "| M1 对账覆盖率 | "; } \
+  && bad "J: 旧对账覆盖率口径残留" "(仍是单行全量分母)" || ok "J: 旧对账覆盖率口径已无残留"
 # §7.1 精度必须拆两个数：relevant-unused 计入召回精度分子、但不计入采纳率分子。
 # 合成一个数会让指标对 harness-benefit（召回对了却没被用上）完全不敏感。
 { echo "$REFL_OUT" | grep -q "采纳率（应用层"; } \
@@ -548,6 +555,23 @@ DOC4=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
 { echo "$DOC4" | grep -q '副本漂移'; } \
   && ok "K: 实装与副本不一致时报漂移" || bad "K: 漂移检测失效" "(改了实装仍报一致)"
 cp "$SRC/ops/integrations/hermes-evo-hooks/evo-recall.sh" "$KHOME/.hermes/agent-hooks/evo-recall.sh"
+# K7: 蒸馏驱动器装载检查 —— 未装载时覆盖率不再增长，而此前没有任何信号：
+# 2026-09 实测停了 20 天无人发现，覆盖率冻在 8% 还被归因为「纪律问题」。
+# 必须能在隔离 HOME 下判定，否则 smoke 会读真实机器、变成环境依赖。
+{ echo "$DOC" | grep -q '18. 后台蒸馏驱动器'; } \
+  && ok "K: doctor 含蒸馏驱动器装载检查" || bad "K: 驱动器检查缺失" "(doctor 无第 18 项)"
+{ echo "$DOC" | grep -q '18. 后台蒸馏驱动器.*未装载'; } \
+  && ok "K: 隔离 HOME 下未装载报 WARN" || bad "K: 隔离 HOME 判定" "(未按 HOME 作用域判定: $(echo "$DOC" | grep '18.'))"
+mkdir -p "$KHOME/Library/LaunchAgents"
+cp "$KROOT/ops/bin/com.evo.distill.plist" "$KHOME/Library/LaunchAgents/"
+DOC7=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+{ echo "$DOC7" | grep -q '18. 后台蒸馏驱动器.*已装载且与副本一致'; } \
+  && ok "K: 装载后报 PASS" || bad "K: 装载后判定" "(实得: $(echo "$DOC7" | grep '18.'))"
+printf 'x' >> "$KHOME/Library/LaunchAgents/com.evo.distill.plist"
+DOC8=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+{ echo "$DOC8" | grep -q '18. 后台蒸馏驱动器.*漂移'; } \
+  && ok "K: 副本漂移报 WARN" || bad "K: 漂移检测" "(改了 plist 仍报一致)"
+rm -f "$KHOME/Library/LaunchAgents/com.evo.distill.plist"
 # K2: 删 remote → exit≠0 + 含 FAIL 行
 ( cd "$KROOT" && git remote remove origin )
 DOC2=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1); DRC2=$?
