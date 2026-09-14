@@ -1295,7 +1295,7 @@ const cmds = {
           if (q.exec >= 5 && fpRate <= 20)
             g.push(`升 block 候选: 约束 [${c.id}] 命令位命中 ${q.exec} 次（提及 ${q.mention}，误报率 ${fpRate}%）→ evo solidify --id ${c.id} --to hook --matcher '<同原>' --mode block --criteria-confirmed`);
           else
-            g.push(`⚠ 不建议升 block: 约束 [${c.id}] 裸命中 ${h} 次，但其中 ${q.mention} 次只是引号内提及（误报率 ${fpRate}%）——升 block 会阻断 git commit -m '…rm -rf…' / grep / 文档类命令。先收窄 matcher 再议（§8 准入④未达标）`);
+            g.push(`⚠ 不宜升 block: 约束 [${c.id}] 命令位命中 ${q.exec} 次、引号内提及 ${q.mention} 次（提及占比 ${fpRate}%）。**这是设计取舍不是待修缺陷**：warn 路径已按 quality 只对命令位浮现（提及一律 allow，实测无误扰）；而 block 路径**刻意**用裸匹配——bash -c "rm -rf /" 的真危险命令本就在引号里，按 quality 放行=漏杀。该条天然含高提及占比 → **保持 warn + 保持裸匹配**；不建议收窄 matcher（会把引号里的真危险一起放过）。§8 准入④于此为终态`);
         }
         return g.length ? g.join('\n') : '(当前无候选：正常，计数随使用积累)';
       })(),

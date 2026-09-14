@@ -201,8 +201,8 @@ cat > "$EVO_ROOT/ops/constraints/t-fp.json" << 'JSON'
 {"id":"t-fp","matcher":"rm\\s+-rf","match_on":"command","message":"测试误报","mode":"warn","criteria_confirmed":true,"created":"2026-07-27"}
 JSON
 for i in 1 2 3 4 5 6; do $EVO guard --tool bash --input-json '{"command":"git commit -m '"'"'fix rm -rf handling'"'"'"}' >/dev/null 2>&1; done
-{ $EVO reflect 2>&1 | grep -q "不建议升 block: 约束 \[t-fp\]"; } \
-  && ok "F: 全引号内提及的约束不得进升 block 候选" || bad "F: 升 block 判据" "(裸命中被当证据)"
+{ $EVO reflect 2>&1 | grep -q "不宜升 block: 约束 \[t-fp\]"; } \
+  && ok "F: 全引号内提及的约束不得进升 block 候选（且结论为保持 warn，非收窄 matcher）" || bad "F: 升 block 判据" "(裸命中被当证据)"
 rm -f "$EVO_ROOT/ops/constraints/t-fp.json"
 # I3 人审门必须由 guard 执行，不能只写在 SKILL.md 里：agent 能直调的命令等于没有人审
 # （见 playbook/approval-gate-written-only-in-prompt-is-not-enforceable）。warn 档，不阻断。
@@ -210,6 +210,13 @@ rm -f "$EVO_ROOT/ops/constraints/t-fp.json"
   && ok "F: curate 人审门有 guard 执行（I3 可执行化）" || bad "F: curate 人审门" "(guard 未拦 evo curate)"
 { $EVO guard --tool bash --input-json '{"command":"evo recall --task t"}' 2>&1 | grep -q '"allow"'; } \
   && ok "F: 人审门不误伤其他 evo 命令" || bad "F: 人审门误伤" "(evo recall 被拦)"
+# warn 路径必须只对**命令位**命中浮现：引号内提及一律 allow。
+# block 路径则**刻意**用裸匹配（bash -c "rm -rf /" 的真危险命令本就在引号里，
+# 按 quality 放行=漏杀）—— 两侧不同源是设计取舍，不是不一致。这两条断言钉住 warn 侧不退化。
+{ $EVO guard --tool bash --input-json '{"command":"git commit -m \"docs: 避免 rm -rf 误删\""}' 2>&1 | grep -q '"allow"'; } \
+  && ok "F: 引号内提及不触发 warn（warn 只对命令位浮现）" || bad "F: 提及误报" "(commit message 里的 rm -rf 触发了 warn)"
+{ $EVO guard --tool bash --input-json '{"command":"rm -rf /tmp/zz-nonexistent"}' 2>&1 | grep -q 'dangerous-rm-rf'; } \
+  && ok "F: 命令位真命中仍触发 warn" || bad "F: 命令位漏报" "(rm -rf 未触发)"
 # SCHEMA ⑮：related 悬挂引用比没有链接更误导，加字段必须同时有治理出口
 printf -- '---\nid: zz-dangling\ntype: lesson\nstatus: candidate\ntriggers: ["悬挂探针"]\nrelated: [no-such-entry-id]\n---\n正文\n' > "$EVO_ROOT/lessons/zz-dangling.md"
 { $EVO audit 2>&1 | grep -q 'related 指向不存在的 id'; } \
