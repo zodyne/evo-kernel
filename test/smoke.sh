@@ -312,6 +312,13 @@ t "curate 文件缺失"        "✗ 提案不存在" $EVO curate --file /nonexis
 t "slice 命令↔结果对齐"    "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session.jsonl"
 t "slice Claude 命令↔结果"  "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session-claude.jsonl"
 t "slice Claude 写文件"     "/tmp/evo-slice-demo.txt" $EVO slice --session "$SRC/test/fixtures/sample-session-claude.jsonl"
+# 工具名与字段名是 per-harness 的，不能只测一两套（见 playbook/…-evo-slice-normalize-
+# toolname-case-and-path-field）。Hermes 是第三套：单行 JSON + messages[] 嵌套，
+# 工具调用为 OpenAI 形态 tool_calls[].function.{name,arguments(JSON 字符串)}，
+# 工具名为 terminal / write_file，结果在 role:'tool' 里。不测它就无法发现它整段不可读——
+# 而二期接 Hermes hooks 的先决条件正是 slice 能读它的 transcript。
+t "slice Hermes 命令↔结果"  "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session-hermes.jsonl"
+t "slice Hermes 写文件"     "/tmp/evo-slice-demo.txt" $EVO slice --session "$SRC/test/fixtures/sample-session-hermes.jsonl"
 
 # ════════════ G. YAML 边界 fixture（M0.1，R3 盲区 round-trip） ════════════
 echo "——— G. YAML 边界 fixture（parseFm round-trip） ———"

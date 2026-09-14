@@ -806,14 +806,34 @@ const cmds = {
     const calls = {}, order = [], paths = new Set();
     let firstUser = '', lastAssistant = '';
     const textOf = (c) => Array.isArray(c) ? c.filter((b) => b && b.type === 'text').map((b) => b.text || '').join(' ') : (typeof c === 'string' ? c : '');
-    const digBlocks = (o) => { // 收集 tool_use/toolCall 与 tool_result（兼容 Pi 与 Claude 格式）
+    // 工具名与字段名是 per-harness 的，不能写死成某一个 harness 的约定
+    // （见 playbook/…-evo-slice-normalize-toolname-case-and-path-field）。三套形态：
+    //   Claude: type:'tool_use', name:'Bash'/'Write'/'Edit', input{}, 路径字段 file_path
+    //   Pi:     type:'toolCall', name:'bash'/'write'/'edit',  input{}, 路径字段 path
+    //   Hermes: type:'function'（OpenAI 形态，嵌在 assistant.tool_calls[] 里），
+    //           name:'terminal'/'write_file'/'patch'，arguments 是 **JSON 字符串**，
+    //           结果在 role:'tool' 的消息里（tool_call_id 关联，content 为纯字符串）。
+    // 2026-09-14 补 Hermes：此前 slice 只认前两套，而 hermes sessions export 是
+    // 单行 JSON + messages[] 嵌套，于是切片全空 → 蒸馏器"只基于 slice 输出工作" → 零产出。
+    // 这是二期接线的先决条件（不先修这里，hermes 的注入永远无法对账）。
+    const CMD_TOOLS = new Set(['bash', 'terminal']);
+    const PATH_TOOLS = new Set(['write', 'edit', 'write_file', 'patch', 'multiedit', 'apply_patch']);
+    const recordCall = (id, name, inp) => {
+      if (!id) return;
+      const n = String(name || '').toLowerCase();
+      if (CMD_TOOLS.has(n) && inp && inp.command) { calls[id] = { cmd: String(inp.command).slice(0, 150) }; order.push(id); }
+      if (PATH_TOOLS.has(n) && inp && (inp.path || inp.file_path)) paths.add(inp.path || inp.file_path);
+    };
+    const digBlocks = (o) => { // 收集三套 harness 的工具调用与结果
       if (!o || typeof o !== 'object') return;
       if (Array.isArray(o)) { o.forEach(digBlocks); return; }
       if ((o.type === 'toolCall' || o.type === 'tool_use') && o.name) {
-        const inp = o.input || o.arguments || {};
-        const name = String(o.name).toLowerCase();   // Claude 工具名首字母大写（Bash/Write/Edit），Pi 全小写
-        if (name === 'bash' && inp.command) { calls[o.id] = { cmd: String(inp.command).slice(0, 150) }; order.push(o.id); }
-        if ((name === 'write' || name === 'edit') && (inp.path || inp.file_path)) paths.add(inp.path || inp.file_path); // Claude 用 file_path
+        recordCall(o.id, o.name, o.input || (o.arguments && typeof o.arguments === 'object' ? o.arguments : {}));
+      }
+      if (o.type === 'function' && o.function && o.function.name) { // Hermes/OpenAI
+        let inp = {};
+        try { inp = JSON.parse(o.function.arguments || '{}'); } catch {}
+        recordCall(o.id || o.call_id, o.function.name, inp);
       }
       if (o.type === 'tool_result' && o.tool_use_id && calls[o.tool_use_id]) { // Claude: tool_result 嵌在 user content
         const t = textOf(o.content);
@@ -827,13 +847,20 @@ const cmds = {
         try {
           const j = JSON.parse(line);
           digBlocks(j);
-          const msg = j.message || j;
-          if (msg.role === 'toolResult' && msg.toolCallId && calls[msg.toolCallId]) { // Pi: 顶层 toolResult 消息
-            const t = textOf(msg.content);
-            calls[msg.toolCallId].res = (msg.isError ? '✗ ' : '') + t.slice(0, 120);
+          // Hermes 导出是单行 JSON + messages[] 嵌套，role 分布在数组里，不在顶层
+          const msgs = Array.isArray(j.messages) ? j.messages : [j];
+          for (const m0 of msgs) {
+            const msg = m0.message || m0;
+            if (msg.role === 'toolResult' && msg.toolCallId && calls[msg.toolCallId]) { // Pi: 顶层 toolResult 消息
+              const t = textOf(msg.content);
+              calls[msg.toolCallId].res = (msg.isError ? '✗ ' : '') + t.slice(0, 120);
+            }
+            if (msg.role === 'tool' && msg.tool_call_id && calls[msg.tool_call_id]) { // Hermes: role='tool'
+              calls[msg.tool_call_id].res = String(msg.content ?? '').slice(0, 120);
+            }
+            if (msg.role === 'user' && !firstUser) firstUser = textOf(msg.content).slice(0, 200);
+            if (msg.role === 'assistant') { const t = textOf(msg.content).slice(0, 200); if (t) lastAssistant = t; }
           }
-          if (msg.role === 'user' && !firstUser) firstUser = textOf(msg.content).slice(0, 200);
-          if (msg.role === 'assistant') { const t = textOf(msg.content).slice(0, 200); if (t) lastAssistant = t; }
         } catch {} // 逐行容错：跳过坏行
       }
     } catch (e) { warn(`slice: ${e.message}`); }
