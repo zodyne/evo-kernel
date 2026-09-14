@@ -524,6 +524,21 @@ mv "$EVO_ROOT/playbook/seed-failure-lessons-as-templates.md" "$EVO_ROOT/lessons/
 { ! $EVO reflect 2>&1 | grep -q "退役候选（空转）: \[$DEADID\]"; } \
   && ok "J: 已出注入集的条目不进退役候选（demote 幂等）" || bad "J: 提案幂等" "(已移入 lessons 仍被提议)"
 mv "$EVO_ROOT/lessons/seed-failure-lessons-as-templates.md" "$EVO_ROOT/playbook/"
+# 梯度提案的判据必须读 reconcile 日志，**不读 frontmatter 的 evidence 字段**。
+# SCHEMA ⑨ 说 evidence「由 distill 对账单点回填（reconcile.jsonl）」，但搜遍 bin/evo
+# **没有任何代码实现该回填** → 它会漂移。实测被它误导：3 条固化候选里 3 条的日志
+# adopted 都是 0。这里用**负向 + 正向对照**一对断言钉死来源。
+printf -- '---\nid: zz-drift-field\ntype: bullet\nstatus: validated\ntriggers: ["漂移字段探针"]\nevidence: {helpful: 9, harmful: 0}\n---\n正文\n' > "$EVO_ROOT/playbook/zz-drift-field.md"
+{ ! $EVO reflect 2>&1 | grep -q "固化候选: \[zz-drift-field\]"; } \
+  && ok "J: 固化判据读日志不读 evidence（声称 helpful=9 但无日志 → 不提议）" \
+  || bad "J: 固化判据来源" "(仍读会漂移的 evidence 字段)"
+rm -f "$EVO_ROOT/playbook/zz-drift-field.md"
+printf -- '---\nid: zz-log-backed\ntype: bullet\nstatus: validated\ntriggers: ["日志支撑探针"]\nevidence: {helpful: 0, harmful: 0}\n---\n正文\n' > "$EVO_ROOT/playbook/zz-log-backed.md"
+for i in 1 2 3; do $EVO reconcile --ids zz-log-backed --state adopted >/dev/null 2>&1; done
+{ $EVO reflect 2>&1 | grep -q "固化候选: \[zz-log-backed\]"; } \
+  && ok "J: 有日志支撑（adopted=3、evidence.helpful=0）才进固化候选" \
+  || bad "J: 固化正向对照" "(有日志仍未提议)"
+rm -f "$EVO_ROOT/playbook/zz-log-backed.md"
 
 # ════════════ K. doctor（M0.4，唯一非零退出命令） ════════════
 echo "——— K. doctor（部署自检） ———"

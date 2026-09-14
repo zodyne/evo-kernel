@@ -68,6 +68,9 @@ const ARCHIVE_DIR = path.join(ROOT, 'ops/archive');
 
 // 空转退役阈值（§7.2）：注入 ≥N 次且 adopted=0 → reflect 列退役候选。
 const DEAD_MIN = Number(process.env.EVO_DEAD_MIN || 5);
+// 固化阈值：日志里被真正采用过多少次才够格固化成 skill（原实现是读 evidence.helpful≥3，
+// 那是个人工字段 —— 见 reflect 里三个判据的注释）
+const SOLIDIFY_MIN = Number(process.env.EVO_SOLIDIFY_MIN || 3);
 
 // §7.1 四态对账 → (helpful_delta, harmful_delta)。adopt/reject 是其中两态的人工兜底入口。
 const RECONCILE_STATES = { adopted: [1, 0], 'relevant-unused': [0, 0], irrelevant: [0, 0], misleading: [0, 1] };
@@ -1096,9 +1099,12 @@ const cmds = {
           if (j.session && j.id) donePairs.add(`${j.session}\u0000${j.id}`);
           recByJudge[j.judged_by] = (recByJudge[j.judged_by] || 0) + 1;
           if (j.id) {
-            const t = recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0 };
+            const t = recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0 };
             t.n++;
             if (j.state === 'adopted') t.adopted++;
+            // misleading 单独计数：它是「有害」的唯一**日志**来源
+            // （evidence.harmful 是人工字段，会与日志漂移）
+            else if (j.state === 'misleading') t.misleading++;
             // dead = 注入了却没产生价值（无关 + 相关但没用上）
             else if (j.state === 'irrelevant' || j.state === 'relevant-unused') t.dead++;
           }
@@ -1207,18 +1213,25 @@ const cmds = {
       (() => {
         const g = [];
         for (const e of entries) {
-          if ((e.evidence || {}).helpful >= 3 && !e.superseded_by && ['playbook', 'facts', 'principles'].includes(e._zone))
-            g.push(`固化候选: [${e.id}] helpful=${e.evidence.helpful} → evo solidify --id ${e.id} --to skill`);
+          const t = recById[e.id];
+          // ── 三个判据一律读 reconcile 日志，**不读 frontmatter 的 evidence 字段** ──
+          // SCHEMA ⑨ 声明 evidence 由「distill 对账单点回填（reconcile.jsonl）」，但搜遍
+          // bin/evo **没有任何代码实现该回填** → 它是人工写的、会与日志漂移。实测被它误导：
+          // arxiv-api-rate-limit 声称 helpful=3 而日志 12 条全 irrelevant、adopted=0；
+          // unverified-arxiv-ids 声称 4 / 日志 0。用会漂移的字段创建 skills = 把噪声固化成资产。
+          // 固化：日志里被真正采用过 SOLIDIFY_MIN 次以上。
+          if (t && t.adopted >= SOLIDIFY_MIN && !e.superseded_by && ['playbook', 'facts', 'principles'].includes(e._zone))
+            g.push(`固化候选: [${e.id}] 日志 adopted=${t.adopted}（共 ${t.n} 次注入）→ evo solidify --id ${e.id} --to skill`);
           // 退役提案必须限定在**当前仍在注入集内**的条目（RECALL_DIRS）。
           // 2026-09-14 修：两条退役判据原本都只查 !superseded_by，不查 zone，于是
           // demote --to lessons 之后条目落到 lessons/（仍在 SCAN_DIRS 内），下一轮 reflect
           // 会把同一条原样再提一遍 —— 提案不幂等、永久重复。
           // 指纹：同批的 solidify 因落点是 ops/archive（不在 SCAN_DIRS）而正确地消失，
           // 这个不对称就是判据缺 zone 检查的证据。
-          if ((e.evidence || {}).harmful > 0 && RECALL_DIRS.includes(e._zone))
-            g.push(`退役候选: [${e.id}] harmful=${e.evidence.harmful} → evo demote --id ${e.id} --to archive`);
+          // 有害：日志判过 misleading（唯一的有害来源）。
+          if (t && t.misleading > 0 && RECALL_DIRS.includes(e._zone))
+            g.push(`退役候选: [${e.id}] 日志 misleading=${t.misleading}（共 ${t.n} 次注入）→ evo demote --id ${e.id} --to archive`);
           // 空转退役：注入够多次却一次没被采用。EVO_DEAD_MIN 可调（默认 5）。
-          const t = recById[e.id];
           if (t && t.adopted === 0 && t.dead >= DEAD_MIN && !e.superseded_by && RECALL_DIRS.includes(e._zone))
             g.push(`退役候选（空转）: [${e.id}] 注入 ${t.n} 次 adopted=0（irrelevant/relevant-unused ${t.dead}）→ evo demote --id ${e.id} --to lessons`);
         }
@@ -1241,7 +1254,7 @@ const cmds = {
       '## 下一步建议',
       '- HIGH 级发现优先处理（reject 或退役）',
       '- 空命中多的领域 → distill 补经验 或 调整 triggers',
-      '- candidate 积压 → 安排验证（硬反馈）或清理',
+      '- candidate 积压 → 若 source transcript 已失则**不可复验**（保留隔离即可，勿归档：归档丢 catalog 查重覆盖）；仅在 transcript 仍在时才值得安排验证',
       covDenom && reconciled / covDenom < 0.3
         ? '- 对账覆盖率 <30% → 先修蒸馏纪律（/learn），不解读失真精度'
         : `- 对账覆盖率达标（${covPct}%），精度可解读；若结构性不可对账偏高（${unrecPct}%），那是 transcript 保留问题，不是纪律问题`,
