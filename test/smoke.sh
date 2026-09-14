@@ -222,6 +222,12 @@ printf -- '---\nid: zz-retired-but-injected\ntype: fact\nstatus: archived\ntrigg
 { $EVO audit 2>&1 | grep -q '但仍在注入集'; } \
   && ok "F: audit 检出 status 退役但仍在注入集" || bad "F: 退役但仍在注入集" "(audit 未检出)"
 rm -f "$EVO_ROOT/facts/zz-retired-but-injected.md"
+# frontmatter 损坏是「对所有检查隐身」的根源：parseFm 静默降级，id 回退为文件名，
+# 于是 status/related/triggers 全丢——该条目对 audit 每一条规则都不存在。
+printf -- 'id: zz-no-status\ntype: fact\n---\n正文\n' > "$EVO_ROOT/facts/zz-no-status.md"
+{ $EVO audit 2>&1 | grep -q '缺 status'; } \
+  && ok "F: audit 检出缺 status（坏 frontmatter 指纹）" || bad "F: 缺 status" "(audit 未检出)"
+rm -f "$EVO_ROOT/facts/zz-no-status.md"
 # 检索基准的契约：跑得起来、四阶段齐全、且**不写真实 ops/log**（recall.jsonl 是 §7.1 精度与
 # §5.0 回放的数据源，基准查询混进去会污染判据）。此处不守护阈值——阈值要先有基线才能定。
 BENCH_BEFORE=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)

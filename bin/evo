@@ -929,6 +929,14 @@ const cmds = {
       // MID：lessons 中 status ≠ candidate（规则违反）
       if (e._zone === 'lessons' && e.status && e.status !== 'candidate')
         out.push({ level: 'MID', id: e.id, why: `lessons/ 中 status=${e.status}（规则：只存 candidate）→ 迁出` });
+      // MID：条目缺 status —— frontmatter 缺失/损坏的可观测指纹。
+      // parseFm 与 loadEntries 对坏 frontmatter 是**静默降级**（data={} 或只留 schema_version，
+      // 且 id 回退为文件名），而降级后的条目对**所有**检查隐身：无 status → 状态类规则失效；
+      // 无 related → 建链规则失效；无 triggers → recall 永远不命中。
+      // 2026-09-14 实测：一次脚本误把闭合 `---` 粘进 related 行，该文件当即从 audit 视野消失，
+      // 直到 manifest 出现一个 `?` 桶才暴露。parseFm 注释里声称的「R3 守护」并无检查实现。
+      if (!e.status)
+        out.push({ level: 'MID', id: e.id, why: `缺 status（frontmatter 缺失或损坏的指纹）→ 补齐 frontmatter；此类条目对 audit 其余全部规则隐身` });
       // MID：RECALL_DIRS 内 status=archived|deprecated 但 superseded_by 为空
       // recall() 只按 superseded_by 过滤（loadEntries(RECALL_DIRS).filter(e => !e.superseded_by)），
       // **不看 status** → 这类条目照常进注入集，与 status 声明矛盾。此前无任何检查覆盖这种组合：
