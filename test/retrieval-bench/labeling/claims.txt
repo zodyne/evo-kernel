@@ -1,0 +1,154 @@
+# 现役条目 76 条（id | zone | 主张首行）
+
+ 1. 2026-07-27-git-mv-bulk-verify-byte-identical-renames
+    [playbook] # 批量 git mv 之后、提交之前，验证所有 rename 都是 100% 字节一致
+ 2. 2026-07-27-pyqtgraph-viewer-lag-is-perframe-python-compute
+    [playbook] # pyqtgraph 查看器卡顿：先量渲染地板价，别急着怪 GL
+ 3. 2026-07-27-qt-offscreen-opengl-context-warnings-nonfatal
+    [playbook] # QT_QPA_PLATFORM=offscreen 下 Qt/OpenGL 的"Failed to create context"告警通常非致命
+ 4. 2026-07-27-stash-patch-apply-check-freeze-uncommitted
+    [playbook] # 冻结未提交工作：stash -u + apply --check 回放验证，先入库再还原
+ 5. 2026-07-27-zsh-unquoted-glob-arg-no-matches
+    [playbook] # zsh 会先展开命令参数里的裸通配符：grep --include=*.py 报 "no matches found"
+ 6. 2026-07-28-macos-qt-cmd-key-maps-to-control-modifier
+    [playbook] # macOS 上 Qt 把 ⌘ 映射成 ControlModifier、物理 Ctrl 映射成 MetaModifier——多选要同时收两个
+ 7. 2026-07-28-qmatrix4x4-data-returns-column-major-tuple
+    [playbook] # QtGui.QMatrix4x4.data() 返回列主序的 16 元素 tuple，平移在第 4 列
+ 8. agent-self-evolution-landscape
+    [facts] Agent 自进化分两路线：In-Weight（改参数，贵/不可审计）vs In-Context（改外部记忆，2025 后主流）。In-Context 的共性架构收敛为 ACE 三角：Generator→Reflector→Curator，增量 delta 更
+ 9. agent-system-deployability-falsifiable-value-claim
+    [playbook] # 判 agent/记忆系统是否"可部署"：机制端到端可用只是必要条件，决定性判据是价值主张可证伪
+10. ai-agent-book-as-self-evolution-reference
+    [facts] # `~/Desktop/ai-agent-book` 第八章是 Evo-Kernel 最贴近的公开对照系（含离线可跑的评估 harness）
+11. approval-gate-written-only-in-prompt-is-not-enforceable
+    [playbook] # 只写在提示词里的人审门不是执行边界：agent 能调用的命令，就等于没有人审
+12. arxiv-download-proxy-truncation
+    [playbook] 本机代理（127.0.0.1:7897）会间歇性截断大文件下载（11MB 级 PDF 多次损坏：无 %%EOF、XRef 表缺失但 `file` 仍误判为 PDF）。
+13. auto-script-git-add-all-sweeps-unrelated-files
+    [playbook] # 自动化提交脚本不要用 `git add -A`，要显式暂存本次动过的文件列表
+14. backup-untracked-file-before-edit
+    [playbook] # 改未纳入 git 追踪的文件前，先做时间戳备份
+15. bash-loop-child-steals-stdin
+    [playbook] `while read ... done <<< "$LIST"`（或 `done < file` / 管道喂入）的循环里，**任何读 stdin 的子进程都会继承那份清单并把剩余行吃光**，循环下一圈立刻读到 EOF 正常退出——**退出码 0，日志看起来像
+16. bash-source-root-breaks-when-script-moved
+    [playbook] 用 `ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"` 推项目根的脚本，**位置就是它的配置**。把它复制到别处（临时加桩、改一行做实验），`ROOT` 会静悄悄指向副本的祖父目录——所有派
+17. benchmark-traffic-isolated-from-telemetry
+    [principles] # 基准流量必须与真实遥测隔离：否则评测污染自己的度量口径
+18. bytes-exact-oracle-gate-for-pipeline-port
+    [playbook] # 把可信数据流水线移植到新框架，必须用"与参考 oracle 逐字节一致"做正确性闸门，而不能只看"跑通了/结果合理"
+19. claude-code-global-mcp-registry-claude-json
+    [facts] **主张**：Claude Code 的全局 MCP server 注册表是 `~/.claude.json` 顶层的 `mcpServers` 对象；用 python json 读写直接改它即可完成注册。改前先做带时间戳的整文件备份（`cp ~/.claud
+20. claude-code-workflow-subagent-internals
+    [facts] # Claude Code 2.1.220 二进制内含 workflow 特性标识（enableWorkflows / "Dynamic workflow" / workflow-subagent）与一个 agent(prompt, opts) 子代理调度工具
+21. community-research-rss-api-first
+    [playbook] 做 agent/工具的社区口碑或 build-vs-buy 调研时，抓取社区站（Reddit、Hacker News、SaaS 官网等）**优先用 RSS feed 或结构化 API（如 HN Algolia API `hn.algolia.com/api/v
+22. design-review-cross-check-implementation
+    [playbook] # 评审"描述已部分实现系统"的设计文档，必须交叉核对实现，不能只读设计文档本身
+23. doc-selfreported-counts-drift
+    [playbook] 文档里**自述的能力数字**（命令数、测试断言数、条目数、调用次数）漂移得比正文快得多。改这类文档前必须实跑命令取当前值，不能沿用文档自述——包括不能沿用文档里"已经修正过"的注释。
+24. episode-suc221-project-overview
+    [episodes] # SUC221 无人机避障雷达项目总览
+25. episode-suc221-uneven-array-doa
+    [episodes] # SUC221 非均匀阵列暗室测角问题定位
+26. evo-distill-transient-connection-error-retry
+    [playbook] # evo-distill 遇到 API Connection error 是瞬时网络失败：记 fail 但不损数据，手动重跑同一 session 通常成功——排查先重跑而非改实现
+27. evo-slice-normalize-toolname-case-and-path-field
+    [playbook] # evo slice 的每个 harness transcript 解析器，必须各自规整工具名大小写与路径字段别名，不能假设全 harness 一致
+28. fact-suc221-repo-restructured-2026-07-29
+    [facts] # SUC221 主仓库 2026-07-29 清理重组后的结构
+29. git-add-untracked-source-path-aborts-staging
+    [playbook] `git add -- <a> <b> <c>` 是**全有全无**的：只要其中一个 pathspec 匹配不上，整条命令 `fatal` 退出，**另外两个也不会被暂存**。
+30. git-status-has-no-cached-flag
+    [facts] `git status` **没有 `--cached` 选项**：`git status --short --cached` 直接 `exit 129` + `error: unknown option 'cached'`。要查看暂存区内容，用 `git d
+31. greenfield-rebuild-via-spec-patch
+    [playbook] 绿地重建的可行姿势：**先补「规格补丁」，再派实施**。从旧代码逆向出命令契约、smoke 断言清单、日志/数据 schema，把这些补进设计文档，使文档单独就足以支撑实现；然后让实施者**只读文档、不读旧代码**。
+32. hermes-config-set-cannot-write-list-dict
+    [playbook] `hermes config set` 不能写 list/dict：值只做 bool/int/float 强转，传 JSON 数组/对象会原样存成字符串，且 hermes v12+ 解析器对非标量配置 fail-closed。
+33. hermes-cron-model-drift-fail-closed
+    [playbook] hermes cron LLM 任务有防漂移熔断（#44585）：创建时快照全局 model/provider，全局默认变了之后，未 pin 的任务 fail-closed 拒跑。
+34. hermes-fallback-providers-turn-scoped-auto-restore
+    [playbook] Hermes 内置 turn-scoped 自动故障转移，不需要自己写监控脚本：config.yaml 顶层加 `fallback_providers: [{provider: <providers字典里的裸key>, model: <model>}]` 并 
+35. injection-precision-must-split-recall-vs-adoption
+    [playbook] # 注入精度必须拆成「召回精度」与「采纳率」两个数，合成一个数会让指标对 harness-benefit 失效
+36. js-yaml-silently-parses-iso-date-to-object
+    [playbook] # js-yaml 默认把 `YYYY-MM-DD` 字符串静默解析成 Date 对象
+37. lua-gsub-multireturn-pitfall-in-fn-args
+    [playbook] `string:gsub` 返回**两个值**（结果字符串、替换次数）。当 `x:gsub(...)` 是函数调用的**最后一个实参**时，Lua 会把两个返回值**都**追加进参数列表。于是 `fn(x:gsub(p, repl))` 等价于 `fn(res
+38. macos-dual-nic-intranet-subnet-needs-per-service-route
+    [playbook] # Mac 双网卡下"有线那边的内网子网不通"多半是默认路由走了 Wi-Fi：给有线服务加一条 networksetup 附加路由，不动 Wi-Fi
+39. macos-no-timeout-command
+    [facts] # macOS 自带 shell 没有 `timeout` 命令
+40. nan-score-key-breaks-comparison-sort
+    [playbook] # 打分函数算出的 NaN 做排序键会击穿比较排序——必须兜底成有限正数
+41. native-posix-freertos-preview-before-mcu
+    [playbook] # FreeRTOS 嵌入式流水线：先用 native-POSIX host target 在 PC 上跑通预演，再上 MCU
+42. nav-doc-pinned-head-goes-stale
+    [playbook] 手写的导航/状态文档（COMPASS.md、CONTEXT.md 等）里**硬钉的「当前状态 → HEAD <sha>」指针会被里程碑之后的清理类提交悄悄推前**：里程碑提交（如 ADR 落地）本身往往有人记得去同步文档，但紧跟其后的「删冗余分支 / 作废 g
+43. package-html-deadlinks-missing-assets
+    [playbook] 把 HTML / 带资源引用的文档搬进交付子目录或打包时，文档对静态资源（样式表、图片、字体、脚本）的**相对引用会因资源未随包一起搬而断成死链**——尤其当资源**未被 git 跟踪、只存在于本地工作区**时，单纯移动文档会把资源"丢下"，下游拿到的是无样式
+44. pal-clink-cli-client-name-fixed-triplet
+    [facts] PAL clink 自定义 CLI client 的 `name` 必须是 claude / gemini / codex 三者之一：`registry.py` 用 `INTERNAL_DEFAULTS.get(name)` 硬校验，其他名字直接拒绝。
+45. pandoc-gzip-html-garbage
+    [playbook] OpenAI 等 Next.js 站点对 HTML 响应做 gzip 传输编码；若 curl 保存时未解压（或经代理时透明解压不一致），落盘的是 gzip 字节流，pandoc 当 HTML 解析 → 乱码或近乎为空。
+46. pi-mcp-adapter-global-config-path
+    [playbook] pi 的 `pi-mcp-adapter` 把**全局** MCP server 列表读自 `~/.config/mcp/mcp.json`（`GENERIC_GLOBAL_CONFIG_PATH = join(homedir(), ".config", "m
+47. pi-subagent-tool-silent-failure-pitfalls
+    [playbook] pi subagent 工具有三个静默失效坑（源码核实），全部不报错、表现为"配置没生效"：
+48. playbook-suc221-cfar-point-cloud-filtering
+    [playbook] # SUC221 点云虚警过滤排查步骤
+49. prefix-own-typedefs-when-embedding-c-module
+    [playbook] # 移植 C 模块进大仓库时，给自有 typedef 加项目前缀避免重定义冲突
+50. proposal-independent-review-before-curate
+    [playbook] # 提案入库前过一次独立模型评审：伪经验在自审里是隐形的
+51. pyside-probe-script-needs-qapplication
+    [playbook] # PySide6/pyqtgraph 探测脚本必须先建 QApplication，否则 SIGABRT(exit 134)
+52. pyside6-old-version-fails-on-new-python
+    [playbook] # 很新的 Python(3.14)上装旧版 PySide6 会 exit 1：优先怀疑版本兼容而非网络
+53. recalibrate-thresholds-before-comparing-sets
+    [playbook] # 算法变更的代价评估：先重标定再比集合，再用独立特征判"变差没有"
+54. recall-failure-empty-vs-noise-taxonomy
+    [playbook] # 召回失败分两类：空命中是"够不着"，误召回是"引错路"——后者更糟，修法相反
+55. report-schema-claims-need-live-ground-truth
+    [playbook] 调研报告把 `--help`/文档转述的结构当实测结论是高危失真：结构/schema 类断言必须跑一次真实命令取 ground truth，并标注 [实测]。
+56. review-packet-completeness-is-assemblers-duty
+    [playbook] # 独立评审的误判，归因先查组包者：材料不全导致的"超做"报告不是评审员的错
+57. scoring-cutover-replay-historical-queries
+    [playbook] # 换检索/评分后端前用真实历史查询回放对账：丢失的旧命中逐条人审，裁决不了就不切默认
+58. searxng-all-engines-fail-check-outgoing-proxy
+    [playbook] searxng docker 搜索全失败、容器却正常：本质是 `outgoing.proxies` 指向的宿主机代理上游死了，不是引擎或容器问题。
+59. seed-failure-lessons-as-templates
+    [playbook] 种子即模板：经验库的种子条目会被后续蒸馏当作文体范例模仿。种子若全是"最佳实践"体，distill 就只产成功经验，违背"失败经验一等公民"（ReasoningBank）。
+60. self-registration-hook-self-pollution-loop
+    [playbook] # hook 的"每次会话自登记"逻辑遇到后台驱动器自调用会形成自污染反馈环
+61. stamp-baseline-before-review
+    [playbook] 评审/审计类工作**开工第一步是标注基线**：记下评审所依据的 commit sha 与时间戳，并在报告开头写明。
+62. streaming-protocol-snapshot-vs-delta
+    [playbook] # 消费流式协议前先确认它发的是增量还是快照：发快照时整段累积是 O(n²)
+63. string-replace-outside-block-corrupts-body
+    [playbook] # 改写结构化区块（frontmatter/JSON 头）字段必须限定在区块边界内，全局 replace 会误改正文
+64. substring-matcher-cannot-tell-exec-from-mention
+    [playbook] 对命令串做子串/正则匹配，**分不清「执行了危险命令」和「文中提到了它」**。漏报（`-fr` / `-r -f` / `sudo` 前缀变体）靠 matcher 写得全来兜；误报（引号内字面量）则根本无法在这一层解决。所以**升 block 前必须复核误报率
+65. suc221-chamber-doa-bin3-fixed-gate-rx-pair
+    [playbook] # SUC221 暗室测角链路三结论：固定 bin3、y 向相位约定 -1、Rx 对解耦需 eta 校准
+66. suc221-cross-angle-dataset-record
+    [facts] SUC221 十字测角数据集（`data/十字测角`，08-05 外场）实测特征记录：
+67. suc221-doa-reverify-fixed-gate-survives-bin0-hijack
+    [playbook] # SUC221 测角复验：固定门不怕 bin0 反超；大角度失效是数据质量；eta 需逐会话 LUT
+68. suc221-mti-mean-vs-frame-cancellation
+    [playbook] 随机帧间相位抖动模型下，mean 对消与 frame 对消的检出能力等价（SUC221 静止地面数据实测闭环）。
+69. suc221-static-clutter-notch-beats-mti
+    [playbook] 静止雷达场景下零多普勒陷波远优于 MTI 帧间复对消（SUC221 静止地面数据实测）。
+70. three-review-passes-catch-different-layers
+    [playbook] 三类评审抓的是**不同层**的缺陷，层次不重叠，少一类就漏一层：
+71. unverified-arxiv-ids
+    [playbook] 网传或模型记忆里的 arXiv id 错误率不容忽视（一次任务给的候选 id 错 3 个：LightRAG、Gödel Agent、记忆综述，其中 2410.12829 实为电商论文）。
+72. uv-lock-outdated-check-uv-version-first
+    [playbook] uv 报 `uv.lock needs to be updated but --locked` 常是假信号——先怀疑 uv 版本与 pyproject 写法的匹配，而不是真去 `uv lock` 重生成。
+73. validation-params-readable-from-artifact
+    [principles] # 换参数重跑的验证：实际生效参数必须能从被测产物本身读出来
+74. verify-external-references
+    [principles] 任何外部 id、URL、配置字段名、API 参数，**使用前必须验证**，不得凭记忆或传闻直接使用。
+75. vim-fs-normalize-expands-tilde
+    [playbook] Neovim 的 `vim.fs.normalize(path)` 会**展开 `~`** 为家目录绝对路径，无需自己 `os.getenv("HOME")` 手拼。snacks.nvim 的 `util.path(item)` 内部正是 `vim.fs.no
+76. warn-rule-must-be-visible-to-user
+    [playbook] 渐进式约束（warn 观察期 → block 阻断）里，**warn 必须当场对用户可见**（Claude 侧走 `systemMessage` 非阻塞浮现，pi 侧走 `ctx.ui.notify`），不能只静静写日志。
