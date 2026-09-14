@@ -577,6 +577,20 @@ $EVO get --ids macos-no-timeout-command >/dev/null 2>&1
 AL="$EVO_ROOT/ops/log/agentic.jsonl"
 { [ -f "$AL" ] && grep -q '"session"' "$AL"; } \
   && ok "J: agentic 日志带 session（可与 query 关联）" || bad "J: agentic session" "(缺 session ⇒ 无法归因到具体任务)"
+# 通道分离：agentic 对账**不得**污染 recall 通道的精度统计。
+# 这条守护是针对一个实际发生过的静默故障：achan 变量声明在 if 块内、用在块外，
+# 抛 ReferenceError 被空 catch 吞掉 ⇒ 每条对账记录都被跳过 ⇒ 召回精度静默变成 0%（0/225），
+# 而报告照常排版。所以这里不只查"能跑"，而是查**数值没被改动**。
+RB=$($EVO reflect 2>/dev/null | grep 'M1 召回精度' | head -1)
+$EVO reconcile --ids verify-external-references --state irrelevant --channel agentic >/dev/null 2>&1
+RA=$($EVO reflect 2>/dev/null | grep 'M1 召回精度' | head -1)
+{ [ -n "$RB" ] && [ "$RB" = "$RA" ]; } \
+  && ok "J: agentic 对账不污染 recall 精度统计（通道分离生效）" || bad "J: 通道分离" "($RB → $RA)"
+{ ! echo "$RA" | grep -q '(0/'; } \
+  && ok "J: 召回精度非全零（防 catch 吞错导致的静默归零）" || bad "J: 精度静默归零" "(全部对账记录被跳过)"
+# slice 必须分行报两条通道 —— 混成一行，Reflector 就会把两条的精度合成一个数
+{ $EVO slice --session /dev/null --ids zz-nonexistent 2>&1 | grep -q 'agentic-picked:'; } \
+  && ok "J: slice 分行报 injected 与 agentic-picked（通道不混）" || bad "J: slice 通道分行" "(缺 agentic-picked 行)"
 mv "$EVO_ROOT/lessons/seed-failure-lessons-as-templates.md" "$EVO_ROOT/playbook/"
 # 梯度提案的判据必须读 reconcile 日志，**不读 frontmatter 的 evidence 字段**。
 # SCHEMA ⑨ 说 evidence「由 distill 对账单点回填（reconcile.jsonl）」，但搜遍 bin/evo
