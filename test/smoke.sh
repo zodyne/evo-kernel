@@ -569,6 +569,14 @@ $EVO candidates >/dev/null 2>&1
 $EVO get --ids macos-no-timeout-command >/dev/null 2>&1
 { [ -f "$ALOG" ] && grep -q '"cmd":"candidates"' "$ALOG" && grep -q '"cmd":"get"' "$ALOG"; } \
   && ok "J: agentic 通道写使用日志（candidates/get 可观测）" || bad "J: agentic 日志" "(未落盘 ⇒ 通道不可观测)"
+# 观测闭环的最后一环：仪器 → 报告。只写日志而没人读，等于没测。
+{ $EVO reflect 2>&1 | grep -q 'L3b agentic 通道使用'; } \
+  && ok "J: reflect 报 agentic 通道使用量（仪器→报告闭环）" || bad "J: agentic 统计行" "(reflect 未读 agentic.jsonl)"
+# session 必须被回填 —— 否则 agent 选了哪些 id 无法与当时的 query 关联，
+# 也就永远比不了「形态 B 命中率 vs 自动注入 P1」。
+AL="$EVO_ROOT/ops/log/agentic.jsonl"
+{ [ -f "$AL" ] && grep -q '"session"' "$AL"; } \
+  && ok "J: agentic 日志带 session（可与 query 关联）" || bad "J: agentic session" "(缺 session ⇒ 无法归因到具体任务)"
 mv "$EVO_ROOT/lessons/seed-failure-lessons-as-templates.md" "$EVO_ROOT/playbook/"
 # 梯度提案的判据必须读 reconcile 日志，**不读 frontmatter 的 evidence 字段**。
 # SCHEMA ⑨ 说 evidence「由 distill 对账单点回填（reconcile.jsonl）」，但搜遍 bin/evo
