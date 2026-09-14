@@ -209,6 +209,29 @@ function parseFm(src) {
   return { data, body: src.slice(m[0].length) };
 }
 
+// session-refs 时效统计 —— doctor 第 15 项与 reflect「蒸馏节律」**共用**，避免各写各的漂移
+// （同 setFmField 的三处共用原则）。失效 = transcript==='?'（哨兵）
+// **或** 有路径但文件已不在（harness 保留期 prune）。
+// 2026-09-14 修：两处原实现都只数哨兵，漏掉后者——本机实测 176 条（占登记 49%）被漏，
+// 于是报告说 50% 而真实不可用率是 99%。分母口径错会把归因引向错方向。
+// 顺带回传 liveSessions：对账覆盖率要用它区分「可对账」与「结构性不可对账」。
+function sessionRefStats() {
+  const st = { total: 0, stale: 0, live: new Set() };
+  try {
+    for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const j = JSON.parse(line); st.total++;
+        const t = j.transcript || '?';
+        if (t === '?') st.stale++;
+        else if (fs.existsSync(t)) { if (j.session) st.live.add(j.session); }
+        else st.stale++;
+      } catch {}
+    }
+  } catch {}
+  return st;
+}
+
 function* walk(dir) {
   let es;
   try { es = fs.readdirSync(dir, { withFileTypes: true }); }
@@ -1061,20 +1084,8 @@ const cmds = {
     // 2026-09-14 修：原实现只数 transcript==='?'（哨兵），**没数「有路径但文件已不在」**。
     // 后者是 harness 保留期 prune 造成的真失效，本机实测 176 条（占登记 49%）被漏掉，
     // 于是本行报 50%（贴着阈值）而真实不可用率是 99%——分母口径错会把归因引向错方向。
-    let refsTotal = 0, refsStale = 0;
-    const liveSessions = new Set();
-    try {
-      for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
-        if (!line.trim()) continue;
-        try {
-          const j = JSON.parse(line); refsTotal++;
-          const t = j.transcript || '?';
-          if (t === '?') refsStale++;
-          else if (fs.existsSync(t)) { if (j.session) liveSessions.add(j.session); }
-          else refsStale++;
-        } catch {}
-      }
-    } catch {}
+    const st = sessionRefStats();
+    const refsTotal = st.total, refsStale = st.stale, liveSessions = st.live;
 
     // 对账覆盖率的分母必须排除「结构性不可对账」的注入实例（2026-09-14 修）。
     // 一次注入实例只有在「所属 session 的 transcript 还在」时才可能被判四态；transcript 一旦
@@ -1553,16 +1564,11 @@ const cmds = {
     add(14, degradeRecent === 0 ? 'PASS' : 'WARN', '降级事件近期', degradeRecent ? `近 7 天 ${degradeRecent} 次` : '无降级');
 
     // 15. transcript 时效（§M0.4 时效约束③；阈值 D10 暂用 WARN，无硬 FAIL）
-    let refsTotal = 0, refsStale = 0;
-    try {
-      for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
-        if (!line.trim()) continue;
-        try { const j = JSON.parse(line); refsTotal++; if (j.transcript === '?') refsStale++; } catch {}
-      }
-    } catch {}
+    const st2 = sessionRefStats();
+    const refsTotal = st2.total, refsStale = st2.stale;
     const ratio = refsTotal ? refsStale / refsTotal : 0;
     let h15 = ratio > 0.5 ? 'WARN' : 'PASS';
-    add(15, h15, 'transcript 时效', refsTotal ? `${refsStale}/${refsTotal} 哨兵 (${Math.round(ratio * 100)}%)` : '无登记');
+    add(15, h15, 'transcript 时效', refsTotal ? `${refsStale}/${refsTotal} 不可用（哨兵或文件已不在）(${Math.round(ratio * 100)}%)` : '无登记');
 
     // --full：附带跑 smoke 全量
     if (full) {
