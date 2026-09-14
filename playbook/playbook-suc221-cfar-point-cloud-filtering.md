@@ -2,7 +2,7 @@
 id: playbook-suc221-cfar-point-cloud-filtering
 name: SUC221 点云虚警过滤排查步骤
 type: playbook
-status: candidate
+status: validated
 scope: [debugging, signal-processing]
 domains: [suc221, radar, cfar]
 triggers:

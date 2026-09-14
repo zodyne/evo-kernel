@@ -105,7 +105,7 @@ function main() {
   console.log(`date: ${new Date().toISOString().slice(0, 10)}   backend: ${process.env.EVO_BACKEND || 'scan'}\n`);
   console.log('| 阶段 | 用例 | 通过 | 通过率 | top1 命中 | 噪声条数 |');
   console.log('|---|---|---|---|---|---|');
-  for (const p of ['learning', 'transfer', 'change', 'noise']) {
+  for (const p of ['learning', 'transfer', 'change', 'noise', 'long']) {  // long = 长查询组（2026-09-14 补，见 BASELINE.md 结论三）
     const s = summary[p];
     if (s) console.log(`| ${p} | ${s.n} | ${s.pass} | ${s.pass_rate}% | ${s.hit_top1}% | ${s.noise_total} |`);
   }

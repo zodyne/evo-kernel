@@ -511,17 +511,17 @@ process.exit(bad===0?0:1);
 DEADID=seed-failure-lessons-as-templates
 for i in 1 2 3 4 5; do $EVO reconcile --ids $DEADID --state irrelevant >/dev/null 2>&1; done
 RF=$($EVO reflect 2>&1)
-{ echo "$RF" | grep -q "退役候选（空转）: \[$DEADID\]"; } \
-  && ok "J: 空转条目进退役候选（adopted=0 且注入≥5）" || bad "J: 空转退役" "(reflect 无该候选)"
+{ echo "$RF" | grep -q "退役候选（低精度）: \[$DEADID\]"; } \
+  && ok "J: 低精度条目进退役候选（adopted=0 且 precision<50% 且 n≥5）" || bad "J: 低精度退役" "(reflect 无该候选)"
 # 有采用记录的条目不能被误判退役：同 id 补一条 adopted 后应立即移出候选
 $EVO reconcile --ids $DEADID --state adopted >/dev/null 2>&1
-{ ! $EVO reflect 2>&1 | grep -q "退役候选（空转）: \[$DEADID\]"; } \
-  && ok "J: adopted≥1 即豁免空转退役（不误杀活条目）" || bad "J: 空转退役误杀" "(adopted 后仍在候选)"
+{ ! $EVO reflect 2>&1 | grep -q "退役候选（低精度）: \[$DEADID\]"; } \
+  && ok "J: adopted≥1 即豁免低精度退役（不误杀活条目）" || bad "J: 低精度退役误杀" "(adopted 后仍在候选)"
 # 提案幂等：demote 之后条目落到 lessons/（**仍在 SCAN_DIRS 内**），判据若不限定
 # 「当前在注入集内」，下一轮 reflect 会把同一条原样再提一遍——提案永久重复。
 # 指纹：同批 solidify 落 ops/archive（不在 SCAN_DIRS）而正确地消失；这个不对称即判据缺 zone 检查。
 mv "$EVO_ROOT/playbook/seed-failure-lessons-as-templates.md" "$EVO_ROOT/lessons/"
-{ ! $EVO reflect 2>&1 | grep -q "退役候选（空转）: \[$DEADID\]"; } \
+{ ! $EVO reflect 2>&1 | grep -q "退役候选（低精度）: \[$DEADID\]"; } \
   && ok "J: 已出注入集的条目不进退役候选（demote 幂等）" || bad "J: 提案幂等" "(已移入 lessons 仍被提议)"
 mv "$EVO_ROOT/lessons/seed-failure-lessons-as-templates.md" "$EVO_ROOT/playbook/"
 # 梯度提案的判据必须读 reconcile 日志，**不读 frontmatter 的 evidence 字段**。
@@ -539,6 +539,16 @@ for i in 1 2 3; do $EVO reconcile --ids zz-log-backed --state adopted >/dev/null
   && ok "J: 有日志支撑（adopted=3、evidence.helpful=0）才进固化候选" \
   || bad "J: 固化正向对照" "(有日志仍未提议)"
 rm -f "$EVO_ROOT/playbook/zz-log-backed.md"
+# 逐条精度闸门（M1 精度修复）：对账样本 ≥3 且精度 <50% 的条目**不进自动注入**，
+# 但直调 recall 照常可取。机制缺口：irrelevant 的 delta 是 (0,0)、govWeight 的 evW
+# 又有 0.3 下限 → 被反复判无関的条目权重不降、无限期被继续注入（实测 182 次注入 12 例全无関）。
+printf -- '---\nid: zz-lowprec\ntype: bullet\nstatus: validated\ntriggers: ["低精度闸门探针"]\n---\n正文\n' > "$EVO_ROOT/playbook/zz-lowprec.md"
+for i in 1 2 3 4 5; do $EVO reconcile --ids zz-lowprec --state irrelevant >/dev/null 2>&1; done
+{ ! printf '{"session_id":"zz-gate-%s","prompt":"低精度闸门探针是什么"}' $RANDOM | $EVO hook-recall 2>&1 | grep -q 'zz-lowprec'; } \
+  && ok "J: 低精度条目不进自动注入（无関 3/3 → 闸门排除）" || bad "J: 精度闸门" "(无关 5/5 仍被自动注入)"
+{ $EVO recall --task "低精度闸门探针是什么" --budget 600 2>&1 | grep -q 'zz-lowprec'; } \
+  && ok "J: 直调 recall 不受精度闸门限制（人明确要检索时照做）" || bad "J: 直调不受限" "(被闸门误伤)"
+rm -f "$EVO_ROOT/playbook/zz-lowprec.md"
 
 # ════════════ K. doctor（M0.4，唯一非零退出命令） ════════════
 echo "——— K. doctor（部署自检） ———"

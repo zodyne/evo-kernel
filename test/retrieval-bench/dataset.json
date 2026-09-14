@@ -14,21 +14,21 @@
   "tasks": [
     {
       "id": "L-arxiv",
-      "phase": "learning",
+      "phase": "invalid",
       "query": "arXiv 批量下载论文元数据，API 返回 429 怎么处理",
       "expect_ids": [
         "arxiv-api-rate-limit"
       ],
-      "note": "近 triggers，基线下限"
+      "note": "目标 arxiv-api-rate-limit 于 2026-09-14 按低精度退役（对账 12 例全 irrelevant、精度 0%）→ 已出注入集，任何召回层都不可能命中（近 triggers，基线下限）"
     },
     {
       "id": "L-hook",
-      "phase": "learning",
+      "phase": "invalid",
       "query": "Claude Code 的 SessionStart hook 拿不到用户 prompt",
       "expect_ids": [
         "claude-hook-sessionstart-no-prompt"
       ],
-      "note": "近 triggers，基线下限"
+      "note": "目标 claude-hook-sessionstart-no-prompt 于 2026-09-14 归档（已被 skill:claude-code 取代，对账 22 例精度 9%）→ 已出注入集（近 triggers，基线下限）"
     },
     {
       "id": "L-timeout",
@@ -68,21 +68,21 @@
     },
     {
       "id": "T-arxiv",
-      "phase": "transfer",
+      "phase": "invalid",
       "query": "用脚本批量拉论文摘要，连着请求几十次之后对方服务端开始拒绝我",
       "expect_ids": [
         "arxiv-api-rate-limit"
       ],
-      "note": "避开 429 / API / export.arxiv.org"
+      "note": "同 L-arxiv（避开 429 / API / export.arxiv.org）"
     },
     {
       "id": "T-hook",
-      "phase": "transfer",
+      "phase": "invalid",
       "query": "想让每次对话一开始就自动带上以前的笔记，但挂在启动事件上的脚本读不到用户说了什么",
       "expect_ids": [
         "claude-hook-sessionstart-no-prompt"
       ],
-      "note": "避开 SessionStart / hook / 注入"
+      "note": "同 L-hook（避开 SessionStart / hook / 注入）"
     },
     {
       "id": "T-timeout",
@@ -200,6 +200,38 @@
         "zz-base-image"
       ],
       "note": "fixture：未被取代的同库条目不应受取代动作影响（防误伤）"
+    },
+    {
+      "id": "L-jsyaml",
+      "phase": "long",
+      "query": "我在写脚本批量处理一批 markdown 笔记的 frontmatter，用当前的 yaml 库解析文件开头那段头部。问题是取出来的日期字段不是字符串——typeof 出来是 object，我拿它做字符串比较一直不相等，拼接出来的也不对。想知道这是不是解析库默认 schema 的行为、以及怎样才能让它按字面字符串给我。",
+      "expect_ids": [
+        "js-yaml-silently-parses-iso-date-to-object"
+      ],
+      "note": "长查询正例：vocabulary 与 trigger 差很远（不说 js-yaml / CORE_SCHEMA），但语义是同一问题。同时是 2026-09-14 实际踩到的坑。"
+    },
+    {
+      "id": "L-slice-harness",
+      "phase": "long",
+      "query": "我们的切片工具在读不同来源的会话记录时对不齐：从某一类记录里能正常列出执行的命令和对应输出，换另一类记录就整段是空的，连写文件动作也丢了。看原始记录，工具调用字段的名字和结构每套都不一样，路径字段的叫法也不同。想知道该怎么规整才能让切片在几种记录上都能覆盖到。",
+      "expect_ids": [
+        "evo-slice-normalize-toolname-case-and-path-field"
+      ],
+      "note": "长查询正例：per-harness 工具名/字段名规整。措辞刻意不含任何工具名。"
+    },
+    {
+      "id": "L-noise-schedule",
+      "phase": "long",
+      "query": "帮我梳理一下本周剩下的安排：周二下午三点要和供应商开一小时的需求对齐会，周三上午留出两小时把评审意见整理成一份文档，周四尽量不排会用来做深度工作。另外把周五下午空出来，如果有紧急事项再填进去。输出成一张按天分组的清单，每天下面列出时间、事项和预计时长。",
+      "expect_ids": [],
+      "note": "长噪声例：日程整理类任务，库里没有对应经验。expect 空 → 必须零注入才算通过。"
+    },
+    {
+      "id": "L-noise-rename",
+      "phase": "long",
+      "query": "把素材目录里那批手机拍的照片按拍摄日期重命名，统一成 YYYYMMDD-HHMMSS 的格式，同一天多张就往后加序号。然后生成一个清单文件，列出新文件名、原始文件名和文件大小，按时间升序排列。处理前先统计一下总张数和占用空间，做完再报一遍。",
+      "expect_ids": [],
+      "note": "长噪声例：批量重命名 + 生成清单，库里没有对应经验。"
     }
   ]
 }

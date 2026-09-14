@@ -98,3 +98,74 @@ v3 砍掉约 63% 的注入量。丢失榜首几条确实是已知噪声条目，
 8–10 条的正是那类查询。所以 bench 判不了"砍掉 63% 注入量是改进还是回归"。
 **下一步应先给 bench 补长查询用例（正例与噪声例都要），再让它仲裁评分变更**，
 而不是继续调参数。
+
+---
+
+### 2026-09-14 · backend=scan · 库 224 条 · 长查询用例 + 逐条精度闸门
+
+**动因**：实盘精度跌破阈值（`M1 召回精度 40%（90/225）` <50% 连续2周期 → 命中）。
+
+**先做的测量**（此前无此项）
+
+- 逐条精度：泄漏高度集中 —— 5 条条目占约 25% 注入量、精度全 ≤30%（`arxiv-api-rate-limit`
+  182 次/0% · `seed-failure-lessons-as-templates` 158 次/0% · `episode-suc221-fpga-cache-mismatch`
+  103 次/30% …）。
+- **但现役 vs 已移出两组的精度几乎一致**（95 例/42% vs 130 例/38%）→ 是**机制级**过度注入，
+  不是个别坏条目。这条测量否掉了「清几条坏条目就好」的方向。
+
+**v3 丢失清单：本次用对账数据替 §5.0 的人审做了仲裁**（上次只能「未审 → 不 cutover」）
+
+| v3 丢失 Top | 丢失次数 | 对账精度 | 判定 |
+|---|---|---|---|
+| episode-agent-evo-research | 35 | 69% | ❌ 丢=回归 |
+| seed-failure-lessons-as-templates | 25 | 0% | ✅ 丢=改进 |
+| ai-agent-book-as-self-evolution-reference | 24 | **100%** | ❌ 丢=回归 |
+| episode-suc221-project-overview | 20 | 71% | ❌ 丢=回归 |
+| design-review-cross-check-implementation | 16 | 67% | ❌ 丢=回归 |
+| independent-design-review | 14 | 84% | ❌ 丢=回归 |
+
+**5/7 是高精度条目 → 否决 v3**（与上次「保持 v0」同结论，但这次有数据）。
+
+**改的是另一条路：逐条精度闸门**（`lowPrecisionIds()`）
+
+- 判据：对账样本 ≥ `EVO_PRECISION_MIN_N`（**5**，与内核 DEAD_MIN 同口径）且精度
+  < `EVO_PRECISION_MIN`（0.5）→ **不进自动注入**；直调 `recall` 与 `get --ids` 照常可取。
+- 效果：现役集内 2 条入闸（`pi-mcp-adapter-global-config-path` 36 次/40%、
+  `macos-no-timeout-command` 20 次/20%）。
+- 只读 reconcile 日志（不读人工维护、会漂移的 `evidence` 字段 —— 见同日 reflect 三判据修复）。
+- **已知缺口**：`seed-failure-lessons-as-templates`（158 次注入、0% 精度）只有 4 条对账记录，
+  擦着样本量门槛溜过。这是 transcript 丢失的下游后果，非本机制可解。
+
+**本轮 bench 变化：补 long 阶段（基线「结论三」点名的缺口）**
+
+新增 4 条**长查询**用例（此前 12 条全是短查询）：
+- 正例 `L-jsyaml`（长 prompt 描述 YAML 日期字段变 object，期望 `js-yaml-silently-parses-iso-date-to-object`）
+- 正例 `L-slice-harness`（长 prompt 描述跨 harness 切片对不齐）
+- 噪声 `L-noise-schedule`（长日程整理 prompt，expect 空 = 必须零注入）
+- 噪声 `L-noise-rename`（长批量重命名 prompt）
+
+| 阶段 | 用例 | 通过率 | top1 | 噪声 |
+|---|---|---|---|---|
+| learning | 4 | 100% | 100% | 2 |
+| transfer | 5 | 20% | 20% | 2 |
+| change | 2 | 100% | 100% | 0 |
+| noise | 6 | 83% | 83% | 1 |
+| **long** | **4** | **75%** | 50% | **5** |
+
+**long 的唯一失败即「结论三」预测的现象**：`L-noise-schedule`（长日程 prompt）召回了
+毫不相关的 `bash-loop-child-steals-stdin`。**长查询组噪声 5 条来自 4 个用例** —— 而短查询组
+（learning+transfer+noise）噪声合计仅 5 条来自 15 个用例。**结论三从断言变成测量值。**
+
+**勘误（本轮）**：`L-arxiv` / `T-arxiv` / `L-hook` / `T-hook` 标 `phase: invalid` ——
+其目标条目（`arxiv-api-rate-limit` 12 例全无关、`claude-hook-sessionstart-no-prompt` 22 例
+精度 9%）已于同日按低精度退役/归档，**任何召回层都不可能命中**（同 `T-heredoc` 的处理）。
+标掉后 learning 回到 100%、transfer 1/5；**这不是回归** —— 基线里 T-hook 原是唯一额外通过项，
+它变成不可达是设计性结果。
+
+**bench 本轮还纠正了一次判据错误**：`playbook-suc221-cfar-point-cloud-filtering` 于同日
+4-A 被「空转退役」判据退役（adopted=0），而它在 bench 里是 `L-cfar`/`T-cfar` 的期望目标、
+对账精度 **85%**（11 相关 / 2 无关）。根因是 `dead = irrelevant + relevant-unused` 把
+「无关」与「相关但没被用上」混为一谈。判据已改为精度基（`adopted===0 && precision<50% && n>=5`），
+该条目已撤回 `playbook/`。
+
+**尚未测量**：闸门上线后的实盘精度变化 —— 需等新数据（pi/hermes 自动回流 2026-09-14 才打通）。
