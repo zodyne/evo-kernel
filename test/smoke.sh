@@ -317,7 +317,10 @@ t "slice Claude 写文件"     "/tmp/evo-slice-demo.txt" $EVO slice --session "$
 # 工具调用为 OpenAI 形态 tool_calls[].function.{name,arguments(JSON 字符串)}，
 # 工具名为 terminal / write_file，结果在 role:'tool' 里。不测它就无法发现它整段不可读——
 # 而二期接 Hermes hooks 的先决条件正是 slice 能读它的 transcript。
-t "slice Hermes 命令↔结果"  "↳ total 42" $EVO slice --session "$SRC/test/fixtures/sample-session-hermes.jsonl"
+# 注意期望值：Pi/Claude 的 toolResult content 是裸文本（`↳ total 42`），
+# 而 Hermes 的 role:'tool' content 是**结果 JSON 本体**（`↳ {"output":"total 42",...}`），
+# 所以这里只能断言结果里的关键串，不能照搬 Pi 那条的形态。
+t "slice Hermes 命令↔结果"  "total 42" $EVO slice --session "$SRC/test/fixtures/sample-session-hermes.jsonl"
 t "slice Hermes 写文件"     "/tmp/evo-slice-demo.txt" $EVO slice --session "$SRC/test/fixtures/sample-session-hermes.jsonl"
 
 # ════════════ G. YAML 边界 fixture（M0.1，R3 盲区 round-trip） ════════════
