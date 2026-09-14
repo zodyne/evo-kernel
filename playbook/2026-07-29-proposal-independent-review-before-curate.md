@@ -17,9 +17,8 @@ source: session:8e6bf649-a112-4ed7-a3bb-5391e23931a0
 last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
-related: [independent-design-review, review-packet-completeness-is-assemblers-duty]
+related: [review-packet-completeness-is-assemblers-duty]
 ---
-
 # 提案入库前过一次独立模型评审：伪经验在自审里是隐形的
 
 ## 主张

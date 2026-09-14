@@ -17,9 +17,8 @@ source: session:64181609
 last_verified: 2026-07-24
 superseded_by: null
 schema_version: 1
-related: [independent-design-review, design-review-cross-check-implementation]
+related: [design-review-cross-check-implementation]
 ---
-
 # 评审"部署就绪"设计文档的四个结构性缺口维度
 
 **主张**：判断设计文档能否照着部署，按四个维度查结构性缺口（不是实施细节）：① **数据安全与存续**——git 解决版本化不解决备份，单机单仓磁盘故障即资产全灭，须有 remote/异地副本 + 恢复演练入验收；② **验收门覆盖所有行为变更阶段**——好模式（如双实现对账 cutover 门）不能只给 M0，M1/M2 换检索后端同样改变行为，要复制同一套对账+回退模式；③ **测量定义**——核心判据（如"注入精度"）要有操作性定义与日志通道，否则判据不可执行；④ **运维故事**——降级事件、并发写竞争、输入保鲜期（transcript 保留期 vs 蒸馏周期错配）要成文。
