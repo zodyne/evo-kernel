@@ -27,4 +27,4 @@ related: [numpy-complex-scalar-division, neon-vmlaq-f32-not-portable-bit-exact, 
 
 **反例/边界**：生产构建追求精度/性能、无需与参照逐点比对时，不必关 FMA；本条专指验收期（验收过后可按需放开）。
 
-**证据**：UCM221 C 移植验收（capture-2026-07-27-14-36-51-742-ee3f），验收期编译固定 `-ffp-contract=off` 后 C 侧与 numpy 参照可比。
+**证据**：SUC221 C 移植验收（capture-2026-07-27-14-36-51-742-ee3f），验收期编译固定 `-ffp-contract=off` 后 C 侧与 numpy 参照可比。

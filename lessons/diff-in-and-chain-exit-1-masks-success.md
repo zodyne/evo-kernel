@@ -17,7 +17,7 @@ source: session:0a908942-190f-4fef-b7db-437423af1169
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related: [patch-live-script-via-scratchpad-copy, sed-delimiter-collision-use-python-pathlib]
+related: [patch-live-script-via-scratchpad-copy]
 ---
 
 `diff` 的语义是"有差异返回 1"——而验证改动生效时**差异正是成功标志**。把 diff 串在 `&&` 链里（如 `sed -i.bak 's/a/b/' f && diff f f.bak`），改动越成功整条命令越报 Exit code 1，harness 会把一次成功的编辑渲染成 ✗ 失败。

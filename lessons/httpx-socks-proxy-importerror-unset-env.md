@@ -17,7 +17,7 @@ source: session:06d00000-c5a0-4247-9e4a-de361d19d25e
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related: [local-proxy-env-blocks-api-client, long-running-process-needs-restart-after-pip-install]
+related: [long-running-process-needs-restart-after-pip-install]
 ---
 
 httpx 见到 `ALL_PROXY=socks5://...` 环境变量会尝试走 SOCKS，缺 `socksio` 时在**发请求前**直接抛 `ImportError("Using SOCKS proxy, but the 'socksio' package is not installed")`——这不是网络问题。一次性脚本的最快解法是在 shell 里 `unset ALL_PROXY all_proxy` 再跑，不必装依赖。

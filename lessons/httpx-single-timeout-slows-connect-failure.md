@@ -24,8 +24,6 @@ source: session:0a908942-190f-4fef-b7db-437423af1169
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related:
-- kimi-api-latency-streaming-thinking
 ---
 
 `httpx.AsyncClient(timeout=300.0)` 这一个值会同时作用于 connect/read/write/pool 四个阶段：端点或代理层故障时，**连接失败也要等满 300 秒**才报错。长生成请求的正确配法是拆分：`httpx.Timeout(connect=10.0, read=300.0, write=30.0, pool=30.0)`——connect 短（故障秒级暴露），read 长（容纳生成耗时）。

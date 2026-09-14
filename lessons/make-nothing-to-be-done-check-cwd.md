@@ -17,7 +17,6 @@ source: session:da720f38-036f-42ec-820d-ce8538a4fc1f
 last_verified: 2026-08-01
 superseded_by: null
 schema_version: 1
-related: [claude-code-shell-cwd-reset-use-git-dash-c]
 ---
 
 # make 报 "Nothing to be done" 先 pwd：很可能在错的目录跑了另一个 Makefile
@@ -26,4 +25,4 @@ related: [claude-code-shell-cwd-reset-use-git-dash-c]
 
 **处置**：先 `pwd && ls Makefile` 确认 cwd，然后用 `make -C <项目根绝对路径>` 代替依赖 cwd 的裸 `make`。
 
-**证据**（session da720f38）：在 `libucm221/src/examples/faf_offline` 下连跑三条 `make CC=cc` 想构建顶层 `libSPX_ALG.dylib`，分别得到 "Nothing to be done" 和 "No rule to make target `libSPX_ALG.dylib'"；`pwd` 揭示在子目录；改 `make -C $L CC=cc` 后 `✓ 构建完成: libSPX_ALG.dylib`。
+**证据**（session da720f38）：在 `libsuc221/src/examples/faf_offline` 下连跑三条 `make CC=cc` 想构建顶层 `libSPX_ALG.dylib`，分别得到 "Nothing to be done" 和 "No rule to make target `libSPX_ALG.dylib'"；`pwd` 揭示在子目录；改 `make -C $L CC=cc` 后 `✓ 构建完成: libSPX_ALG.dylib`。

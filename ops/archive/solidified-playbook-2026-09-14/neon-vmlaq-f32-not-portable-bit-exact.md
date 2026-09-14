@@ -23,7 +23,7 @@ related: [simd-split-along-lane-divisible-dimension, acceptance-build-ffp-contra
 
 **主张**：要求 NEON 代码跨架构逐位一致时，**不要用 `vmlaq_f32`**——它在 aarch64 上被编成 FMLA（fused，乘加之间少一次舍入），在 ARMv7 上是非 fused 的，同一份源码在两个架构给出不同的数。改用 `vmulq_f32` + `vaddq_f32` 分开写，两个架构都走"乘→舍入→加→舍入"的同一路径。
 
-**为什么**：fused 与否改变舍入次数，是编译器/架构级的静默差异，源码层面完全看不出来；UCM221 rho 网格搜索 NEON 化即靠拆分写法做到与标量版逐字节相同。
+**为什么**：fused 与否改变舍入次数，是编译器/架构级的静默差异，源码层面完全看不出来；SUC221 rho 网格搜索 NEON 化即靠拆分写法做到与标量版逐字节相同。
 
 **反例/边界**：只在单架构部署、或不要求 bit-exact（容差比对）时，`vmlaq_f32` 更快更准，可以用。
 

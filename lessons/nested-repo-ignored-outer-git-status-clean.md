@@ -18,7 +18,7 @@ source: session:7c4809cc-6484-46a8-ad6b-dc591541577a
 last_verified: 2026-08-02
 superseded_by: null
 schema_version: 1
-related: [git-check-ignore-before-committing-sensitive-notes, claude-code-shell-cwd-reset-use-git-dash-c]
+related: [git-check-ignore-before-committing-sensitive-notes]
 ---
 # 外层 git status 全干净但文件明明改了：先查是否是被外层 .gitignore 忽略的嵌套 git 仓库
 
@@ -28,11 +28,11 @@ related: [git-check-ignore-before-committing-sensitive-notes, claude-code-shell-
 
 ## 证据
 
-会话中改完 `libucm221/src/signalProcess/tcm893/signalProcessing.tcm893.c` 等文件后：
+会话中改完 `libsuc221/src/signalProcess/tcm893/signalProcessing.tcm893.c` 等文件后：
 
 - 外层 `git diff -- <path>`（两种相对路径写法）与 `git status --short` 全部空输出；`git status` 报 "On branch feat/faf-embedded-port nothing to commit, working tree clean"。
-- `git check-ignore -v libucm221/.../signalProcessing.tcm893.c` → 命中 `.gitignore:20:/libucm221/`；`ls libucm221/.git` 确认是嵌套仓库。
-- 进内层后 `git diff -- src/examples/faf_offline/main.c` 立刻出真实 diff；后续全程改用 `git -C .../libucm221 status --short`，正常显示 ` M` 改动。
+- `git check-ignore -v libsuc221/.../signalProcessing.tcm893.c` → 命中 `.gitignore:20:/libsuc221/`；`ls libsuc221/.git` 确认是嵌套仓库。
+- 进内层后 `git diff -- src/examples/faf_offline/main.c` 立刻出真实 diff；后续全程改用 `git -C .../libsuc221 status --short`，正常显示 ` M` 改动。
 
 ## 边界
 

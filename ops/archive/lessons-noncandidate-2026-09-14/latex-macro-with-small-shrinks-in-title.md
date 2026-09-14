@@ -22,7 +22,7 @@ related: [xelatex-missing-character-renders-blank, figure-readability-has-no-log
 
 **主张**：内部带字号命令（`\small` 等）的自定义宏（如 `\code`）**不能用在 `\title` / `\author` / 章节标题里**——标题本身是大字号，再叠 `\small` 会把文字缩得极小，且 xelatex 编译不报警，只有渲染出来才看得见。
 
-**证据**（ucm221 faf_offline 进展报告，2026-08-03）：`progress_report.tex` 的标题/作者处用了带 `\small` 的 `\code` 宏，渲染 PNG 目检发现字被缩得极小。补丁注释明确记录：「标题/作者不要用 \code（它带 \small，在标题字号下会被缩得极小）」，改掉后重新编译 + pdftoppm 渲染确认修复。编译日志全程无相关警告——又是「编译绿 ≠ 排版对」的一例。
+**证据**（suc221 faf_offline 进展报告，2026-08-03）：`progress_report.tex` 的标题/作者处用了带 `\small` 的 `\code` 宏，渲染 PNG 目检发现字被缩得极小。补丁注释明确记录：「标题/作者不要用 \code（它带 \small，在标题字号下会被缩得极小）」，改掉后重新编译 + pdftoppm 渲染确认修复。编译日志全程无相关警告——又是「编译绿 ≠ 排版对」的一例。
 
 **做法**：标题/作者/section 标题里需要等宽效果时，用不带字号的 bare `\texttt`，或另定义一个不含字号命令的标题专用宏；正文里的 `\code` 保留 `\small` 没问题。
 

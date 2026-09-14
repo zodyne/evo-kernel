@@ -19,6 +19,6 @@ superseded_by: skill:claude-code
 schema_version: 1
 ---
 
-Claude Code 的 Bash 工具不保证 cwd 跨命令持久：会话中出现过 `Shell cwd was reset to /Users/zodyne/Dev/ucm221`——前一条 `cd /Users/zodyne/Dev/ucm221` 后紧接着的 `git diff` 实际在别的仓库上下文执行（结果为空，险些误判"无改动"）。
+Claude Code 的 Bash 工具不保证 cwd 跨命令持久：会话中出现过 `Shell cwd was reset to /Users/zodyne/Dev/suc221`——前一条 `cd /Users/zodyne/Dev/suc221` 后紧接着的 `git diff` 实际在别的仓库上下文执行（结果为空，险些误判"无改动"）。
 
 对策：跨仓库操作不要依赖上一条 `cd`，每条命令自带定位——`git -C <repo> status/diff`、绝对路径读文件。cwd 被重置后相对路径命令静默跑在错的仓库，比报错更危险。

@@ -26,7 +26,7 @@ schema_version: 1
 
 ## 证据
 
-会话中把 false_alarm_filter 模块合入 libucm221 的 `libSPX_ALG.dylib`，修改 CMakeLists.txt 的脚本里自述缺陷：
+会话中把 false_alarm_filter 模块合入 libsuc221 的 `libSPX_ALG.dylib`，修改 CMakeLists.txt 的脚本里自述缺陷：
 
 ```
 # --- A. 我的缺陷: GLOB_RECURSE 会把 false_alarm_filter/ 连同 main.c 直接编进 .so ---

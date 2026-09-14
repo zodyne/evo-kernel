@@ -22,7 +22,7 @@ schema_version: 1
 
 **主张**：clangd 的 compile_commands.json 是**逐文件、从源文件逐级向上**找的，与编辑器侧的 nvim `root_dir` 无关；子目录里的编译数据库会**遮蔽**仓库根/别处真正想用的那份。
 
-**案例**（UCM221）：`embedded/sim/sim_pipeline.c` 向上撞到 `embedded/compile_commands.json`（`make compdb` 生成的旧 flags），而真正该用的是 `libucm221/build/compile_commands.json`——nvim 里 20 条误报诊断。改 lspconfig 的 root_dir 无效。
+**案例**（SUC221）：`embedded/sim/sim_pipeline.c` 向上撞到 `embedded/compile_commands.json`（`make compdb` 生成的旧 flags），而真正该用的是 `libsuc221/build/compile_commands.json`——nvim 里 20 条误报诊断。改 lspconfig 的 root_dir 无效。
 
 **修复**（实测生效）：仓库根放一个 `.clangd`：
 
@@ -30,11 +30,11 @@ schema_version: 1
 If:
   PathMatch: embedded/sim/.*
 CompileFlags:
-  CompilationDatabase: libucm221/build
+  CompilationDatabase: libsuc221/build
 ```
 
 两个踩过的坑（前两次写法都未生效，`clangd --check` 仍显示加载 embedded/ 的 CDB）：① `CompilationDatabase:` 必须放在 `CompileFlags:` 之下，不能作为 fragment 顶层键；② PathMatch 用 `embedded/sim/.*`，不要带 `.*/` 前缀。
 
-**验证方法**：`clangd --check=<file> 2>&1 | grep "Loaded compilation database"`——修好后 sim_pipeline.c 显示从 `libucm221/build` 加载；nvim headless 复测诊断 20 → 0（faf.c root=仓库根 diags=0）。
+**验证方法**：`clangd --check=<file> 2>&1 | grep "Loaded compilation database"`——修好后 sim_pipeline.c 显示从 `libsuc221/build` 加载；nvim headless 复测诊断 20 → 0（faf.c root=仓库根 diags=0）。
 
 **边界**：`.clangd` 是项目级配置，放仓库根；用户级在 `~/Library/Preferences/clangd/config.yaml`（macOS）。

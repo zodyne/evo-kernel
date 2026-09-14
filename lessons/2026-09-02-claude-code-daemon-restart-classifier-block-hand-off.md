@@ -17,7 +17,6 @@ source: session:69873e4a-d307-4ff5-b06a-b44acb4ccd1c
 last_verified: 2026-09-02
 superseded_by: null
 schema_version: 1
-related: [auto-approval-classifier-outage-blocks-bash]
 ---
 Claude Code 的 auto-mode 权限分类器会拦截"重启常驻守护进程"这类 Bash 命令（本次是 `hermes gateway restart`），即使命令本身设计成安全的优雅重启（drain 再重启）。拒绝信息里明确写了"可以尝试用其他工具达成同一目标，但不要用恶意方式绕过限制背后的意图"——命中这类拦截时，正确做法是把命令原样交还用户，请其用 `!<command>` 前缀在同一终端里手动跑，跑完把 stdout 贴回来，我直接读输出继续验证，不需要重复整段调查或换路径硬闯（比如手动 kill 进程再重新拉起）。
 

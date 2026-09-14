@@ -17,7 +17,7 @@ source: session:b78d3e85-eb00-4f1c-82d9-d12ac9e1fbc7
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related: [local-proxy-env-blocks-api-client, listmodels-display-omits-provider]
+related: [listmodels-display-omits-provider]
 ---
 
 **主张**：本机代理变量里有 `ALL_PROXY=socks5://127.0.0.1:7897`，被继承代理环境的常驻进程（如 pal-mcp-server）里的 httpx 客户端会尝试走 SOCKS，若 venv 缺 `socksio` 包就直接报错——这本身是 `local-proxy-env-blocks-api-client` 的一个具体子情形。但更值得记的是下一步：**给这个"存活中"的进程所在 venv `pip install` 补上依赖后，不重启进程就不会生效**——httpx/httpcore 是在模块加载时（进程启动那一刻）做一次 `try: import socksio` 并把结果缓存成模块级标志位，运行期间不会重新 `import`，所以哪怕包已经落盘、`python -c "import socksio"` 单独验证能成功，那个存活进程还是会报一模一样的"未安装"错误，必须杀掉重启该进程。而如果这个进程恰好是当前会话自己拉起的 MCP stdio 子进程，kill 它会导致该 MCP 在**本次会话内断线且不会自动重连**，要等新开一个会话（或该 harness 的手动重连机制）才能验证修复是否生效——不能在同一会话里直接复测。

@@ -16,7 +16,6 @@ source: session:b78d3e85-eb00-4f1c-82d9-d12ac9e1fbc7
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related: [local-proxy-env-blocks-api-client]
 ---
 
 **主张**：`pal-mcp-server` 的 `listmodels` 工具（`tools/listmodels.py:100-106`）里 `provider_info` 表是手写的 provider 白名单（Google/OpenAI/Azure/XAI/DIAL + 单独硬编码的 OpenRouter/Custom 分支），**没有把 Kimi provider 列进去**——所以即使 `KIMI_API_KEY` 已配置、provider 已注册、模型确实可用，`listmodels` 的人类可读输出里也永远不会出现 Kimi/k3 的段落。`listmodels` 展示"未列出"≠"未配置"，遇到这种情况要去读展示代码本身的分支覆盖，而不是默认相信输出完整。
