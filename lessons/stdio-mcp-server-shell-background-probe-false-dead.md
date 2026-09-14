@@ -25,8 +25,6 @@ source: session:9df36dfc-790a-4022-b8d8-620e0ced67ea
 last_verified: 2026-07-30
 superseded_by: null
 schema_version: 1
-related:
-- stdio-mcp-probe-handshake-not-help
 ---
 
 **主张**：stdio MCP server 不能用 shell 后台方式探活——`python server.py > /tmp/log 2>&1 & sleep 3; kill -0 $PID` 会**假死误判**：server 启动后因 stdin 立即 EOF 而干净退出，退出时不写任何错误，重定向的日志是 0 字节，看起来莫名崩溃。同一环境改用 `subprocess.Popen(..., stdin=PIPE)` 持住 stdin 探活，server 存活正常。验收 stdio server 要么管道喂 JSON-RPC 帧（见 related），要么用 Popen 持住 stdin，不要裸 `&`。

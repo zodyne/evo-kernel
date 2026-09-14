@@ -17,7 +17,7 @@ source: session:8e6bf649-a112-4ed7-a3bb-5391e23931a0
 last_verified: 2026-07-29
 superseded_by: null
 schema_version: 1
-related: [injection-precision-must-split-recall-vs-adoption, rerank-channel-design]
+related: [injection-precision-must-split-recall-vs-adoption]
 ---
 
 # 召回失败分两类：空命中是"够不着"，误召回是"引错路"——后者更糟，修法相反

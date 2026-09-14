@@ -26,7 +26,6 @@ superseded_by: null
 schema_version: 1
 related:
 - long-running-process-needs-restart-after-pip-install
-- stdio-mcp-probe-handshake-not-help
 ---
 带状态的 MCP 工具（内存会话表 + continuation_id）的"句柄未找到"错误消息，**必须列全所有可能失效原因**，否则调用方无法判断该重试、重开会话还是排查 server。推荐范式：`continuation_id '<id>' not found（可能已被 LRU 逐出，或从未创建，或 MCP server 重启过）`——一句覆盖容量逐出 / 笔误 / 进程重启三种正交原因。
 
