@@ -1,7 +1,7 @@
 ---
 id: arxiv-api-rate-limit
 type: bullet
-status: validated
+status: candidate
 scope: global
 domain: web-scraping
 tags: [arxiv, api, rate-limit]
