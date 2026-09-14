@@ -11,7 +11,13 @@
       "indeterminate": "query 文本本身残缺 ⇒ 方法学上无效，排除（理由须是先验的，不能因结果排除）"
     },
     "borderline_handling": "**报区间**而非丢弃：下界把 borderline 当 I，上界把 borderline 当 R。两个数一起报，不确定性就显式了 —— 比\"丢掉不管\"诚实，也比\"我替你定了\"安全。",
-    "round2": "2026-09-14 第二轮：query 集 9 → 20，新增 11 条由另 3 名盲标者标注（同样未读 recall.jsonl）。n=10 由标者独立建议归 indeterminate（与 n=1 同因：100 字硬截断）。"
+    "round2": "2026-09-14 第二轮：query 集 9 → 20，新增 11 条由另 3 名盲标者标注（同样未读 recall.jsonl）。n=10 由标者独立建议归 indeterminate（与 n=1 同因：100 字硬截断）。",
+    "verification": {
+      "date": "2026-09-14",
+      "method": "对 19 个「系统打分 ≤0.08 却被判 R」的对，派 2 名独立判定者盲判（不告知原判），逐对给 R/I + 置信度。",
+      "result": "**5/19 = 26% 分歧**（3 条 clear + 2 条 borderline）。复核者独立指出的三条与复核前人工怀疑**完全相同** ⇒ 分歧不是噪声，是规范里「同项目不同子问题」「纯背景」两条约束真在起作用。",
+      "lesson": "**对\"系统给分极低却被判相关\"的对照专项复核** —— 那一片最容易混入按「抽象可迁移性」判的过度包容。这不是标注者失误，是短/泛指 query 下规范本身的固有歧义。"
+    }
   },
   "labels": {
     "1": {
@@ -71,6 +77,9 @@
         "review-packet-completeness-is-assemblers-duty",
         "stamp-baseline-before-review",
         "verify-external-references"
+      ],
+      "disputed": [
+        "doc-selfreported-counts-drift"
       ]
     },
     "4": {
@@ -103,6 +112,9 @@
         "lua-gsub-multireturn-pitfall-in-fn-args",
         "backup-untracked-file-before-edit",
         "verify-external-references"
+      ],
+      "disputed": [
+        "vim-fs-normalize-expands-tilde"
       ]
     },
     "7": {
@@ -242,7 +254,10 @@
         "stamp-baseline-before-review",
         "doc-selfreported-counts-drift"
       ],
-      "note": "天生泛指（「你来修改，并将修改记录起来」无宾语）：6 条 borderline 全部源于「无法确定改动对象」，区间宽度即信息"
+      "note": "天生泛指（「你来修改，并将修改记录起来」无宾语）：6 条 borderline 全部源于「无法确定改动对象」，区间宽度即信息",
+      "disputed": [
+        "backup-untracked-file-before-edit"
+      ]
     },
     "16": {
       "relevant": [
@@ -263,7 +278,11 @@
         "review-packet-completeness-is-assemblers-duty",
         "unverified-arxiv-ids"
       ],
-      "note": "无对象泛指（「解决方案」不知为何物、模型数与通道未指定）"
+      "note": "无对象泛指（「解决方案」不知为何物、模型数与通道未指定）",
+      "disputed": [
+        "proposal-independent-review-before-curate",
+        "three-review-passes-catch-different-layers"
+      ]
     },
     "18": {
       "relevant": [

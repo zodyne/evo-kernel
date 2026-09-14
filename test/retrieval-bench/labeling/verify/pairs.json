@@ -1,0 +1,97 @@
+[
+  {
+    "n": 2,
+    "entry": "design-review-cross-check-implementation",
+    "query": "Task: 侦察 /Users/zodyne/Dev/algommw 仓库，目标是回答\"当前项目工作进度到哪了\"。这是一个净室重写的毫米波雷达离线信号处理链（C 语言，host + embedded 双目标），处理链为 ADC → RangeFFT → DopplerFFT → CFAR → DOA → EKF 群跟踪。\n\n请完成以下侦察并返回压缩结论（中文）：\n\n1. **阶段计划与进度**：读 docs/EXECUTION_PLAN.md，总结阶段划分（阶段 0-4）、各阶段闸门定义、当前标记为已完成/未完成的阶段。\n2. **git 历史**：跑 `git log --oneline -30` 和 `git status`、`git diff --stat HEAD`（如有未提交改动），总结最近的开发活动主题、最近在做什么、有没有进行中的未提交工作。\n3. **里程碑线索**：CLAUDE.md 里提到 M0、M5、B1 等里程碑（如 M0 = 测试 assert 修复、M5 = profile 配置）。在 docs/ 和 git log 里找这些里程碑的定义与完成状态，列出已到"
+  },
+  {
+    "n": 2,
+    "entry": "report-schema-claims-need-live-ground-truth",
+    "query": "Task: 侦察 /Users/zodyne/Dev/algommw 仓库，目标是回答\"当前项目工作进度到哪了\"。这是一个净室重写的毫米波雷达离线信号处理链（C 语言，host + embedded 双目标），处理链为 ADC → RangeFFT → DopplerFFT → CFAR → DOA → EKF 群跟踪。\n\n请完成以下侦察并返回压缩结论（中文）：\n\n1. **阶段计划与进度**：读 docs/EXECUTION_PLAN.md，总结阶段划分（阶段 0-4）、各阶段闸门定义、当前标记为已完成/未完成的阶段。\n2. **git 历史**：跑 `git log --oneline -30` 和 `git status`、`git diff --stat HEAD`（如有未提交改动），总结最近的开发活动主题、最近在做什么、有没有进行中的未提交工作。\n3. **里程碑线索**：CLAUDE.md 里提到 M0、M5、B1 等里程碑（如 M0 = 测试 assert 修复、M5 = profile 配置）。在 docs/ 和 git log 里找这些里程碑的定义与完成状态，列出已到"
+  },
+  {
+    "n": 3,
+    "entry": "doc-selfreported-counts-drift",
+    "query": "我在 @Dev/agent-evo/design/blueprint.md 中使用claude进行了一轮评审，请分析进行研究和实施"
+  },
+  {
+    "n": 3,
+    "entry": "greenfield-rebuild-via-spec-patch",
+    "query": "我在 @Dev/agent-evo/design/blueprint.md 中使用claude进行了一轮评审，请分析进行研究和实施"
+  },
+  {
+    "n": 4,
+    "entry": "macos-dual-nic-intranet-subnet-needs-per-service-route",
+    "query": "公司在内网有一个中转站，它中转了deepseek，我的电脑可以链接外网，我想中转到云服务器中的openclaw中使用"
+  },
+  {
+    "n": 5,
+    "entry": "three-review-passes-catch-different-layers",
+    "query": "已经修改请扫描审查"
+  },
+  {
+    "n": 6,
+    "entry": "vim-fs-normalize-expands-tilde",
+    "query": "解决当前nvim中出现的lsp报错问题"
+  },
+  {
+    "n": 7,
+    "entry": "arxiv-download-proxy-truncation",
+    "query": "Task: 你是技术调研员。任务：调研 2025–2026 年**当前最先进的 Agent 记忆（memory）框架/系统**，为一个自研的\"Agent 经验内核\"项目（Evo-Kernel）做选型调"
+  },
+  {
+    "n": 7,
+    "entry": "community-research-rss-api-first",
+    "query": "Task: 你是技术调研员。任务：调研 2025–2026 年**当前最先进的 Agent 记忆（memory）框架/系统**，为一个自研的\"Agent 经验内核\"项目（Evo-Kernel）做选型调"
+  },
+  {
+    "n": 7,
+    "entry": "report-schema-claims-need-live-ground-truth",
+    "query": "Task: 你是技术调研员。任务：调研 2025–2026 年**当前最先进的 Agent 记忆（memory）框架/系统**，为一个自研的\"Agent 经验内核\"项目（Evo-Kernel）做选型调"
+  },
+  {
+    "n": 8,
+    "entry": "agent-self-evolution-landscape",
+    "query": "你是 Evo-Kernel 的后台 Reflector。对一个已结束的会话做蒸馏，产出提案，不入库。\n\n内核根目录：/Users/zodyne/Dev/evo-kernel\nevo CLI（不在 PATH，必须用绝对路径）：/Users/zodyne/Dev/evo-kernel/bin/evo\n会话文件：/Users/zodyne/.claude/projects/-Users-zodyne-Dev-suc221/06d00000-c5a0-4247-9e4a-de361d19d25e.jsonl\nsession_id：06d00000-c5a0-4247-9e4a-de361d19d25e\n\n按顺序做：\n\n1. 跑 `/Users/zodyne/Dev/evo-kernel/bin/evo slice --session /Users/zodyne/.claude/projects/-Users-zodyne-Dev-suc221/06d00000-c5a0-4247-9e4a-de361d19d25e.jsonl --ids 06d00000-c5a0-4247-9e4a-de3"
+  },
+  {
+    "n": 11,
+    "entry": "stamp-baseline-before-review",
+    "query": "Task: 审查 /Users/zodyne/Dev/algommw 仓库中分支 pc-canonical-convergence 相对 multi-algo-platform（基线 9d063bd）的全部改动。这是一项「收敛纯 PC canonical FreeRTOS 平台 + 仓库治理」任务，已拍板决策：freertos_preview 改名 pipeline_runner 并扶正为 canonical；offline_runner 降为测试 oracle；arm 路径保留但标注 deferred；新建 ADR 0004；多缓冲架构不动；删 3 个 golden 时代 Python 脚本（compare_tracks.py、view_compare_3d.py、compare_golden_reference.py）；修文档漂移（9→17 测试数、阶段 4 状态、architecture.md 的 pybind11/backends 残留、COMPASS 钉死的 HEAD SHA）。\n\nworker 的自述报告：\n全部验证通过。任务完成。\n\n## Completed\n\n仓库治理 "
+  },
+  {
+    "n": 12,
+    "entry": "community-research-rss-api-first",
+    "query": "分析当前项目， 我发现一个严重的问题，当前的设计都是根据论文和资料来进行 \n自研构建的，整个体系架构为什么没有采用当前一些先进的框架 \n系统来构建呢，请从零开始重新搜索研究，重新设计框架。"
+  },
+  {
+    "n": 13,
+    "entry": "suc221-chamber-doa-bin3-fixed-gate-rx-pair",
+    "query": "@analysis/doa_array_layout_report.tex\n根据这份报告，简化报告内容，只陈述测角的结果，重新审查一份latex"
+  },
+  {
+    "n": 13,
+    "entry": "suc221-doa-reverify-fixed-gate-survives-bin0-hijack",
+    "query": "@analysis/doa_array_layout_report.tex\n根据这份报告，简化报告内容，只陈述测角的结果，重新审查一份latex"
+  },
+  {
+    "n": 15,
+    "entry": "backup-untracked-file-before-edit",
+    "query": "你来修改，并将修改记录起来"
+  },
+  {
+    "n": 17,
+    "entry": "proposal-independent-review-before-curate",
+    "query": "现在使用多模型来分析研究解决方案"
+  },
+  {
+    "n": 17,
+    "entry": "three-review-passes-catch-different-layers",
+    "query": "现在使用多模型来分析研究解决方案"
+  },
+  {
+    "n": 20,
+    "entry": "bytes-exact-oracle-gate-for-pipeline-port",
+    "query": "大重构 分阶段 闸门 逐位不变 回归基线 1000"
+  }
+]
