@@ -1163,11 +1163,17 @@ const cmds = {
         for (const e of entries) {
           if ((e.evidence || {}).helpful >= 3 && !e.superseded_by && ['playbook', 'facts', 'principles'].includes(e._zone))
             g.push(`固化候选: [${e.id}] helpful=${e.evidence.helpful} → evo solidify --id ${e.id} --to skill`);
-          if ((e.evidence || {}).harmful > 0)
+          // 退役提案必须限定在**当前仍在注入集内**的条目（RECALL_DIRS）。
+          // 2026-09-14 修：两条退役判据原本都只查 !superseded_by，不查 zone，于是
+          // demote --to lessons 之后条目落到 lessons/（仍在 SCAN_DIRS 内），下一轮 reflect
+          // 会把同一条原样再提一遍 —— 提案不幂等、永久重复。
+          // 指纹：同批的 solidify 因落点是 ops/archive（不在 SCAN_DIRS）而正确地消失，
+          // 这个不对称就是判据缺 zone 检查的证据。
+          if ((e.evidence || {}).harmful > 0 && RECALL_DIRS.includes(e._zone))
             g.push(`退役候选: [${e.id}] harmful=${e.evidence.harmful} → evo demote --id ${e.id} --to archive`);
           // 空转退役：注入够多次却一次没被采用。EVO_DEAD_MIN 可调（默认 5）。
           const t = recById[e.id];
-          if (t && t.adopted === 0 && t.dead >= DEAD_MIN && !e.superseded_by)
+          if (t && t.adopted === 0 && t.dead >= DEAD_MIN && !e.superseded_by && RECALL_DIRS.includes(e._zone))
             g.push(`退役候选（空转）: [${e.id}] 注入 ${t.n} 次 adopted=0（irrelevant/relevant-unused ${t.dead}）→ evo demote --id ${e.id} --to lessons`);
         }
         for (const c of loadConstraints()) {
