@@ -50,7 +50,11 @@ if ! mkdir "$LOCK" 2>/dev/null; then
     log "skip: 已有实例在跑"; exit 0
   fi
 fi
-trap 'rm -rf "$LOCK"' EXIT
+echo $$ > "$LOCK/pid" 2>/dev/null || true
+# 只删自己持有的锁：残留锁被别的实例清理重建后，无条件 rm -rf 会删掉**对方**的锁。
+# 2026-09-15 实测：本实例跑到 5.5h（休眠把墙钟拉长）→ launchd 按 120min 判残留、清锁并发起
+# 第二个实例 → 先退出的一方无条件删锁 → 出现「无锁并跑」。判定凭据写进 $LOCK/pid。
+trap 'if [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$$" ]; then rm -rf "$LOCK"; fi' EXIT
 
 # ── 取待处理清单（TSV: session \t transcript \t harness \t bytes）──
 if [ -n "$ONLY" ]; then
@@ -129,6 +133,7 @@ session_id：${SID}
   # 看门狗：超时 kill，避免 launchd 下无人值守的挂死
   WAITED=0
   while kill -0 "$PID" 2>/dev/null; do
+    touch "$LOCK" 2>/dev/null || true   # 心跳：活着的长会话不该被别的实例按 mtime 误判为残留锁
     [ "$WAITED" -ge "$TIMEOUT" ] && { kill -9 "$PID" 2>/dev/null; log "timeout $SID (${TIMEOUT}s)"; break; }
     sleep 5; WAITED=$((WAITED + 5))
   done
