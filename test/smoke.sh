@@ -495,8 +495,13 @@ $EVO index rebuild >/dev/null 2>&1
 # 精度计算（reflect 判据对照表）：断言算出来的**数**，不是断言表格标题在不在。
 # 只 grep 标题的旧断言会在分子分母算错时照样通过（见 lessons/test-may-pass-for-the-wrong-reason）。
 REFL_OUT=$($EVO reflect 2>&1)
-RECN=$(grep -c . "$EVO_ROOT/ops/log/reconcile.jsonl" 2>/dev/null || echo 0)
-RELN=$(grep -c '"state":"\(adopted\|relevant-unused\)"' "$EVO_ROOT/ops/log/reconcile.jsonl" 2>/dev/null || echo 0)
+# ⚠ 必须扣掉 agentic 通道行：reflect 的 M1 行是**词法通道专有**的（两条通道分开算精度，
+# 见 playbook/injection-precision-must-split-recall-vs-adoption）。日志直算不扣就会把
+# agentic 行算进词法分母 → 期望值虚高（2026-09-15 实测：期望 259/103 vs 实得 257/102，
+# 差值正好是当时日志里的 2 条 agentic 行）。
+RECALLONLY=$(grep -v '"channel":"agentic"' "$EVO_ROOT/ops/log/reconcile.jsonl" 2>/dev/null)
+RECN=$(printf '%s\n' "$RECALLONLY" | grep -c '[^[:space:]]')
+RELN=$(printf '%s\n' "$RECALLONLY" | grep -c '"state":"\(adopted\|relevant-unused\)"')
 PREC=$(node -e "console.log(Math.round($RELN/$RECN*100))")
 { echo "$REFL_OUT" | grep -q "M1 召回精度（检索层） | ${PREC}%（${RELN}/${RECN}）"; } \
   && ok "J: 精度计算（召回精度 = ${PREC}%（${RELN}/${RECN}），按实际四态算）" \

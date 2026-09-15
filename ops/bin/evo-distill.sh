@@ -121,7 +121,9 @@ session_id：${SID}
   # </dev/null 不能省：循环体的 stdin 是末尾的 here-string，hermes 继承后会把剩余队列行全读走，
   # 导致无论 --max 多大都只转一圈（且退出码 0，看起来像"队列处理完了"）。
   # --yolo 免审批（launchd 无人值守）；-m pin deepseek-v4-pro，--provider 必须显式（裸 -m 不报 provider 会 No LLM provider configured）。
-  ( cd "$ROOT" && "$HERMES_PY" "$HERMES_BIN" -z "$PROMPT" -m deepseek-v4-pro --provider deepseek-internal --yolo > "$OUT" 2>&1 < /dev/null ) &
+  # EVO_DRIVER=1：告诉 evo 的 hook/CLI「这不是真实会话」——否则驱动器会把自己登记进待蒸馏队列、
+  # 还会把自己的 get/candidates 记成 agentic 使用量（自污染反馈环，2026-09-15 实测 6 条/1.5 天）。
+  ( cd "$ROOT" && EVO_DRIVER=1 "$HERMES_PY" "$HERMES_BIN" -z "$PROMPT" -m deepseek-v4-pro --provider deepseek-internal --yolo > "$OUT" 2>&1 < /dev/null ) &
   PID=$!
 
   # 看门狗：超时 kill，避免 launchd 下无人值守的挂死
