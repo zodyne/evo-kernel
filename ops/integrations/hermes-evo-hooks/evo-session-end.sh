@@ -35,6 +35,12 @@ if [[ -x "$HERMES_PY" && -f "$HERMES_BIN" ]]; then
   [[ -s "$out" ]] && transcript="$out"
 fi
 
+# 兜底（不依赖 env 传播）：导出内容里带蒸馏提示词哨兵 → 这是驱动器会话，不是真人会话。
+# 主防线是 EVO_DRIVER=1（由 evo-distill.sh 注入）。哨兵字符串与 evo-recall.sh 保持一致。
+if [[ "$transcript" != "?" ]] && grep -q "Evo-Kernel 的后台 Reflector" "$transcript" 2>/dev/null; then
+  printf '{}\n'; exit 0
+fi
+
 cli_payload="$(jq -n --arg s "$sid" --arg t "$transcript" '{session_id:$s, transcript_path:$t, harness:"hermes"}')"
 printf '%s' "$cli_payload" | "$EVO" hook-session-end >/dev/null 2>&1 || true
 printf '{}\n'

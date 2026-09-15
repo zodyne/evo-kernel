@@ -10,6 +10,11 @@ payload="$(cat -)"
 sid="$(printf '%s' "$payload" | jq -r '.session_id // empty')"
 msg="$(printf '%s' "$payload" | jq -r '.extra.user_message // .extra.prompt // empty')"
 if [[ -z "$sid" || -z "$msg" ]]; then printf '{}\n'; exit 0; fi
+# 兜底（不依赖 env 传播）：蒸馏驱动器的 prompt 是固定哨兵 —— 不检索、不记 recall。
+# 主防线是 EVO_DRIVER=1（由 evo-distill.sh 注入），这里防 env 传不到 hook 的场景。
+case "$msg" in
+  *"Evo-Kernel 的后台 Reflector"*) printf '{}\n'; exit 0 ;;
+esac
 # transcript_path: Hermes 会话存 SQLite 无文件路径 → 传 '?' 哨兵（evo 支持），
 # 二期用 `hermes sessions export <id>` 落盘后填真实路径。
 cli_payload="$(jq -n --arg s "$sid" --arg p "$msg" '{session_id:$s, transcript_path:"?", prompt:$p, harness:"hermes"}')"

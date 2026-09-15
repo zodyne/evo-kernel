@@ -327,6 +327,13 @@ function lastRecallSession() {
   return null;
 }
 
+// 后台蒸馏驱动器标记（EVO_DRIVER=1，由 ops/bin/evo-distill.sh 注入给 hermes 及其子进程）。
+// 驱动器不是真实会话：它的 prompt/登记/取件若照记，会把「agentic 使用量」与「会话登记表」
+// 一起喂成自污染反馈环（playbook/self-registration-hook-self-pollution-loop，hermes 侧在
+// 2026-09-15 实测复现：6 条自登记 / 1.5 天，3 条排进了待蒸馏队列）。
+// 三个 hook 入口与 agentic 日志据此短路；guard 故意不短路（安全优先）。
+function isDriver() { return process.env.EVO_DRIVER === '1'; }
+
 function* walk(dir) {
   let es;
   try { es = fs.readdirSync(dir, { withFileTypes: true }); }
@@ -759,6 +766,7 @@ const cmds = {
 
   // §2.3 hook-recall —— Claude UserPromptSubmit / Pi（同 session 去重）
   'hook-recall'() {
+    if (isDriver()) return null; // 驱动器的 prompt 不是真人任务：不检索、不记 recall.jsonl
     try {
       const raw = readStdin();
       let j = {};
@@ -783,7 +791,10 @@ const cmds = {
   },
 
   // §2.5 hook-session-end —— Claude SessionEnd 登记入口
-  'hook-session-end'() { return cmds['session-end']([], readStdin()); },
+  'hook-session-end'() {
+    if (isDriver()) return null; // 驱动器自登记 = 反馈环：它每跑一次就排进一次待蒸馏队列
+    return cmds['session-end']([], readStdin());
+  },
 
   // §2.4 session-end —— 手动登记会话 → inbox/session-refs.jsonl
   'session-end'(args, stdinRaw) {
@@ -1080,7 +1091,8 @@ const cmds = {
   candidates() {
     const entries = loadEntries(RECALL_DIRS).filter((e) => !e.superseded_by);
     if (!entries.length) return '';
-    appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'candidates', session: lastRecallSession(), n: entries.length });
+    // 驱动器自己查条目不是「agent 使用通道」的证据，不记账（否则使用量被机器账填满）。
+    if (!isDriver()) appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'candidates', session: lastRecallSession(), n: entries.length });
     const lines = entries.sort((a, b) => ((b.evidence || {}).helpful || 0) - ((a.evidence || {}).helpful || 0)).map((e) =>
       `[id:${e.id}] ${e._zone}/${e.domain || '-'} · verified:${e.verified_by || 'none'} · +${(e.evidence || {}).helpful || 0}/-${(e.evidence || {}).harmful || 0}\n  ${e._firstLine.slice(0, 120)}${(e.triggers || []).length ? '\n  triggers: ' + e.triggers.slice(0, 3).join(' | ') : ''}`);
     return `[evo-candidates · ${entries.length} 条 validated+ 条目]\n` + lines.join('\n');
@@ -1101,7 +1113,7 @@ const cmds = {
     }
     // 记录 agent 实际选了哪些 id —— 那是「agent 的语义判断」的可测痕迹，也是
     // 用同一套盲标口径衡量形态 B 的唯一入口（自动注入 P1 vs agent 自选）。
-    appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'get', session: lastRecallSession(), ids, found });
+    if (!isDriver()) appendLog(AGENTIC_LOG, { ts: new Date().toISOString(), cmd: 'get', session: lastRecallSession(), ids, found });
     return out.join('\n\n');
   },
 
