@@ -1,7 +1,7 @@
 ---
 id: hermes-config-get-one-key-per-call
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: hermes
 tags: [hermes, cli, config, argparse, batch-query]
@@ -14,7 +14,7 @@ created: 2026-08-25
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:1363c097-a1c9-4248-a903-814a33facb13
-last_verified: 2026-08-13
+last_verified: 2026-09-16
 superseded_by: null
 schema_version: 1
 related: [hermes-config-set-cannot-write-list-dict]
@@ -47,3 +47,4 @@ related: [hermes-config-set-cannot-write-list-dict]
 
 ## 失败信号（未来命中即该想起本条）
 - 任何 hermes 子命令打出的是**顶层** `usage: hermes [-h] [--version] ...`，先数自己传了几个位置参数。
+- 2026-09-16 独立复验（交互模型，非原会话）：`hermes config get display.skin display.show_commentary` → 打印顶层 `usage: hermes [-h] ...`
