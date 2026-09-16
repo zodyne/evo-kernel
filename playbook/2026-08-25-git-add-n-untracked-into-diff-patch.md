@@ -1,7 +1,7 @@
 ---
 id: git-add-n-untracked-into-diff-patch
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: git
 tags: [git, diff, patch, untracked, intent-to-add, custom-ui]
@@ -14,10 +14,10 @@ created: 2026-08-25
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:1363c097-a1c9-4248-a903-814a33facb13
-last_verified: 2026-08-13
+last_verified: 2026-09-16
 superseded_by: null
 schema_version: 1
-related: [git-status-has-no-cached-flag, dirty-worktree-patch-freeze-before-revert]
+related: [2026-07-27-stash-patch-apply-check-freeze-uncommitted]
 ---
 # `git diff` 静默漏掉未跟踪的新文件：导出 patch 前先 `git add -N`
 
@@ -51,3 +51,4 @@ related: [git-status-has-no-cached-flag, dirty-worktree-patch-freeze-before-reve
 ## 失败信号（未来命中即该想起本条）
 - patch 行数看着不少，但 `grep -c "^diff --git"` 的文件数比你改过的文件少。
 - 恢复自定义改动后，"我明明写过的那个文件"不见了。
+- 2026-09-16 独立复验（交互模型，非原会话）：临时仓库：`git diff` 未跟踪新文件段数 0；`git add -N` 后段数 1
