@@ -1,7 +1,7 @@
 ---
 id: cwd-script-shadows-stdlib-module
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: python
 tags: [python, import, stdlib-shadow, cwd, tmp-scripts, lxml, python-docx]
@@ -14,10 +14,10 @@ created: 2026-08-25
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:e9b77b86-b6b5-441e-a133-e72516849e75
-last_verified: 2026-08-12
+last_verified: 2026-09-16
 superseded_by: null
 schema_version: 1
-related: [make-nothing-to-be-done-check-cwd]
+related: [bare-venv-test-with-stdlib-unittest]
 ---
 # 一次性脚本撞 stdlib 名字，会把同目录下所有 python 调用一起搞坏
 
@@ -46,3 +46,4 @@ related: [make-nothing-to-be-done-check-cwd]
 ## 失败信号（未来命中即该想起本条）
 - 第三方库 traceback 里夹着一行自己写的临时脚本路径。
 - "我什么都没改，它自己坏了" + 报错来自 import 阶段。
+- 2026-09-16 独立复验（交互模型，非原会话）：`/tmp/shadow/inspect.py` 存在时 `python3 -c "import inspect; print(inspect.__file__)"` → `/private/tmp/shadow/inspect.py`
