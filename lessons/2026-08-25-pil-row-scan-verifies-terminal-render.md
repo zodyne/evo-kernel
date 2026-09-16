@@ -17,7 +17,7 @@ source: session:1363c097-a1c9-4248-a903-814a33facb13
 last_verified: 2026-08-13
 superseded_by: null
 schema_version: 1
-related: [figure-readability-has-no-log-signal]
+related: []
 ---
 # 用 PIL 逐行统计把终端截图变成"文本带 + 平均色"表，无视觉通道也能定量核对 TUI 渲染
 
