@@ -486,22 +486,31 @@ echo "——— J. reconcile（M0.4 对账通道·I4） ———"
 mkdir -p "$EVO_ROOT/ops/log"
 cat >> "$EVO_ROOT/ops/log/reconcile.jsonl" << JSONL
 {"ts":"2026-07-24T10:00:00.000Z","session":"s1","id":"arxiv-api-rate-limit","task":"","state":"adopted","helpful_delta":1,"harmful_delta":0,"judged_by":"reflector"}
-{"ts":"2026-07-24T10:00:01.000Z","session":"s1","id":"arxiv-api-rate-limit","task":"","state":"misleading","helpful_delta":0,"harmful_delta":1,"judged_by":"reflector"}
-{"ts":"2026-07-24T10:00:02.000Z","session":"s1","id":"arxiv-api-rate-limit","task":"","state":"relevant-unused","helpful_delta":0,"harmful_delta":0,"judged_by":"reflector"}
+{"ts":"2026-07-24T10:00:01.000Z","session":"s2","id":"arxiv-api-rate-limit","task":"","state":"misleading","helpful_delta":0,"harmful_delta":1,"judged_by":"reflector"}
+{"ts":"2026-07-24T10:00:02.000Z","session":"s3","id":"arxiv-api-rate-limit","task":"","state":"relevant-unused","helpful_delta":0,"harmful_delta":0,"judged_by":"reflector"}
 JSONL
+# 三个 session 必须不同：同 session 同 id 的三条会被去重读法折成最后一条（留最后一次），
+# 那是精度侧的正确语义；本组验的是 **delta 累加**，所以用三个独立 session 各记一笔。
 # rebuild 聚合 delta（base helpful=3+1=4, harmful=0+1=1）
 $EVO index rebuild >/dev/null 2>&1
 { grep -A10 'id: arxiv-api-rate-limit' "$EVO_ROOT/index/manifest.yaml" | grep -q 'helpful: 4' && grep -A10 'id: arxiv-api-rate-limit' "$EVO_ROOT/index/manifest.yaml" | grep -q 'harmful: 1'; } && ok "J: rebuild 聚合 reconcile delta（helpful+1/harmful+1）" || bad "J: rebuild 聚合 delta" "(manifest 未反映累计)"
 # 精度计算（reflect 判据对照表）：断言算出来的**数**，不是断言表格标题在不在。
 # 只 grep 标题的旧断言会在分子分母算错时照样通过（见 lessons/test-may-pass-for-the-wrong-reason）。
 REFL_OUT=$($EVO reflect 2>&1)
-# ⚠ 必须扣掉 agentic 通道行：reflect 的 M1 行是**词法通道专有**的（两条通道分开算精度，
-# 见 playbook/injection-precision-must-split-recall-vs-adoption）。日志直算不扣就会把
-# agentic 行算进词法分母 → 期望值虚高（2026-09-15 实测：期望 259/103 vs 实得 257/102，
-# 差值正好是当时日志里的 2 条 agentic 行）。
-RECALLONLY=$(grep -v '"channel":"agentic"' "$EVO_ROOT/ops/log/reconcile.jsonl" 2>/dev/null)
-RECN=$(printf '%s\n' "$RECALLONLY" | grep -c '[^[:space:]]')
-RELN=$(printf '%s\n' "$RECALLONLY" | grep -c '"state":"\(adopted\|relevant-unused\)"')
+# 期望值必须与 CLI **同口径**：① 扣掉 agentic 通道行（reflect 的 M1 行是词法通道专有，两条通道分开算，
+# 见 playbook/injection-precision-must-split-recall-vs-adoption）；② 同 (session,id,channel) 去重留最后一条
+# （重试重写不得双计，2026-09-16 加）。直算原始行数会在有重复或 agentic 行时系统性偏高——
+# 两种偏差各自都实测过：259/103 vs 257/102（agentic 2 行，2026-09-15）、368/123 vs 297/101（重复 69 条，2026-09-16）。
+DEDUP_NUM=$(node -e "
+const fs=require('fs');const seen=new Map();const nullRows=[];
+for(const l of fs.readFileSync('$EVO_ROOT/ops/log/reconcile.jsonl','utf8').split('\n')){
+  if(!l.trim())continue;let j;try{j=JSON.parse(l)}catch{continue}
+  if((j.channel||'recall')==='agentic')continue;
+  if(j.session)seen.set(j.session+'\u0000'+(j.id||'')+'\u0000'+(j.channel||'recall'),j);else nullRows.push(j);
+}
+let n=0,rel=0;for(const j of nullRows.concat([...seen.values()])){n++;if(j.state==='adopted'||j.state==='relevant-unused')rel++}
+console.log(rel+' '+n);")
+RELN=${DEDUP_NUM%% *}; RECN=${DEDUP_NUM##* }
 PREC=$(node -e "console.log(Math.round($RELN/$RECN*100))")
 { echo "$REFL_OUT" | grep -q "M1 召回精度（检索层） | ${PREC}%（${RELN}/${RECN}）"; } \
   && ok "J: 精度计算（召回精度 = ${PREC}%（${RELN}/${RECN}），按实际四态算）" \
@@ -524,6 +533,25 @@ console.log(n);")
 # 旧口径单行必须消失：残留即意味着结构性损失又回到了纪律分母里
 { echo "$REFL_OUT" | grep -q "| M1 对账覆盖率 | "; } \
   && bad "J: 旧对账覆盖率口径残留" "(仍是单行全量分母)" || ok "J: 旧对账覆盖率口径已无残留"
+# J: 对账去重 —— 重试重写的同一 (session,id,channel) 只算最后一条。
+# 2026-09-16 实例：蒸馏被 kill/网络失败后重跑会重写同一批对账（068d 一例 18 条；
+# 全库实测重复 69/364 —— 不去重时精度 99/364=27%，去重后 99/295=34%）—— 不设守护就会静默回来。
+cat >> "$EVO_ROOT/ops/log/reconcile.jsonl" << JSONL
+{"ts":"2026-09-16T00:00:00.000Z","session":"sDUP","id":"dup-fixture-nonexistent","state":"adopted","helpful_delta":1,"harmful_delta":0,"judged_by":"reflector"}
+{"ts":"2026-09-16T00:00:01.000Z","session":"sDUP","id":"dup-fixture-nonexistent","state":"irrelevant","helpful_delta":0,"harmful_delta":0,"judged_by":"reflector"}
+JSONL
+DEDUP=$(node -e "
+const fs=require('fs');const seen=new Map();const nullRows=[];
+for(const l of fs.readFileSync('$EVO_ROOT/ops/log/reconcile.jsonl','utf8').split('\n')){
+  if(!l.trim())continue;let j;try{j=JSON.parse(l)}catch{continue}
+  if((j.channel||'recall')==='agentic')continue;
+  if(j.session)seen.set(j.session+'\u0000'+(j.id||'')+'\u0000'+(j.channel||'recall'),j);else nullRows.push(j);
+}
+let n=0,rel=0;for(const j of nullRows.concat([...seen.values()])){n++;if(j.state==='adopted'||j.state==='relevant-unused')rel++}
+console.log(rel+'/'+n);")
+{ $EVO reflect 2>&1 | grep -q "M1 召回精度（检索层） | .*%（${DEDUP}）"; } \
+  && ok "J: 对账去重（同 (session,id,channel) 只算最后一条，${DEDUP}）" \
+  || bad "J: 对账去重" "(期望 ${DEDUP}，实得: $($EVO reflect 2>&1 | grep 'M1 召回精度'))"
 # §7.1 精度必须拆两个数：relevant-unused 计入召回精度分子、但不计入采纳率分子。
 # 合成一个数会让指标对 harness-benefit（召回对了却没被用上）完全不敏感。
 { echo "$REFL_OUT" | grep -q "采纳率（应用层"; } \

@@ -144,24 +144,42 @@ const argGet = (args, k, dflt) => { const i = args.indexOf(k); return i !== -1 ?
 // EVO_PRECISION_MIN / _MIN_N 可调。
 const PRECISION_MIN = Number(process.env.EVO_PRECISION_MIN || 0.2);
 const PRECISION_MIN_N = Number(process.env.EVO_PRECISION_MIN_N || 10);
-function lowPrecisionIds() {
-  const c = new Map();
+
+// ── reconcile.jsonl 的**去重读**：同一 (session,id,channel) 只保留最后一条 ──
+// 起因（2026-09-16 实测）：蒸馏被 kill / 网络失败后会重试，而失败的那一轮可能已经写过对账
+// （068d 一例留下 18 条），重跑会把同一批 (session,id) 再写一遍。不去重则三位消费者
+// （低精度闸门的 n / manifest 的 helpful·harmful delta / reflect 的精度分子分母与覆盖率）全部双计。
+// 它们必须共用同一份口径，否则「同一个数在不同命令里不一样」又会回来
+// （先例：lessons/doc-selfreported-counts-drift）。
+// 契约：① 有 session 的记录按 (session,id,channel) 去重、保留**最后**一条（后判覆盖前判）；
+//       ② session 为 null 的记录（adopt/reject 人工兜底）不参与去重——每次人工动作是独立事实；
+//       ③ 返回 {rows, parseErr}；rows 顺序无关（消费者只用集合或求和）。
+function readReconcileDedup() {
+  const nullRows = [], keyed = new Map();
+  let parseErr = 0;
   try {
     for (const line of fs.readFileSync(RECONCILE_LOG, 'utf8').split('\n')) {
       if (!line.trim()) continue;
-      try {
-        const j = JSON.parse(line);
-        if (!j.id) continue;
-        // 闸门只管**自动注入**通道（它要对的正是那条路径的噪声）；agent 自选的不受闸门限制
-        // —— 否则就是用一条通道的统计去封锁另一条通道，而实测后者 precision 反而高 18pp。
-        if ((j.channel || 'recall') !== 'recall') continue;
-        const t = c.get(j.id) || { n: 0, rel: 0 };
-        t.n++;
-        if (j.state === 'adopted' || j.state === 'relevant-unused') t.rel++;
-        c.set(j.id, t);
-      } catch {}
+      let j; try { j = JSON.parse(line); } catch { parseErr++; continue; }
+      if (!j.session) { nullRows.push(j); continue; }
+      keyed.set(`${j.session}\u0000${j.id || ''}\u0000${j.channel || 'recall'}`, j);
     }
   } catch {}
+  return { rows: nullRows.concat([...keyed.values()]), parseErr };
+}
+
+function lowPrecisionIds() {
+  const c = new Map();
+  for (const j of readReconcileDedup().rows) {
+    if (!j.id) continue;
+    // 闸门只管**自动注入**通道（它要对的正是那条路径的噪声）；agent 自选的不受闸门限制
+    // —— 否则就是用一条通道的统计去封锁另一条通道，而实测后者 precision 反而高 18pp。
+    if ((j.channel || 'recall') !== 'recall') continue;
+    const t = c.get(j.id) || { n: 0, rel: 0 };
+    t.n++;
+    if (j.state === 'adopted' || j.state === 'relevant-unused') t.rel++;
+    c.set(j.id, t);
+  }
   const out = new Set();
   for (const [id, t] of c) if (t.n >= PRECISION_MIN_N && t.rel / t.n < PRECISION_MIN) out.add(id);
   return out;
@@ -552,19 +570,14 @@ const injectedSessions = () => {
 // ───────────────────────── index rebuild（§2.10，I5 派生可重建） ─────────────────────────
 function aggregateReconcile() {
   // I4 单点写：reconcile.jsonl 是计数唯一源（adopt/reject/distill 都写这里）
+  // 去重读：重试重写的同一 (session,id,channel) 不得把 helpful/harmful delta 计两遍。
   const fb = {}; // id -> {helpful, harmful}
-  try {
-    for (const line of fs.readFileSync(RECONCILE_LOG, 'utf8').split('\n')) {
-      if (!line.trim()) continue;
-      try {
-        const j = JSON.parse(line);
-        if (!j.id) continue;
-        fb[j.id] = fb[j.id] || { helpful: 0, harmful: 0 };
-        fb[j.id].helpful += j.helpful_delta || 0;
-        fb[j.id].harmful += j.harmful_delta || 0;
-      } catch {}
-    }
-  } catch {}
+  for (const j of readReconcileDedup().rows) {
+    if (!j.id) continue;
+    fb[j.id] = fb[j.id] || { helpful: 0, harmful: 0 };
+    fb[j.id].helpful += j.helpful_delta || 0;
+    fb[j.id].harmful += j.harmful_delta || 0;
+  }
   return fb;
 }
 
@@ -1234,7 +1247,8 @@ const cmds = {
     let reconciled = 0, adopted = 0, relUnused = 0, irrelevant = 0, misleading = 0;
     // 对账行解析失败计数 —— **不要让 catch 静默**。本块曾因 achan 作用域写错抛
     // ReferenceError 被空 catch 吞掉，结果每条记录都被跳过、召回精度静默变 0%，而报告照常排版。
-    let recParseErr = 0;
+    // 共用去重读法：重试重写的同一 (session,id,channel) 只算最后一条（详见 readReconcileDedup）
+    const { rows: recRows, parseErr: recParseErr } = readReconcileDedup();
     const recByJudge = {};
     // 按 id 累计四态：irrelevant / relevant-unused 的 delta 都是 (0,0)，在 evidence 汇总里
     // 完全惰性——一条被注入 N 次、N 次都判 irrelevant 的条目，其 evidence 与新条目无异，
@@ -1245,49 +1259,42 @@ const cmds = {
     const recByIdA = {};
     // (session,id) 对集合：用于把「可对账域」与「结构性不可对账」分开（见下方覆盖率口径）
     const donePairs = new Set();
-    try {
-      for (const line of fs.readFileSync(RECONCILE_LOG, 'utf8').split('\n')) {
-        if (!line.trim()) continue;
-        // 通道判定**提到 try 外的循环体作用域**。曾经它声明在 `if (j.id) {}` 块内、用在块外，
-        // 抛 ReferenceError 被空 catch 吞掉 ⇒ 每条记录都被跳过 ⇒ **召回精度静默变成 0%（0/225）**，
-        // 而报告照常排版。与 m1分母口径、低精度闸门同一类：数字错而不是报错。
-        let achan = false;
-        try {
-          const j = JSON.parse(line);
-          achan = (j.channel || 'recall') === 'agentic';
-          // reconciled 是 **recall 通道专有**的计数：它既是 precision 的分母，
-          // 又是「M1 对账覆盖率」的分母（覆盖率问的是「自动注入的实例里有多少被对过账」）。
-          // 曾经把 ++ 放在 achan 判断之前，于是分子不变、分母涨，比值被静默揨低。
-          if (!achan) reconciled++;
-          if (j.session && j.id) donePairs.add(`${j.session}\u0000${j.id}`);
-          recByJudge[j.judged_by] = (recByJudge[j.judged_by] || 0) + 1;
-          if (j.id) {
-            const t = achan
-              ? (recByIdA[j.id] = recByIdA[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0, rel: 0 })
-              : (recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0, rel: 0 });
-            t.n++;
-            if (j.state === 'adopted') { t.adopted++; t.rel++; }
-            // misleading 单独计数：它是「有害」的唯一**日志**来源
-            // （evidence.harmful 是人工字段，会与日志漂移）
-            else if (j.state === 'misleading') t.misleading++;
-            // rel = 相关（被采用 + 相关但未用上）；precision = rel/n
-            else if (j.state === 'relevant-unused') t.rel++;
-            // dead = 注入了却没产生价值（无关 + 相关但没用上）—— 仅作展示，**不作为退役判据**：
-            // 它把「无关」（噪声）与「相关但没被用上」（任务不需要）混为一谈，见下方空转判据注释。
-            else if (j.state === 'irrelevant') t.dead++;
-          }
-          // 聚合计数器（reconciled / adopted / relUnused / …）**也必须分通道** ——
-          // 只分 recById 不够：`precision = relevantN/reconciled` 用的是聚合值，
-          // 漏了这里，一条 agentic 记录就会同时抬高分子与分母（实测 90/225 → 91/226），
-          // 即两条通道又被悄悄合回了同一个数。
-          if (achan) continue;
-          if (j.state === 'adopted') adopted++;
-          else if (j.state === 'relevant-unused') relUnused++;
-          else if (j.state === 'irrelevant') irrelevant++;
-          else if (j.state === 'misleading') misleading++;
-        } catch { recParseErr++; }
+    // 通道判定必须在循环体作用域内逐条算。曾经它声明在 `if (j.id) {}` 块内、用在块外，
+    // 抛 ReferenceError 被空 catch 吞掉 ⇒ 每条记录都被跳过 ⇒ **召回精度静默变成 0%（0/225）**，
+    // 而报告照常排版。与 m1分母口径、低精度闸门同一类：数字错而不是报错。
+    for (const j of recRows) {
+      const achan = (j.channel || 'recall') === 'agentic';
+      // reconciled 是 **recall 通道专有**的计数：它既是 precision 的分母，
+      // 又是「M1 对账覆盖率」的分母（覆盖率问的是「自动注入的实例里有多少被对过账」）。
+      // 曾经把 ++ 放在 achan 判断之前，于是分子不变、分母涨，比值被静默揨低。
+      if (!achan) reconciled++;
+      if (j.session && j.id) donePairs.add(`${j.session}\u0000${j.id}`);
+      recByJudge[j.judged_by] = (recByJudge[j.judged_by] || 0) + 1;
+      if (j.id) {
+        const t = achan
+          ? (recByIdA[j.id] = recByIdA[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0, rel: 0 })
+          : (recById[j.id] = recById[j.id] || { n: 0, adopted: 0, dead: 0, misleading: 0, rel: 0 });
+        t.n++;
+        if (j.state === 'adopted') { t.adopted++; t.rel++; }
+        // misleading 单独计数：它是「有害」的唯一**日志**来源
+        // （evidence.harmful 是人工字段，会与日志漂移）
+        else if (j.state === 'misleading') t.misleading++;
+        // rel = 相关（被采用 + 相关但未用上）；precision = rel/n
+        else if (j.state === 'relevant-unused') t.rel++;
+        // dead = 注入了却没产生价值（无关 + 相关但没用上）—— 仅作展示，**不作为退役判据**：
+        // 它把「无关」（噪声）与「相关但没被用上」（任务不需要）混为一谈，见下方空转判据注释。
+        else if (j.state === 'irrelevant') t.dead++;
       }
-    } catch {}
+      // 聚合计数器（reconciled / adopted / relUnused / …）**也必须分通道** ——
+      // 只分 recById 不够：`precision = relevantN/reconciled` 用的是聚合值，
+      // 漏了这里，一条 agentic 记录就会同时抬高分子与分母（实测 90/225 → 91/226），
+      // 即两条通道又被悄悄合回了同一个数。
+      if (achan) continue;
+      if (j.state === 'adopted') adopted++;
+      else if (j.state === 'relevant-unused') relUnused++;
+      else if (j.state === 'irrelevant') irrelevant++;
+      else if (j.state === 'misleading') misleading++;
+    }
     // §7.1 精度必须拆成两个数（依据 playbook/injection-precision-must-split-recall-vs-adoption）：
     //   召回精度 = 检索层（找来的相关吗）—— M1 闸门读这个
     //   采纳率   = 应用层（找对了的里，Agent 真正用上了多少）—— 即 harness-benefit
