@@ -1,7 +1,7 @@
 ---
 id: macos-screenshot-narrow-nbsp-filename
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: macos
 tags: [macos, screenshot, filename, unicode, u202f, glob, python]
@@ -14,7 +14,7 @@ created: 2026-08-25
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:1363c097-a1c9-4248-a903-814a33facb13
-last_verified: 2026-08-13
+last_verified: 2026-09-16
 superseded_by: null
 schema_version: 1
 related: [macos-bsd-cat-no-dash-a]
@@ -48,3 +48,4 @@ U+202F NARROW NO-BREAK SPACE（窄不换行空格）**，不是 ASCII 空格。�
 ## 失败信号（未来命中即该想起本条）
 - `ls` 能看到、`cp/open/cat` 说不存在，且文件名里带 `AM`/`PM`。
 - glob 出来的名字 `repr()` 里出现 `\u202f` / `\xa0` 这类不可见空白。
+- 2026-09-16 独立复验（交互模型，非原会话）：建 U+202F 文件名：ASCII 空格名 `cp` → `No such file or directory`；`glob('Screenshot 2026-08-12*')` 取真名后拷贝成功
