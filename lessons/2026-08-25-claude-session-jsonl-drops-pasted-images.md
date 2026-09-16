@@ -17,7 +17,7 @@ source: session:1363c097-a1c9-4248-a903-814a33facb13
 last_verified: 2026-08-13
 superseded_by: null
 schema_version: 1
-related: [transcript-parser-normalize-tool-names, evo-slice-normalize-toolname-case-and-path-field]
+related: [evo-slice-normalize-toolname-case-and-path-field]
 ---
 # Claude Code 会话 jsonl 里没有粘贴图片的数据，只有 `[Image #N]` 占位——事后取不回来
 
