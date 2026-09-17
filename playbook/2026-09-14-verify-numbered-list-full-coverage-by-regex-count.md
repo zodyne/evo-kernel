@@ -1,7 +1,7 @@
 ---
 id: verify-numbered-list-full-coverage-by-regex-count
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: evaluation
 tags: [annotation, verification, full-coverage, retrieval-bench]
