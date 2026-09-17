@@ -1221,11 +1221,26 @@ const cmds = {
     const p = path.join(ROOT, 'inbox');
     let files = [];
     try { files = fs.readdirSync(p).filter((f) => f.endsWith('.md') && !f.startsWith('session-refs')); } catch {}
-    let refs = 0;
-    try { refs = fs.readFileSync(SESSION_REFS, 'utf8').split('\n').filter((l) => l.trim()).length; } catch {}
-    return `inbox: ${files.length} 条 capture 待整理 + ${refs} 条会话登记待蒸馏\n` +
+    // 2026-09-17：原先只报登记总行数（"559 条会话登记待蒸馏"）—— 559 里 366 条 transcript
+    // 已失（哨兵/被 prune），永远不可能被蒸馏。总数与待办量混报，会让人以为队列比实际大 3–4 倍。
+    // 现在报总数 + 拆分：待蒸馏 = 未蒸馏 ∧ transcript 还在（口径同 queue，只差体量门槛）。
+    let refs = 0, pending = 0;
+    try {
+      const bySession = new Map();
+      for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try { const j = JSON.parse(line); if (j.session && j.session !== '?') bySession.set(j.session, j); } catch {}
+      }
+      for (const j of bySession.values()) {
+        if (j.distilled || !j.transcript || j.transcript === '?') continue;
+        if (fs.existsSync(j.transcript)) pending++;
+      }
+    } catch {}
+    try { refs = sessionRefStats().total; } catch {}
+    return `inbox: ${files.length} 条 capture 待整理 + ${refs} 条会话登记` +
+      (refs ? `（其中 ${pending} 条可蒸馏、${refs - pending} 条 transcript 已失不可蒸馏）` : '') + '\n' +
       files.map((f) => '- ' + f).join('\n') +
-      (refs ? `\n会话登记见 inbox/session-refs.jsonl（批处理：对每条跑 evo slice --session <transcript>）` : '');
+      (refs ? `\n会话登记见 inbox/session-refs.jsonl（批处理：对每条跑 evo slice --session <transcript>；积压用 ops/bin/evo-distill.sh --max N）` : '');
   },
 
   // §2.13 reflect —— 周期复盘报告（含判据对照表 §7.3）

@@ -455,10 +455,11 @@ if(![real,sent].every(l=>l&&l.harness&&l.distilled===false)){console.log('✗ I:
 if(bad===0) console.log('✓ I: session-refs.jsonl 写入/哨兵/schema 全部正确');
 process.exit(bad===0?0:1);
 " && PASS=$((PASS+1)) || FAIL=$((FAIL+1))
-# inbox 渲染 refs 计数（= JSONL 行数，不硬编码）
+# inbox 渲染 refs 计数（= JSONL 行数，不硬编码）。2026-09-17 起总数后附「可蒸馏/已失」拆分——
+# 只报总数的旧形态会让人以为队列比实际大 3–4 倍（559 里有 366 条 transcript 已失）。
 REFSLINES=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl" 2>/dev/null || echo 0)
 REFS_OUT=$($EVO inbox 2>&1)
-{ echo "$REFS_OUT" | grep -q "$REFSLINES 条会话登记待蒸馏"; } && ok "I: inbox 渲染 refs 计数（= JSONL 行数）" || bad "I: inbox 渲染 refs 计数" "(期望 $REFSLINES 条, 实得: ${REFS_OUT:0:60})"
+{ echo "$REFS_OUT" | grep -q "$REFSLINES 条会话登记"; } && ok "I: inbox 渲染 refs 计数（= JSONL 行数）" || bad "I: inbox 渲染 refs 计数" "(期望 $REFSLINES 条, 实得: ${REFS_OUT:0:60})"
 
 # ── 登记前移 + upsert（依据：51.7% 的注入实例落在从未登记的 session 上，SessionEnd 会漏）──
 LIVE="$TMP/live-transcript.jsonl"; echo '{"role":"user"}' > "$LIVE"
