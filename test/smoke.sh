@@ -237,6 +237,13 @@ printf -- 'id: zz-no-status\ntype: fact\n---\n正文\n' > "$EVO_ROOT/facts/zz-no
 { $EVO audit 2>&1 | grep -q '缺 status'; } \
   && ok "F: audit 检出缺 status（坏 frontmatter 指纹）" || bad "F: 缺 status" "(audit 未检出)"
 rm -f "$EVO_ROOT/facts/zz-no-status.md"
+# 无 triggers 的条目 = recall 永不命中（relevance 的主匹配源就是它）。「缺 status」那条只覆盖
+# frontmatter 全坏的档；这条覆盖「frontmatter 合法但字段缺失」—— 2026-09-17 实测 4 个被 walk()
+# 递归吸进 ops/proposals 的嵌套报告 .md 就属此类，且在治理视图里完全隐形。
+printf -- '---\nid: zz-no-triggers\ntype: fact\nstatus: validated\n---\n正文\n' > "$EVO_ROOT/facts/zz-no-triggers.md"
+{ $EVO audit 2>&1 | grep -q '无 triggers'; } \
+  && ok "F: audit 检出无 triggers 条目（永不命中的静默条目）" || bad "F: 无 triggers" "(audit 未检出)"
+rm -f "$EVO_ROOT/facts/zz-no-triggers.md"
 # 检索基准的契约：跑得起来、四阶段齐全、且**不写真实 ops/log**（recall.jsonl 是 §7.1 精度与
 # §5.0 回放的数据源，基准查询混进去会污染判据）。此处不守护阈值——阈值要先有基线才能定。
 BENCH_BEFORE=$(wc -l < "$SRC/ops/log/recall.jsonl" 2>/dev/null || echo 0)
@@ -771,6 +778,19 @@ printf '{"session_id":"real-1","prompt":"arxiv API 批量下载被限流该怎�
 RAFTER=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
 { [ "$RBEFORE" = "$RMID" ] && [ "$RAFTER" -gt "$RMID" ]; } \
   && ok "L: hook-recall 噪声门槛（噪声不记账，实义 prompt 照常）" || bad "L: 噪声门槛" "(计数 $RBEFORE→$RMID→$RAFTER)"
+# 驱动器隔离的完整性：EVO_DRIVER=1 下**直调** recall 也不得记账（2026-09-17 实测的漏网点）。
+# 未堵时驱动器/一次性探针会以 session:null 落进 recall.jsonl，被 reflect 的注入统计计入；
+# slice/覆盖率按 session 过滤不受影响 —— 所以这是只有靠断言才守得住的静默污染。
+DBEFORE=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+EVO_DRIVER=1 $EVO recall --task "驱动器隔离探针 xyzzy-driver" >/dev/null 2>&1
+DDRIVER=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+{ [ "$DBEFORE" = "$DDRIVER" ]; } \
+  && ok "L: EVO_DRIVER=1 直调 recall 不记账（驱动器隔离）" || bad "L: 驱动器隔离" "($DBEFORE → $DDRIVER 行)"
+# 对照：同一命令不带标记必须照常记账，否则上面那条会被「压根不写日志」白嫖通过。
+$EVO recall --task "驱动器隔离探针对照 xyzzy-driver" >/dev/null 2>&1
+DCONTROL=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
+{ [ "$DCONTROL" -gt "$DDRIVER" ]; } \
+  && ok "L: 直调 recall 无标记时照常记账（隔离对照）" || bad "L: 驱动器隔离对照" "($DDRIVER → $DCONTROL 行)"
 
 # catalog：蒸馏端查重清单。必须盖住 candidates 看不见的两处——lessons/inbox 与 ops/proposals，
 # 后者是当前最大重复源（未 curate 的提案彼此也会撞）。格式必须一条一行、无内嵌换行，

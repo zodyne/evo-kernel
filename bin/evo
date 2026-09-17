@@ -522,7 +522,10 @@ function recall(task, budget, session, opts) {
   }
 
   // §3.3 recall.jsonl：task 500 字符（§M0.4）+ backend 字段
-  appendLog(RECALL_LOG, {
+  // 驱动器隔离（2026-09-17 补）：EVO_DRIVER=1 时不记账。此前 isDriver() 只堵了
+  // hook-recall / candidates / get 三处，直调 recall 是漏网的一处——驱动器与探针的直调
+  // 会以 session:null 落进台账，被 reflect 的注入统计（calls/hits/注入实例数）计入。
+  if (!isDriver()) appendLog(RECALL_LOG, {
     ts: new Date().toISOString(),
     session: session || null,
     task: String(task).slice(0, 500),
@@ -1158,6 +1161,13 @@ const cmds = {
       // 直到 manifest 出现一个 `?` 桶才暴露。parseFm 注释里声称的「R3 守护」并无检查实现。
       if (!e.status)
         out.push({ level: 'MID', id: e.id, why: `缺 status（frontmatter 缺失或损坏的指纹）→ 补齐 frontmatter；此类条目对 audit 其余全部规则隐身` });
+      // LOW：无 triggers —— SCHEMA ⑦ 标「必填（curate 校验）」，但**绕过 curate 的存量条目**与
+      // frontmatter 合法却少字段的条目都会静默变成「永不命中」：recall 的 relevance 主匹配源就是 triggers。
+      // 2026-09-17 实测：ops/proposals 下一个月的嵌套报告目录（walk() 是递归的）里 4 个非条目 .md
+      // 被当条目吸收，全部无 triggers —— 它们照样进 catalog/reflect 的计数，却一条都检索不到；
+      // 上面那条「缺 status」只覆盖「frontmatter 全坏」那一档，这一档此前在治理视图里完全隐形。
+      if (e._zone !== 'inbox' && !(Array.isArray(e.triggers) && e.triggers.length))
+        out.push({ level: 'LOW', id: e.id, why: `无 triggers（SCHEMA ⑦ 必填）→ 该条目 recall 永不命中：补齐 triggers 或移出扫描区（嵌套报告/工作目录常从这一档被吸进来）` });
       // MID：RECALL_DIRS 内 status=archived|deprecated 但 superseded_by 为空
       // recall() 只按 superseded_by 过滤（loadEntries(RECALL_DIRS).filter(e => !e.superseded_by)），
       // **不看 status** → 这类条目照常进注入集，与 status 声明矛盾。此前无任何检查覆盖这种组合：
