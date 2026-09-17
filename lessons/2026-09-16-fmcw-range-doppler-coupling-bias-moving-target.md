@@ -17,7 +17,7 @@ source: session:01a0a4ee-6d56-777c-a410-3236022192ef
 last_verified: 2026-09-16
 superseded_by: null
 schema_version: 1
-related: []
+related: [fmcw-coupling-correction-residual-with-folded-velocity, deskew-fmcw-phase-noise-residual-scales-with-range]
 ---
 
 # FMCW 距离-多普勒耦合：运动目标距离读数带 v·f0/μ 固定偏置
