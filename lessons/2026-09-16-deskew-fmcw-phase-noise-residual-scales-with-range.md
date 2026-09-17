@@ -18,7 +18,7 @@ source: capture:capture-2026-09-16-12-16-39-243-puin
 last_verified: 2026-09-16
 superseded_by: null
 schema_version: 1
-related: []
+related: [fmcw-range-doppler-coupling-bias-moving-target, fmcw-coupling-correction-residual-with-folded-velocity]
 ---
 
 # 去斜 FMCW 相位噪声建模：残差 ∝ τ，强目标相噪裙边要靠两级 CFAR 压
