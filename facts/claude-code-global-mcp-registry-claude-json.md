@@ -17,7 +17,7 @@ source: session:019fae52-a170-7aba-bfe6-f7e1676655d0
 last_verified: 2026-09-14
 superseded_by: null
 schema_version: 1
-related: [pi-mcp-adapter-global-config-path, backup-untracked-file-before-edit]
+related: [pi-mcp-adapter-global-config-path, backup-untracked-file-before-edit, mcp-server-add-remove-align-three-registries]
 ---
 
 **主张**：Claude Code 的全局 MCP server 注册表是 `~/.claude.json` 顶层的 `mcpServers` 对象；用 python json 读写直接改它即可完成注册。改前先做带时间戳的整文件备份（`cp ~/.claude.json ~/.claude.json.bak.$(date +%Y%m%d%H%M%S)`），不用 sed 手改——这个文件是全量配置，改坏 JSON 影响面极大。
