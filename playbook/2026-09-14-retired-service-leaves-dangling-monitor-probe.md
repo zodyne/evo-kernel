@@ -1,7 +1,7 @@
 ---
 id: retired-service-leaves-dangling-monitor-probe
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: system-governance
 tags: [decommission, monitoring, health-check, mcp]
@@ -36,10 +36,10 @@ related: [macos-tailscale-half-uninstall-wrapper-extension-remains]
 
 # 证据
 
-2026-09-14 晨报 cron（session:cron_56cb07fbe7c8_20260914_093009）里，`curl -sS -m 8 -X POST http://127.0.0.1:18795/mcp -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{...}'` 返回：
+2026-09-14 晨报 cron（session:cron_56cb07fbe7c8_20260914_093009）里，`curl -sS -m 8 -X POST http://localhost:18795/mcp -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{...}'` 返回：
 
 ```
-curl: (7) Failed to connect to 127.0.0.1 port 18795 after 0 ms: Couldn't connect to server
+curl: (7) Failed to connect to localhost port 18795 after 0 ms: Couldn't connect to server
 ```
 
 末条结论判定「健康：degraded」，并把「GBrain 检查链失效 + 告警簇积压」的根因标为「gbrain 退役收尾两批清理待批」。即：gbrain 已退役（MCP 端点 18795 下线），但巡检里的 GBrain 检查链仍指向它，导致连接拒绝 + degraded 误报。
