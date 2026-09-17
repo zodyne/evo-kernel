@@ -1,7 +1,7 @@
 ---
 id: shfmt-i-flag-requires-indent-value
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: cli-tools
 tags: [shfmt, conform, nvim, formatter, silent-failure, flag-parsing]
