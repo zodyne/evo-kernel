@@ -1,7 +1,7 @@
 ---
 id: git-show-head-verify-committed-secret-redaction
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: git-security
 tags: [git, security, redaction, credentials, secrets]
@@ -22,6 +22,6 @@ schema_version: 1
 
 提交含凭据的配置快照前做完脱敏后，必须用 `git show HEAD:<path>` **直接读 git 对象**来验证入库的是脱敏版；读工作区文件不可靠，因为工作区可能已被再次脱敏，读它看到的是脱敏后的样子，看不到真实入库内容。
 
-为什么：把 singbox-config.json / searxng-settings 里的 `secret_key`/`api_key` 明文脱敏后 commit，用 `git show HEAD:snapshots/20260915-194941-baseline/singbox-config.json` 从 git 对象直接读，确认输出为 `password=<REDACTED>`、`secret_key: <REDACTED>`。
+为什么：把 singbox-config.json / searxng-settings 里的 `secret_key` / `api_key` 明文脱敏后 commit，用 `git show HEAD:snapshots/20260915-194941-baseline/singbox-config.json` 从 git 对象直接读，确认输出里 password 字段与 secret_key 字段的值均为 `<REDACTED>`。
 
 反例/边界：脱敏脚本作用在工作区文件上，commit 的却是另一个时点/另一份内容；「我读到的文件是脱敏的」不等于「commit 里存的是脱敏的」——两者必须用 `git show` 对 git 对象单独验证，否则明文可能已进历史而自以为安全。
