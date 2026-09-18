@@ -17,7 +17,7 @@ source: session:01a0b2ce-5266-73b1-bdd8-c2d0c6a8eec4
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [latex-string-backslash-escape-assert, transcription-json-balanced-escape-gate]
+related: [transcription-json-balanced-escape-gate]
 ---
 
 # 「无落单反斜杠」断言在解码后的字符串层是恒红的伪判据

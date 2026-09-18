@@ -18,7 +18,7 @@ source: session:01a0af3a-aba2-7097-91f3-80f58c344ace
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [doc-selfreported-counts-drift, bytes-exact-oracle-gate-for-pipeline-port, golden-invalidated-when-reference-shares-root-defect]
+related: [doc-selfreported-counts-drift, bytes-exact-oracle-gate-for-pipeline-port]
 ---
 
 ## 主张

@@ -17,7 +17,7 @@ source: session:01a0ad64-2a2e-7710-933f-0b6734543245
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [latex-string-backslash-escape-assert, scanned-book-formula-latex-compile-validation, transcription-compile-gate-not-semantic-correctness]
+related: [scanned-book-formula-latex-compile-validation, transcription-compile-gate-not-semantic-correctness]
 ---
 
 人工修订的转写 JSON 宣告完成前必须过程序门：①`json.load` 全量解析（反斜杠转义完整）②键集合与预期条目集双向核对（miss/extra 皆空）③每条 latex 花括号配平 ④changed 计数与逐条 reason 一致。四项全绿才收口。

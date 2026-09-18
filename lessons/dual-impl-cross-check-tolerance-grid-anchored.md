@@ -17,7 +17,7 @@ source: session:019fab8d-651f-7df8-8d1d-29c7d2f71bce
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [bytes-exact-oracle-gate-for-pipeline-port, golden-invalidated-when-reference-shares-root-defect]
+related: [bytes-exact-oracle-gate-for-pipeline-port]
 ---
 
 **主张**：验证一条信号处理链，用**数学上独立的第二实现**（如直接相位公式 vs FFT 谱峰搜索）对同一数据复算并逐点对拍；通过判据**锚定在数值分辨率量级**（FFT 网格、量化步长），不是"趋势一致"。两实现只有在"零知识复算"级别一致，才能排除共因 bug。

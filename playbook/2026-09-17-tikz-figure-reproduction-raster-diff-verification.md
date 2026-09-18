@@ -17,7 +17,7 @@ source: session:01a0adbb-beac-7710-933f-0b7fdf4f8cb9
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [pgfplots-3d-addplot3-not-addplot, xelatex-tikz-cjk-ecglue-control-spacing, tikz-redraw-align-compare-ink-bbox-anchor]
+related: [pgfplots-3d-addplot3-not-addplot, xelatex-tikz-cjk-ecglue-control-spacing]
 ---
 
 重绘扫描图为可编辑矢量图（TikZ）时，编译通过 ≠ 复现正确，必须把成品渲染回位图、与原图逐像素比对才算验证完成。

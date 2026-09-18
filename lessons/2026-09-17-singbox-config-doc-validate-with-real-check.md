@@ -17,7 +17,7 @@ source: session:01a0affb-58dd-73b1-bdd8-c2ca9d44ed64
 last_verified: 2026-09-17
 superseded_by: null
 schema_version: 1
-related: [singbox-legacy-dns-servers-deprecated-1-12, singbox-1-12-route-needs-default-domain-resolver]
+related: [singbox-legacy-dns-servers-deprecated-1-12]
 ---
 
 sing-box 配置（尤其是写进部署文档交付的 JSON）必须用目标版本的真实 `sing-box check` 命令验证，肉眼检查/JSON 合法性都不算数——版本相关的 deprecation（如 1.12 DNS 新格式、default_domain_resolver）只有真实 check 才暴露。

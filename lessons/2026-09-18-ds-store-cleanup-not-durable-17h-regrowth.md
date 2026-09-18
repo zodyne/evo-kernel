@@ -18,7 +18,7 @@ source: session:01a0a8c1-5e3e-710a-b61a-fd2478c30f87
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [osascript-finder-experiment-false-negative]
+related: []
 ---
 
 **主张**：macOS 上全机清理 `.DS_Store` 只是瞬时效果，不是可交付的终态——本机清空 157 个、重扫归零后，**17 小时内自然再生 13 个**，再生点主要在普通项目目录（`~/Dev/SPC865`、`SPC865/data`、`SPC865/output`，时间 17:07）。

@@ -17,7 +17,7 @@ source: session:01a0b2ce-5368-73b1-bdd8-c2d88804e74e
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [2026-09-16-bash-guard-blocks-pathless-recursive-scan, bash-guard-analyzes-top-level-segments-only, bash-guard-blocks-nonrecursive-grep-cwd-home]
+related: [2026-09-16-bash-guard-blocks-pathless-recursive-scan]
 ---
 
 **主张**：bash-guard 的拦截以**整条命令**为单位、发生在执行之前——被拦的命令任何一段都不会跑，包括命令头部的 `cd` / `rm -rf` / `mkdir` / 重定向写文件。因此被拦之后，下一条依赖这些准备步骤的命令会报「目录/文件不存在」，那不是 mkdir 或写盘失败，而是准备步骤压根没执行；重试时要把准备步骤和被拦的扫描段作为一个整体重跑（或干脆拆成两条命令）。

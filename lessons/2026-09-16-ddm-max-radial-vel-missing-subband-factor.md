@@ -17,7 +17,7 @@ source: session:01a0a736-0e26-7353-8a3d-4308f5b65cb2
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [radar-derived-param-mhz-hz-unit-slip, gridding-quantization-cap-negative-radial-velocity]
+related: [radar-derived-param-mhz-hz-unit-slip]
 ---
 # DDM 最大径向速度差 6 倍＝漏乘 num_subbands 因子，整数倍缺口是漏因子的指纹
 

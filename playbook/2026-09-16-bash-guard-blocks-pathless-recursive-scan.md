@@ -17,7 +17,7 @@ source: session:01a0a7f9-4ced-73b3-8cfc-3829cc92108c
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [substring-matcher-cannot-tell-exec-from-mention, bash-guard-blocks-nonrecursive-grep-cwd-home, bash-guard-analyzes-top-level-segments-only]
+related: [substring-matcher-cannot-tell-exec-from-mention]
 ---
 
 pi 的 bash-guard 扩展会硬拦「无路径递归扫描」——当 cwd 在家目录树里，无路径限制的递归 grep 等于全盘扫描（实测 ~/Dev = 48.8GB / 142,099 文件，单线程 grep 18–50 MB/s），直接返回「递归扫描代价失控」拦截信息；本会话两次触发（一次 for 循环扫 Group Containers、一次 docker diff 管道）。

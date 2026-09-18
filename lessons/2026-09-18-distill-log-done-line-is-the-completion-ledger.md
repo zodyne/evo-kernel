@@ -18,7 +18,7 @@ source: session:01a0af9e-b3c1-764c-a77e-5180607e51ae
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [evo-distill-transient-connection-error-retry, distill-skip-pi-not-in-path-third-state]
+related: [evo-distill-transient-connection-error-retry]
 ---
 **主张**：evo-distill 后台蒸馏的完成状态，权威对账源是 `ops/log/distill.log` 里的 `done <session_id> — DISTILL_OK <n>` 行；判断某会话是否蒸馏完成应 grep 该行，而不是看队列或 .out 文件。
 

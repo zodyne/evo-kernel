@@ -17,7 +17,7 @@ source: session:01a0adbb-be00-7710-933f-0b79e52433fb
 last_verified: 2026-09-17
 superseded_by: null
 schema_version: 1
-related: [tikz-figure-reproduction-raster-diff-verification, tikz-redraw-align-compare-ink-bbox-anchor]
+related: [tikz-figure-reproduction-raster-diff-verification]
 ---
 
 TikZ 重绘图与原图做像素比对前，先把编译出的 PDF 渲染换算到与原图相同的物理尺度（本会话统一为 100 px/cm ≈ 254 dpi），元素坐标按 `px_per_cm = 渲染宽px / (PDF宽pt / 72 × 2.54)` 实测（得 100.03），再按 `(px_bbox − px_origin) / px_per_cm` 换算；同尺度下量出的中文标签/连线位置即可与原图逐一对齐、直接指导 .tex 修改。

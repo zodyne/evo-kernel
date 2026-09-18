@@ -18,7 +18,7 @@ source: capture:capture-2026-09-07-07-00-22-970-vqi7
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [clangd-subproject-missing-compile-commands-failed-to-find, nvim-server-socket-under-tmpdir-not-tmp]
+related: [clangd-subproject-missing-compile-commands-failed-to-find]
 ---
 
 # 排查 nvim LSP 跳转失效：别猜，直连活着的 nvim 实例

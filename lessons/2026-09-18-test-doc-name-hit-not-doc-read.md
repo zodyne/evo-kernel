@@ -17,7 +17,7 @@ source: session:01a0a964-e50e-77c1-a593-51a129dcb579
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [doc-drift-fix-grep-by-concept, subagent-transcript-exec-vs-mention]
+related: [doc-drift-fix-grep-by-concept]
 ---
 
 **主张**：`rg -ln "<文档名>" tests/` 命中若干测试文件，**不能**据此推断「改这篇文档会打断测试」——命中常常只是 `tmp_path / "report.md"` 这类默认输出文件名的字符串/路径断言。判断有无真耦合要看**命中的那一行长什么样**（是否真的对文档路径做 `read_text()` / `open()` / 解析章节），并据此决定改文档要不要同步改测试，而不是数命中了几个文件。

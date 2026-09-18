@@ -18,7 +18,7 @@ source: session:01a0a7af-25c7-725c-a75a-f990cf4e0e58
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [pi-jsonl-toolresult-toolcallid-pairing, pi-transcript-tool-args-encoding-is-per-tool, subagent-transcript-exec-vs-mention]
+related: [pi-jsonl-toolresult-toolcallid-pairing, pi-transcript-tool-args-encoding-is-per-tool]
 ---
 
 # 在会话 jsonl 里搜关键词要用 `rg -o '.{N}<pattern>.{M}'` 裁定长上下文，别用行级上下文

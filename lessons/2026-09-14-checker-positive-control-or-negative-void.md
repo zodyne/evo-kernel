@@ -18,7 +18,7 @@ source: capture:capture-2026-09-14-07-14-55-471-oypb
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [grep-verify-untracked-artifact-stale-before-delete, substring-matcher-cannot-tell-exec-from-mention, osascript-finder-experiment-false-negative, selfwritten-check-needs-positive-control]
+related: [grep-verify-untracked-artifact-stale-before-delete, substring-matcher-cannot-tell-exec-from-mention]
 ---
 
 # 主张

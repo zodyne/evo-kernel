@@ -17,7 +17,7 @@ source: session:01a0a889-98f7-7719-ba82-3209d6a06db1
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [nested-repo-ignored-outer-git-status-clean, backup-untracked-file-before-edit, git-add-untracked-source-path-aborts-staging, uncommitted-fix-invisible-to-git-log-traceback]
+related: [nested-repo-ignored-outer-git-status-clean, backup-untracked-file-before-edit, git-add-untracked-source-path-aborts-staging]
 ---
 
 git diff --stat 对从未 git add 的未跟踪文件静默返回空，不能据此判断"没改动"；先用 `git ls-files --error-unmatch <path>` 判定文件是否已被 git 跟踪（未跟踪时 exit≠0 并报 "did not match any file(s) known to git"）。

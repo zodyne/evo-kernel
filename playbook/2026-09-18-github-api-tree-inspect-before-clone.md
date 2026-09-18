@@ -17,7 +17,7 @@ source: session:01a0afd6-6cb7-764c-a77e-518272d0f753
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [2026-09-13-git-clone-http2-framing-fallback-tarball, windows-ssh-curl-research-via-mac-proxy-env]
+related: [2026-09-13-git-clone-http2-framing-fallback-tarball]
 ---
 
 只需要浏览/检索 GitHub 仓库内容（找文件、确认某实现存在、读关键源码）时，先用 `curl "https://api.github.com/repos/<owner>/<repo>/git/trees/HEAD?recursive=1"` 拉全量文件清单定位目标，再用 `raw.githubusercontent.com` 按需取单个文件，不先 clone。

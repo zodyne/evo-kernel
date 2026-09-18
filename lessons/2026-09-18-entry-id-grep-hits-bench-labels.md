@@ -17,7 +17,7 @@ source: session:01a0b2ce-53a8-73b1-bdd8-c2dbfa58d618
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [forensic-grep-self-hit-current-session, evo-get-not-found-verify-via-catalog-before-existence-claim, entry-id-grep-hits-referrers-not-definition]
+related: [forensic-grep-self-hit-current-session, evo-get-not-found-verify-via-catalog-before-existence-claim]
 ---
 
 # 用条目 id 查引用会命中评测标注文件：claims.txt / labels.json 不是引用证据
