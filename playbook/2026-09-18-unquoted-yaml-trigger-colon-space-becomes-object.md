@@ -1,7 +1,7 @@
 ---
 id: unquoted-yaml-trigger-colon-space-becomes-object
 type: lesson
-status: candidate
+status: validated
 scope: project:evo-kernel
 domain: tooling
 tags: [evo-kernel, yaml, js-yaml, triggers, catalog, dedup, silent-failure]
