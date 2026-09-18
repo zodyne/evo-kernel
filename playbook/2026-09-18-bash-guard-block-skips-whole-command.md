@@ -1,7 +1,7 @@
 ---
 id: bash-guard-block-skips-whole-command
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: pi-harness
 tags: [pi, bash-guard, compound-command, side-effect]
