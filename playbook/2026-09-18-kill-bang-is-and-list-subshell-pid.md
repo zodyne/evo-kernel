@@ -1,7 +1,7 @@
 ---
 id: kill-bang-is-and-list-subshell-pid
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: shell
 tags: [bash, background-job, pid, kill, subshell, nvim, swap]
