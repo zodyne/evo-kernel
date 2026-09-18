@@ -17,7 +17,7 @@ source: session:01a0b2ce-53a8-73b1-bdd8-c2dbfa58d618
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [forensic-grep-self-hit-current-session, evo-get-not-found-verify-via-catalog-before-existence-claim]
+related: [forensic-grep-self-hit-current-session, evo-get-not-found-verify-via-catalog-before-existence-claim, entry-id-grep-hits-referrers-not-definition]
 ---
 
 # 用条目 id 查引用会命中评测标注文件：claims.txt / labels.json 不是引用证据
@@ -43,6 +43,12 @@ evo-kernel 的 `test/retrieval-bench/labeling/` 下，`claims.txt`（切片首�
   同属 `labeling/` 评测目录，但"同样是全量清单"这一点只由 `claims.txt` 的内容佐证，引用时注意口径。
 - 同一次搜索里的其它命中（如 `./playbook/2026-07-27-warn-rule-…`）不受本条影响，仍要逐条看是不是真引用。
 - 本条只针对 `test/retrieval-bench/labeling/`；别的评测/标注目录是否存在同类文件未验证。
+- 与「引用方命中」是方向相反的第三类假阳性：`related:` 是纯文本 id 引用，引用方文件里原样存着被引 id，
+  所以 `rg -l <id>` 的命中集合天然是「1 个定义 + N 个引用/提及」；命中非空只证明该 id 在库里出现过，
+  证明不了任何单个命中文件是本体（折叠/查重时误读，会把引用方内容当成被查 id 的条目内容）。
+- 要按 id 定位**定义**（而非统计引用），搜 `rg -l "^id: <id>$" playbook/ lessons/ facts/`；
+  命中文件名与搜索串相同只是启发式（日期前缀不必等于 id），别用文件名反推。只做存在性判断时任意命中都够用，
+  区分角色只在把命中读成「定义位置/条目本体」时才必要。
 
 ## 证据（session 01a0b2ce 命令 ↔ 结果）
 
