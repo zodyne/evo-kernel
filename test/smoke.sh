@@ -875,6 +875,16 @@ PY
 #   而它的 mtime 是刚拷的→看着很新鲜→驱动器正确地报「已有实例在跑」并跳过（测试假红）。
 #   同理清掉 .distill-*.out 残留，避免上一轮诊断文件混入断言。
 rm -rf "$EVO_ROOT/ops/log/.distill.lock"; rm -f "$EVO_ROOT"/ops/log/.distill-*.out
+# 锁路径被非目录占用也必须能自愈（实测形状：还活着的旧实例心跳用 touch 把锁目录变成了同名空文件，
+# 于是 mkdir 永远 EEXIST、[ -d ] 又不成立 → 每轮都报「已有实例在跑」且永不恢复）。
+: > "$EVO_ROOT/ops/log/.distill.lock"
+# 注：macOS 没有 /bin/true（是 /usr/bin/true）—— 写错会让驱动在 hermes 检查处就退出，
+# 于是这条断言假红，看起来像「自愈没生效」。
+EVO_DISTILL_JOBS=2 EVO_HERMES_PY=/bin/bash EVO_HERMES_BIN="/usr/bin/true" EVO_DISTILL_EVO="$EVO" \
+EVO_DISTILL_MIN_BYTES=999999999 "$EVO_ROOT/ops/bin/evo-distill.sh" --max 1 >/dev/null 2>&1
+grep -q '锁路径被非目录占用' "$EVO_ROOT/ops/log/distill.log" \
+  && ok "L: 锁路径被非目录占用时自愈" || bad "L: 锁路径非目录" "(未自愈→驱动会被永久挡住)"
+rm -rf "$EVO_ROOT/ops/log/.distill.lock"; rm -f "$EVO_ROOT"/ops/log/.distill-*.out
 FAKE_HERMES="$TMP/fake-hermes.sh"
 printf '#!/usr/bin/env bash\necho "DISTILL_OK 0"\n' > "$FAKE_HERMES"; chmod +x "$FAKE_HERMES"
 PAR_N=6; p=0

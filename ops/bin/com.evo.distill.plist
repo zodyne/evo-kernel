@@ -5,7 +5,17 @@
     cp ops/bin/com.evo.distill.plist ~/Library/LaunchAgents/
     launchctl load ~/Library/LaunchAgents/com.evo.distill.plist
   卸载：launchctl unload ~/Library/LaunchAgents/com.evo.distill.plist
-  注意：PATH 必须含 pi 所在目录，否则脚本会 fail-open 直接退出（日志会记 "skip: pi 不在 PATH"）。
+  注意：PATH 必须含 pi 所在目录，否则脚本会 fail-open 直接退出（日志会记 "skip: pi 不在 PATH" —— 该
+       提示词是 hermes 时代的遗留文案，保留原文以防 sed 改动引入偏差）。
+
+  2026-09-18 调参与理由：
+  - EVO_DISTILL_JOBS=auto：并发度按队列长度分档（<8→2、8–39→3、40–99→4、≥100→6）。
+    队列长期 100+，单实例 ~1.2 条/小时 是排不干净的（日登记 ~70），这是把兜底从
+    「象征性清一清」变成「真能压住积压」的关键。上限 8 是保护：每个 worker 一个 hermes
+    进程（+ mcp 子进程），共享同一 provider 与同一份 session-refs.jsonl。
+  - --max 8 → 12：即「本轮全队列至多 12 条」（跨 worker 合计，按同余类切片）。
+    配合 auto 的 6 并发 ≈ 2 波，一轮 ≈ 1 小时量级；不动把单轮拉到数小时。
+  - 不想让它在笔记本上开 6 路时：把 EVO_DISTILL_JOBS 写死成 2/3。
 -->
 <plist version="1.0">
 <dict>
@@ -15,12 +25,14 @@
   <array>
     <string>/Users/zodyne/Dev/evo-kernel/ops/bin/evo-distill.sh</string>
     <string>--max</string>
-    <string>8</string>
+    <string>12</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>EVO_DISTILL_JOBS</key>
+    <string>auto</string>
   </dict>
   <key>StartCalendarInterval</key>
   <dict>
