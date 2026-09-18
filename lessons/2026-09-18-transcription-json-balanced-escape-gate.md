@@ -28,5 +28,6 @@ related: [latex-string-backslash-escape-assert, scanned-book-formula-latex-compi
 - `OK 14`（全量 json 解析通过）；
 - `keys: 14 miss: [] extra: [] changed: 11 ['p053-01', 'p055-09', 'p078-08', ...]`（条目集双向一致、changed 计数成立）；
 - `all balanced & well-formed: True`（花括号配平）。
+- 若要定位到具体坏条（json.load 只报解析失败、不指认哪条），加一条落单反斜杠断言 `assert '\\' not in l.replace('\\\\', '')`（先抵消成对 `\\`，剩单个 `\` 即漏转义）：本会话对 chunk01.json 跑该断言直接 Traceback 定位出坏条，修复后 `42 equations exit=0` 编译通过。
 
 **边界**：配平检查只保证括号数量匹配，不保证语义分组正确（\frac 分子分母切错位置照样配平）——本门是结构门，语义忠实度另走编译门/抽验（见 related）。

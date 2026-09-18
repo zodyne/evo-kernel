@@ -15,10 +15,10 @@ created: 2026-09-14
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:01a09f4d-d02c-7129-be3e-248c7ca82c43
-last_verified: 2026-09-14
+last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [recall-failure-empty-vs-noise-taxonomy]
+related: [recall-failure-empty-vs-noise-taxonomy, refs-json-count-range-contiguity]
 ---
 
 # 主张
@@ -34,6 +34,7 @@ related: [recall-failure-empty-vs-noise-taxonomy]
 - 只适用于**有稳定编号锚点的清单**（数字编号 + 每行一条）。无编号的自由文本或结构化格式（JSON/YAML/XML）不适用正则数条——结构化格式该用 json/yaml/plutil 解析，正则易被换行、空格、内嵌冒号骗过去。
 - 正则数出的总数只证明「读了 N 条」和「首末对得上」，**不证明每条都被正确标注**；逐条标注的正确性仍需人工/规则判定。
 - 若清单由程序生成、自带 manifest 或行数已知，直接对 manifest 更省事；正则只是无 manifest 时的兜底取证。
+- 外部生成/维护的编号产物，验收三件套应是**条目数 + id 两端(min/max) + 序列连续**：只看 n 抓不住中段缺号——预期 54..121 共 68 条时，中段丢 1 又重 1 条 n 仍是 68；把 `sorted(id)` 与 `range(min, max+1)` 逐点比对才能暴露缺口/重号，生成方自报的「共 68 条」不能直接沿用。
 
 # 证据
 

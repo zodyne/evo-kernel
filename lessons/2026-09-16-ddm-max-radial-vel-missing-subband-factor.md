@@ -14,10 +14,10 @@ created: 2026-09-15
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:01a0a736-0e26-7353-8a3d-4308f5b65cb2
-last_verified: 2026-09-15
+last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [radar-derived-param-mhz-hz-unit-slip]
+related: [radar-derived-param-mhz-hz-unit-slip, gridding-quantization-cap-negative-radial-velocity]
 ---
 # DDM 最大径向速度差 6 倍＝漏乘 num_subbands 因子，整数倍缺口是漏因子的指纹
 
@@ -42,6 +42,7 @@ DDM 实际报 4.79 m/s，`28.77 / 6 = 4.795`，正好差 6 倍 = `num_subbands =
 - 本条只坐实「28.77 vs 4.79 差 6 倍 = num_subbands」这个数值事实；「具体哪一行漏乘」是诊断推断，切片未记录 DDM 解调路径源码，未逐行取证。
 - 28.81 vs 28.77 的 0.04 m/s 差异来自文档四舍五入/表述口径，与 6 倍缺口是两回事，勿混为一谈。
 - 该因子只在 DDM/DDMA 这类「子带/发射通道复用」波形里出现；单发单收 FMCW 无此因子，判据别误套。
+- 速度上限本身是逐级量纲推导值而非标称参数：AFM761 DDM（768 chirps/帧）口径下由「最小 v 步长 × 可编码 bin 数」得 ±28.77 m/s，文档自报的 ±28.81 已被列为待更正项——推导口径（起算步长、含多少 bin）须与实现一致，文档转抄值不具量纲锚资格。
 
 ## 失败信号（未来命中即该想起本条）
 - DDM 速度与链路公式差一个整数倍（num_subbands / num_tx），而非 1e3/1e6 量纲倍数。

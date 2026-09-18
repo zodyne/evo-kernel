@@ -14,7 +14,7 @@ created: 2026-07-27
 evidence: {helpful: 0, harmful: 0}
 verified_by: command
 source: session:e1d54d8c-33d7-425d-88e3-901189f4090c
-last_verified: 2026-07-27
+last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
 ---
@@ -32,3 +32,5 @@ rm -rf /tmp/build-cache               → 命中（这条才是真的）
 **关键不对称**：剥引号可以用来**评估**规则质量，但**绝不能用于执行判定**——`bash -c "rm -rf /"` 的危险命令本就在引号里，剥掉会漏杀。评估侧漏判只是少推荐一次升级；执行侧漏判是安全事故。
 
 **次生陷阱**：评估规则时跑的测试命令会自己进命中日志。本例中为验证误报率跑的 5 条命令，把计数从 34 抬到 40——**"要不要升级"的判据被"评估升级"这个动作本身污染**。计数类判据要能区分生产流量与测试流量，否则越评估越像该升级。
+
+**取证侧同源**：同样的混淆在会话 transcript 审计里再现——判定「某命令/进程是否被执行」时对 jsonl 全文 grep 命令名，会把 `read` 工具回灌的源码/配置正文与 thinking/text 讨论一并算成执行（被审的 nvim 配置里 `vim.fn.system` / `uv.spawn` 本就在正文中，全文 grep 必然命中，而这些不是该会话执行过的命令）；应只匹配工具调用的结构字段（bash toolCall 的 `command` 字符串）。反向漏判同样存在：命令被拼进 shell 变量、heredoc 或 `bash -c "..."` 字符串时，扫 `command` 字段也可能把执行读成「提及」。
