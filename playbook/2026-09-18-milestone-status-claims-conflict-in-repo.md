@@ -1,7 +1,7 @@
 ---
 id: milestone-status-claims-conflict-in-repo
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: documentation
 tags: [doc-drift, status-claims, git-show-head, bundle, remote-branch, progress-report]
