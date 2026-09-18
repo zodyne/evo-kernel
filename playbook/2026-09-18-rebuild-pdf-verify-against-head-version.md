@@ -1,7 +1,7 @@
 ---
 id: rebuild-pdf-verify-against-head-version
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: documentation
 tags: [pdf, rebuild, artifact-verification, git-show, pdftotext, pdfinfo, doc-drift]
