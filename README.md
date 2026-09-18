@@ -5,7 +5,7 @@
 > **harness 接入现状（2026-09-18）**：
 > - **pi**：已接（`~/.pi/agent/extensions/evo-kernel.ts`，三个事件）；这是唯一接入的 harness。
 > - **Claude Code**：有意不接（hooks 已退役且无替代桥接）。
-> - **Hermes**：**2026-09-18 退役**（用户口径「不掉 evo↔hermes hooks」）——三件套从
+> - **Hermes**：**2026-09-18 退役**（用户口径「摘掉 evo↔hermes hooks」）——三件套从
 >   `~/.hermes/config.yaml` 摘除。退役实测依据：hook 在蒸馏路径上本就被 `EVO_DRIVER=1`
 >   + prompt 哨兵短路（本轮 47 个蒸馏会话在 recall.jsonl 里 0 行），对速度无收益。
 >   恢复办法写在 config.yaml 被注释掉的段旁（三步）。存续件仍在 `ops/integrations/hermes-evo-hooks/`。
