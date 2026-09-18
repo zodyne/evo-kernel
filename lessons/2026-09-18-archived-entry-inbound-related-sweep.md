@@ -29,3 +29,5 @@ related: [frontmatter-edit-must-use-setfmfield]
 - 修复：改写两条 frontmatter 后 push `e47af22..0937797`，提交标题 `fix: 清两条悬挂 related 链接 —— 指向已归档条目（audit LOW 归零）`。
 
 **边界/反例**：确实需要保留历史指向时，应把说明写进正文（「X 已归档到 ops/archive/…」）而不是留在 `related:` 字段——audit 只按 id 是否存在判定，`related` 里放无效 id 永远算悬挂。改 id 的场合同理，扫的就是旧 id；批量归档后应跑 `./bin/evo audit` + `npm test` 收尾，而不是只确认文件已移走。
+- 同症状（audit MID）、不同成因：**写入时就把注定消失的 id 当成了条目**。`related:` 只写当时存在于 SCAN_DIRS（lessons/playbook/facts/episodes/principles）里的 id；`ops/proposals/` 既不在 SCAN_DIRS 也不在 `evo catalog` 覆盖内，折叠重复提案时若为了记「并入自哪条提案」把被折提案的 id 追加进目标条目，而提案就在同一动作里被 `rm`，断链当场成立 —— 这条只能在写 `related` 那一步拦住，事后扫是补不回来的。来历写进正文或 commit message。
+- 检测口径：frontmatter/YAML 解析检查**抓不到**悬挂引用 —— 实测一次批量 fold 收尾只跑了 yaml 解析（`OK … | id= … | last_verified= …`），两条 MID 全部漏过；要抓只能跑 `./bin/evo audit`，或对 `^related:` 做全库 id 存在性对账。
