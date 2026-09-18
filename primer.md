@@ -34,8 +34,13 @@
   **Claude Code 是有意不接入 evo**（使用与接入是两件事）—— 它的 hooks 已退役且无替代桥接，
   故 Claude 侧会话既不回流经验也得不到 recall 注入，此为设计取舍。**不要再当缺口处理**：
   2026-09-14 曾把登记数下降（7月 121 → 8月 67 → 9月 1）误盘成「半个 harness 失效」。
-  Hermes 侧已接：三件套 + 二期导出（`evo-session-end.sh` 调 `hermes sessions export`
-  回填真实 transcript 路径，否则其每次注入都落在「结构性不可对账」）。
+  **Hermes 侧已于 2026-09-18 退役**（用户口径「摘掉 evo↔hermes hooks」）：三件套从
+  `~/.hermes/config.yaml` 摘除，hermes 会话同样不再回流、不再注入、不再走 guard。
+  即现**只有 pi 一个 harness 接入 evo**。退役原因：实测 hook 在蒸馏路径上本就被
+  `EVO_DRIVER=1` + prompt 哨兵短路（本轮 47 个蒸馏会话在 recall.jsonl 里 0 行），
+  对速度无收益；真正的成本在模型思考块（12–43KB 思考/次调用，43KB÷126 字符 = 340 倍）。
+  恢复办法写在 config.yaml 被注释掉的那段旁边（三步，含 copies 回 `~/.hermes/agent-hooks/`）。
+  存续件仍在 `ops/integrations/hermes-evo-hooks/`（doctor 第 16 项继续比对副本）。
 - `~/Dev/suc221-pointcloud-2.0` —— 无人机避障雷达技术研究（原代号 UCM221，现名 SUC221）。
   雷达信号处理：CFAR、测角/DOA、点云、航迹；C 核心 + FreeRTOS + ARM 移植。
 - `~/Dev/algommw` —— 算法中间件。

@@ -691,20 +691,10 @@ EVO_ROOT="$KROOT" "$SRC/bin/evo" index rebuild >/dev/null 2>&1
 mkdir -p "$KHOME/.claude" "$KHOME/.hermes/agent-hooks" "$KHOME/.hermes"
 # Claude hooks 已退役（pi 退役，挂载迁移至 Hermes hooks）：预期无挂载
 printf '{}' > "$KHOME/.claude/settings.json"
-# Hermes hooks 接线（config.yaml hooks 段 → agent-hooks adapter）
-cat > "$KHOME/.hermes/config.yaml" << YAML
-hooks:
-  pre_llm_call:
-    - command: "$KROOT/ops/integrations/hermes-evo-hooks/evo-recall.sh"
-      timeout: 8
-  on_session_end:
-    - command: "$KROOT/ops/integrations/hermes-evo-hooks/evo-session-end.sh"
-      timeout: 5
-  pre_tool_call:
-    - matcher: "terminal|write_file|patch"
-      command: "$KROOT/ops/integrations/hermes-evo-hooks/evo-guard.sh"
-      timeout: 5
-YAML
+# Hermes hooks **已退役**（2026-09-18 用户决定「不接入 hermes」）：预期 config.yaml 里**无 hooks 段**。
+# 与第 6 项（Claude hooks 退役）同口径：doctor 第 7 项已反向成「校验退役」，
+# 下面 K7 验无挂载 → PASS，K7b 验**残留检测仍然有效**（重新接上要能看见，不是默默回归）。
+printf '{}' > "$KHOME/.hermes/config.yaml"
 # skills 软链（evo link with HOME=KHOME）
 HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" link >/dev/null 2>&1
 # K1: 全绿 → exit 0 + 无 [FAIL]
@@ -724,6 +714,20 @@ printf '{}' > "$KHOME/.claude/settings.json"
 # K4: Hermes hooks adapter 副本漂移检测（§4.2 存续）——留副本不够，副本会悄悄过期，必须比对内容
 { echo "$DOC" | grep -q '16. Hermes hooks adapter 副本'; } \
   && ok "K: doctor 含 hermes adapter 副本检查" || bad "K: 副本检查缺失" "(doctor 无第 16 项)"
+# K7: Hermes hooks 已退役确认（无挂载 → PASS；与 Claude 第 6 项同口径）
+{ echo "$DOC" | grep -q '7. Hermes hooks 已退役确认' && echo "$DOC" | grep -q '预期无挂载'; } \
+  && ok "K: doctor 含 Hermes hooks 退役确认" || bad "K: 退役确认缺失" "(doctor 第 7 项未反转)"
+# K7b: 残留接线 → WARN（防退役后悄悄被重新接上；与 K6 同类）
+cat > "$KHOME/.hermes/config.yaml" << YAML
+hooks:
+  pre_llm_call:
+    - command: "$KROOT/ops/integrations/hermes-evo-hooks/evo-recall.sh"
+      timeout: 8
+YAML
+DOC7=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+{ echo "$DOC7" | grep -q '残留 evo 挂载'; } \
+  && ok "K: 残留 Hermes 挂载报 WARN" || bad "K: 残留检测失效" "(有残留未报)"
+printf '{}' > "$KHOME/.hermes/config.yaml"
 printf '#!/usr/bin/env bash\n# 实装侧漂移\n' > "$KHOME/.hermes/agent-hooks/evo-recall.sh"
 DOC4=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
 { echo "$DOC4" | grep -q '副本漂移'; } \
