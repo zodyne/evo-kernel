@@ -31,4 +31,6 @@ schema_version: 1
 
 反例/边界：`-Xclang -fdump-record-layouts` 是 clang 前端专用（经 -Xclang 透传）；gcc 等其他前端是否有等价 dump 开关本会话未验证，换编译器需另行确认。dump 只给布局，不校验语义与字节序——字节级一致性仍要靠逐位 golden 对拍兜底。
 
+静默空输出的坑（2026-09-18 补）：plain `-Xclang -fdump-record-layouts`（不带 `-complete`）只打印**在 codegen 中真正被实例化/使用过**的记录——TU 里只定义、从未使用的 struct 得到**零输出**，不能据此判断「布局没问题/无布局」。要 dump 某结构体必须真的用到它（加一行 `struct s v;`）并编译到 `-c -o /dev/null`（`-fsyntax-only` 下未使用同样零输出）。只想核对头文件里的定义而不构造使用点时，改用 `-Xclang -fdump-record-layouts-complete`（列出全部已定义记录），但它的输出**以编译器内置记录开头**（如 `struct __NSConstantString_tag [sizeof=32, align=8]`），容易看漏目标 struct，别用 `head` 截断。
+
 证据：session:01a0af3a-aa91-7097-91f3-80ed3e90840c 中多轮 record-layout dump 均返回 sizeof/align（xCOMPLEX_16=4/align2、xCOMPLEX_F=8 等），结论喂给迁移报告。

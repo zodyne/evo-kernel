@@ -33,4 +33,6 @@ schema_version: 1
 
 **边界 / 反例**：`sips` 能做格式转换但没有"页"这个维度；`pdftoppm` 属 poppler（`brew install poppler`），未装时 `qpdf`（结构化变换，不栅格化）与 `mutool`（若装了才可用）不能按同一条命令替代。高 dpi 渲染大页时注意产物体积与耗时；输出后缀是真实页号，脚本里不要假定 `-1`。
 
+另有一档是完全失败（2026-09-18 补）：`sips -s format png` 并非「总能拿到首页」——有些 PDF 会让它直接失败，stderr 打 `CoreGraphics PDF has logged an error. … Error 13: an unknown error occurred`，**rc=13 且完全不产出目标 PNG**；同一台机器同一条命令换一份 PDF 就成功（本机 rc=0、`PNG 595x842`），故失败取决于输入 PDF 而非环境写错。所以转换后要校验产物（`[ -s out.png ]` 或 identify 验图），别只看「命令跑过了」，也别只看 rc（流水线里 rc 常被 `;`/管道吞掉）；要稳定栅格化一律走 `pdftoppm`。
+
 **失败信号（未来命中即该想起本条）**：想核对"第 N 页"却总看到首页内容；或批量循环里 `sips` 反复覆盖出同一张图。
