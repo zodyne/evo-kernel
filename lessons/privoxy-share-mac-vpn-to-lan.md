@@ -26,6 +26,6 @@ Mac 本机的 VPN 隧道默认只服务本机；要共享给局域网设备，�
 
 **验证判据**：`curl -x http://<Mac局域网IP>:8118 https://ifconfig.me` 的出口 IP 应与 Mac 直连（走 VPN）的出口 IP 一致——一致即证明链路「设备 → Mac privoxy → VPN 隧道」成立。注意 VPN 可能中途换节点，先后两次直连出口 IP 不同属正常，要同一时间窗内对比。
 
-会话证据：privoxy 改完监听地址后，`curl -x http://192.168.100.104:8118 https://ifconfig.me` 返回 `94.140.8.9`，与同时段 Mac 直连出口 `94.140.8.9` 一致（`scutil --nc list` 显示 NordVPN NordLynx Connected）。
+会话证据：privoxy 改完监听地址后，`curl -x http://<lan-host>:8118 https://ifconfig.me` 返回 `<dns>`，与同时段 Mac 直连出口 `<dns>` 一致（`scutil --nc list` 显示 NordVPN NordLynx Connected）。
 
 边界：macOS 应用防火墙若开启需放行 privoxy（本次 `socketfilterfw --getglobalstate` 显示 Firewall disabled）；手机必须与 Mac 同网段。
