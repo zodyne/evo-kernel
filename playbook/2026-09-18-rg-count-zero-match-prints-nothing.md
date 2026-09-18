@@ -1,7 +1,7 @@
 ---
 id: rg-count-zero-match-prints-nothing
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: shell
 tags: [ripgrep, rg, grep, shell, exit-code, counting]
