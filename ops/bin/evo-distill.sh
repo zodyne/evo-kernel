@@ -15,6 +15,19 @@
 #   ops/bin/evo-distill.sh --session <sid> 只处理指定会话（忽略体量门槛）
 #   ops/bin/evo-distill.sh --dry-run       只打印将处理什么，不调 pi
 #
+#
+# ⚠ **不要直接原地编辑本文件，如果此时有轮次在跑。**
+#   bash 是按**字节偏移**增量读脚本的（不是一次性全读进内存）——原地改文件会让偏移错位，
+#   于是它会读到半行、把残片当命令执行。2026-09-18 实测到两行实证：
+#     evo-distill.sh: line 276: rintf: command not found      ← "printf" 只剩后半截
+#     evo-distill.sh: line 279: syntax error near unexpected token 'else'
+#   当时我误以为「while 块是一次解析所以安全」——对块内成立，但块**之后**的顶层语句
+#   仍按新偏移读取，所以照样炸。
+#   安全改法（对已在跑的实例无感）：写到临时文件再原子替换 ——
+#     cp 新版本 /tmp/new.sh && mv /tmp/new.sh ops/bin/evo-distill.sh
+#   mv 是 rename：跑着的 bash 继续读旧的 inode，偏移不会错位。
+#   或者先停轮次（kill runner + worker）再原地改。
+#
 # 环境变量：EVO_DISTILL_TIMEOUT（基数秒数，默认 1800）、EVO_DISTILL_TIMEOUT_PER_100KB（每 100KB 增量，默认 100）、
 #          EVO_DISTILL_TIMEOUT_CAP（上限秒数，默认 5400）、EVO_DISTILL_MIN_BYTES（默认 50000）
 #          预算按体量放大：实测 214KB 需 ~2040s、1MB 需 ~2820s，固定预算会切掉正常会话。
