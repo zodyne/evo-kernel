@@ -138,7 +138,7 @@ npm test        # 应 FAIL=0（**不写死 PASS 数**：见本库 doc-selfreport
 | 新入库的 8 条 playbook 条目 | 入库当天即被 4 个会话注入 | 攒够对账后看 `(adopted+relevant-unused)/n` vs 全库 34% 基线：低于基线 ⇒ 收紧 triggers；否则保留 |
 | 队列长度 | ~117 条（日登记 ~70） | 持续增长 ⇒ 产能不够；不增长 ⇒ 收支平衡。**9/18 起产能不再由「一天一次 `--max 8`」决定**：已开并发（见下），所以此行的读法变了 —— 先看 `EVO_DISTILL_JOBS` 实际分档与每轮时长，再判产能 |
 | 蒸馏并发 | 4 worker（`--max 48` 档） | 看日志里同秒 start 的条数 ≈ worker 数。若并发上不去（只剩单条 start）⇒ 查 `--slot` 进程是否还在、锁路径是否被非目录占住（该情形已能自愈，但会记一行「锁路径被非目录占用」） |
-| provider 并发承受度 | **未测**（1 并发时也见过报错，见下） | 4–6 并发跑几轮后统计 `fail` 里的 `can't reach the model provider` / `Broken pipe` 占比：与单并发时相当 ⇒ 可继续升档；显著升高 ⇒ 把 `EVO_DISTILL_JOBS` 写死回 2–3 |
+| provider 并发承受度 | **首测：4 并发 · 16 条 · 0 失败**（2026-09-18 01:05Z 起 43 min，`--max 48` 轮，n 小待攒） | 4–6 并发跑几轮后统计 `fail` 里的 `can't reach the model provider` / `Broken pipe` 占比：与单并发时相当 ⇒ 可继续升档；显著升高 ⇒ 把 `EVO_DISTILL_JOBS` 写死回 2–3 |
 | 对账重复 | 已自动去重（留最后一次） | 若再现「原始行数 vs 报告分母」偏差，先怀疑去重读法被绕过 |
 
 ### 仪表（各自解决什么，别重造）
