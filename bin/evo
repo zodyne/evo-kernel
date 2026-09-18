@@ -95,6 +95,37 @@ function appendLog(file, obj) {
   catch (e) { warn(`log write ${path.basename(file)}: ${e.message}`); }
 }
 
+// ── 跨进程文件锁（mkdir 原子）──────────────────────────────────────────────
+// 为什么需要：session-refs.jsonl 是「读-改-写」，rename 只保证替换原子，**挡不住丢更新**。
+// 两个写者同时跑到：A 读 → B 读 → A 写 tmp → B 写 tmp → A rename → B rename，
+// A 的那次标记就消失了（若两边共用同一个 tmp 路径，tmp 内容还可能互相穿插写入）。
+// 2026-09-18 驱动器改并发（EVO_DISTILL_JOBS>1）后这不再是理论问题：N 个 worker 收工时
+// 会同时回写，实测过一次「同一 (session,id,channel) 双计」的记账事故就来自这类竞态。
+// 拿不到锁不报错（I1 fail-open）：调用方照常往下走，最坏退化回竞态行为。
+function withFileLock(lockPath, fn, { timeoutMs = 15000, staleMs = 60000 } = {}) {
+  const t0 = Date.now();
+  let held = false;
+  for (;;) {
+    try { fs.mkdirSync(lockPath); held = true; break; }
+    catch (e) {
+      if (e.code !== 'EEXIST') break;
+      try { // 残留锁（写者被 kill -9）按 mtime 判死，否则会永久卡住写路径
+        if (Date.now() - fs.statSync(lockPath).mtimeMs > staleMs) { fs.rmSync(lockPath, { recursive: true, force: true }); continue; }
+      } catch {}
+      if (Date.now() - t0 > timeoutMs) break;
+      try { execSync('sleep 0.05'); } catch {}
+    }
+  }
+  try { return fn(); }
+  finally { if (held) { try { fs.rmSync(lockPath, { recursive: true, force: true }); } catch {} } }
+}
+// tmp 名带 pid：同一瞬两个写者不会踩同一份临时文件（旧实现共用 `<file>.tmp`）。
+function replaceFileAtomic(file, text) {
+  const tmp = `${file}.tmp.${process.pid}`;
+  fs.writeFileSync(tmp, text);
+  fs.renameSync(tmp, file);
+}
+
 function appendDegrade(component, from, to, reason) {
   appendLog(DEGRADE_LOG, { ts: new Date().toISOString(), component, from, to, reason });
 }
@@ -691,6 +722,10 @@ function registerSession(sid, file, harness, ended) {
   const row = { ts: new Date().toISOString(), session: sid || '?', transcript, harness: harness || 'claude', distilled: false, ended: !!ended };
   // 无 session id：不 upsert。多条 '?' 是不同会话，按 session 折叠会丢登记。
   if (!sid || sid === '?') { appendLog(SESSION_REFS, row); return 'append'; }
+  // 同一把锁：本函数也是「读-改-写」，与 mark-distilled 交叉时会互相覆盖
+  // （钩子上有人收工、驱动器有人回写 → 后写者把前者的改动改回去）。
+  // 超时给短：这是 hook 热路径（SessionEnd timeout 5s），拿不到就退化回竞态而不是阻塞钩子。
+  return withFileLock(SESSION_REFS + '.lock', () => {
   let lines;
   try { lines = fs.readFileSync(SESSION_REFS, 'utf8').split('\n'); } catch { appendLog(SESSION_REFS, row); return 'append'; }
   let found = false, changed = false;
@@ -708,10 +743,9 @@ function registerSession(sid, file, harness, ended) {
   });
   if (!found) { appendLog(SESSION_REFS, row); return 'append'; }
   if (!changed) return 'skip';
-  const tmp = SESSION_REFS + '.tmp';
-  fs.writeFileSync(tmp, out.join('\n'));
-  fs.renameSync(tmp, SESSION_REFS); // 原子替换（与 mark-distilled 同法）
+  try { replaceFileAtomic(SESSION_REFS, out.join('\n')); } catch (e) { warn(`session-refs 回写失败: ${e.message}`); return 'error'; }
   return 'update';
+  }, { timeoutMs: 3000 });
 }
 
 function moveToArchive(e, status, supersededBy) {
@@ -898,21 +932,22 @@ const cmds = {
     const ids = parseIds(args);
     if (!ids.length) return 'usage: evo mark-distilled --ids sid1,sid2';
     const want = new Set(ids);
-    let lines;
-    try { lines = fs.readFileSync(SESSION_REFS, 'utf8').split('\n'); } catch { return '✗ session-refs.jsonl 不存在'; }
-    let n = 0;
-    const out = lines.map((line) => {
-      if (!line.trim()) return line;
-      try {
-        const j = JSON.parse(line);
-        if (want.has(j.session) && !j.distilled) { j.distilled = true; n++; return JSON.stringify(j); }
-      } catch {} // 坏行原样保留，绝不丢数据
-      return line;
+    // 整个「读-改-写」在跨进程锁内完成：并发 worker 收工时同时回写会互相丢掉对方的标记。
+    return withFileLock(SESSION_REFS + '.lock', () => {
+      let lines;
+      try { lines = fs.readFileSync(SESSION_REFS, 'utf8').split('\n'); } catch { return '✗ session-refs.jsonl 不存在'; }
+      let n = 0;
+      const out = lines.map((line) => {
+        if (!line.trim()) return line;
+        try {
+          const j = JSON.parse(line);
+          if (want.has(j.session) && !j.distilled) { j.distilled = true; n++; return JSON.stringify(j); }
+        } catch {} // 坏行原样保留，绝不丢数据
+        return line;
+      });
+      replaceFileAtomic(SESSION_REFS, out.join('\n')); // 唯一 tmp 名 + 原子替换，避免驱动器并发时读到半截文件
+      return `mark-distilled: ${n} 条已标记`;
     });
-    const tmp = SESSION_REFS + '.tmp';
-    fs.writeFileSync(tmp, out.join('\n'));
-    fs.renameSync(tmp, SESSION_REFS); // 原子替换，避免驱动器并发时读到半截文件
-    return `mark-distilled: ${n} 条已标记`;
   },
 
   // §2.8 curate —— 半手动入库（校验→移动→rebuild→commit→push）

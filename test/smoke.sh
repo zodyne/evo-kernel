@@ -827,6 +827,85 @@ BADLINES=$(printf '%s\n' "$CAT" | awk -F'\t' 'NF!=3' | grep -c . || true)
   && ok "L: catalog 每条一行 3 字段（可 grep，不必整份读）" || bad "L: catalog 行格式" "($BADLINES 行字段数≠3)"
 rm -f "$EVO_ROOT/ops/proposals/zz-dedup-probe.md" "$EVO_ROOT/lessons/zz-superseded-probe.md"
 
+# ── 2026-09-18 加：并发写入锁 + 并行蒸馏驱动器 ──────────────────────────
+# 背景：驱动器改并发（EVO_DISTILL_JOBS）后，收工回写 session-refs.jsonl 的会是 N 个进程。
+# 那是「读-改-写」，rename 原子只保证不读到半截文件、**挡不住丢更新**。
+# 实测对照：16 进程同时 mark-distilled，无锁 0/16 存活，加锁 16/16。
+RACE_IDS=""; RACE_N=8; i=0
+while [ $i -lt "$RACE_N" ]; do RACE_IDS="$RACE_IDS zz-race-$i"; i=$((i+1)); done
+for id in $RACE_IDS; do
+  printf '{"ts":"2026-09-18T00:00:00.000Z","session":"%s","transcript":"?","harness":"pi","distilled":false,"ended":true}\n' "$id" >> "$EVO_ROOT/inbox/session-refs.jsonl"
+done
+# 同时起 N 个进程，每个只标记自己那一条（并发窗口极小但存在：旧实现下全丢）
+for id in $RACE_IDS; do "$EVO" mark-distilled --ids "$id" >/dev/null 2>&1 & done
+wait
+RACE_OK=$(python3 - "$EVO_ROOT/inbox/session-refs.jsonl" $RACE_IDS <<'PY'
+import json, sys
+path, want = sys.argv[1], set(sys.argv[2:])
+n = 0
+for line in open(path, encoding='utf-8', errors='replace'):
+    if not line.strip(): continue
+    try:
+        j = json.loads(line)
+        if j.get('session') in want and j.get('distilled'): n += 1
+    except Exception: pass
+print(n)
+PY
+)
+{ [ "$RACE_OK" = "$RACE_N" ]; } \
+  && ok "L: mark-distilled 并发不丢更新（${RACE_N} 进程 ${RACE_OK}/${RACE_N} 存活）" \
+  || bad "L: mark-distilled 并发丢更新" "(${RACE_OK}/${RACE_N} 存活)"
+# 清场：把竞态用的行去掉，别影响后续断言
+python3 - "$EVO_ROOT/inbox/session-refs.jsonl" $RACE_IDS <<'PY'
+import json, sys
+path, drop = sys.argv[1], set(sys.argv[2:])
+keep = []
+for line in open(path, encoding='utf-8', errors='replace'):
+    if not line.strip(): continue
+    try:
+        if json.loads(line).get('session') in drop: continue
+    except Exception: pass
+    keep.append(line.rstrip('\n'))
+open(path, 'w').write('\n'.join(keep) + '\n')
+PY
+
+# 并行驱动器：JOBS=2 跑 6 条，断言「三个契约」——切片无重叠无遗漏（全标 distilled）、
+# 日志有并行边界、锁在跑完后释放。假 hermes 让这组不碰网络、秒级完成。
+# ⚠ 跑之前必须清掉拷进来的锁：实体 rsync 会把**真仓库正在跑的** ops/log/.distill.lock 一并拷来，
+#   而它的 mtime 是刚拷的→看着很新鲜→驱动器正确地报「已有实例在跑」并跳过（测试假红）。
+#   同理清掉 .distill-*.out 残留，避免上一轮诊断文件混入断言。
+rm -rf "$EVO_ROOT/ops/log/.distill.lock"; rm -f "$EVO_ROOT"/ops/log/.distill-*.out
+FAKE_HERMES="$TMP/fake-hermes.sh"
+printf '#!/usr/bin/env bash\necho "DISTILL_OK 0"\n' > "$FAKE_HERMES"; chmod +x "$FAKE_HERMES"
+PAR_N=6; p=0
+while [ $p -lt "$PAR_N" ]; do
+  pf="$TMP/par-$p.jsonl"; head -c 3000 /dev/zero | tr '\0' 'x' > "$pf"
+  "$EVO" session-end --session "$pf" --id "zz-par-$p" >/dev/null 2>&1
+  p=$((p+1))
+done
+EVO_DISTILL_JOBS=2 EVO_HERMES_PY=/bin/bash EVO_HERMES_BIN="$FAKE_HERMES" EVO_DISTILL_EVO="$EVO" \
+EVO_DISTILL_MIN_BYTES=10 EVO_DISTILL_TIMEOUT=60 EVO_DISTILL_TIMEOUT_PER_100KB=0 EVO_DISTILL_POLL=0.2 \
+  "$EVO_ROOT/ops/bin/evo-distill.sh" --max "$PAR_N" >/dev/null 2>&1
+PAR_DONE=$(python3 - "$EVO_ROOT/inbox/session-refs.jsonl" "$PAR_N" <<'PY'
+import json, sys
+path, n = sys.argv[1], int(sys.argv[2])
+want = {f'zz-par-{i}' for i in range(n)}
+c = 0
+for line in open(path, encoding='utf-8', errors='replace'):
+    if not line.strip(): continue
+    try:
+        j = json.loads(line)
+        if j.get('session') in want and j.get('distilled'): c += 1
+    except Exception: pass
+print(c)
+PY
+)
+{ [ "$PAR_DONE" = "$PAR_N" ]; } \
+  && ok "L: 并行驱动器切片无重叠无遗漏（${PAR_DONE}/${PAR_N} 全标）" \
+  || bad "L: 并行驱动器切片" "(标上 ${PAR_DONE}/${PAR_N}；切片重叠或漏登？)"
+{ grep -q '并行启动' "$EVO_ROOT/ops/log/distill.log" && ! [ -d "$EVO_ROOT/ops/log/.distill.lock" ]; } \
+  && ok "L: 并行轮记边且锁已释放" || bad "L: 并行轮边界/锁" "(缺『并行启动』或有锁残留)"
+
 echo
 echo "================ PASS=$PASS FAIL=$FAIL ================"
 [ $FAIL -eq 0 ]

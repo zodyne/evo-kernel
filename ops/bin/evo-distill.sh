@@ -13,36 +13,98 @@
 #   ops/bin/evo-distill.sh --session <sid> 只处理指定会话（忽略体量门槛）
 #   ops/bin/evo-distill.sh --dry-run       只打印将处理什么，不调 pi
 #
-# 环境变量：EVO_DISTILL_TIMEOUT（单会话秒数，默认 900）、EVO_DISTILL_MIN_BYTES（默认 50000）
+# 环境变量：EVO_DISTILL_TIMEOUT（基数秒数，默认 1800）、EVO_DISTILL_TIMEOUT_PER_100KB（每 100KB 增量，默认 100）、
+#          EVO_DISTILL_TIMEOUT_CAP（上限秒数，默认 5400）、EVO_DISTILL_MIN_BYTES（默认 50000）
+#          预算按体量放大：实测 214KB 需 ~2040s、1MB 需 ~2820s，固定预算会切掉正常会话。
+#          EVO_DISTILL_JOBS（并发 worker 数，默认 1，`auto` 按队列长度分档见下）
+#          EVO_HERMES_PY / EVO_HERMES_BIN（覆盖执行器路径，供沙箱回归用）
 
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-EVO="$ROOT/bin/evo"
+# EVO 路径可被环境覆盖：沙箱回归时 ROOT 是个副本，副本里的 bin/evo 可能跑不起来
+# （smoke 的 rsync 故意排除 node_modules → require('js-yaml') 直接 MODULE_NOT_FOUND）。
+EVO="${EVO_DISTILL_EVO:-$ROOT/bin/evo}"
 LOG="$ROOT/ops/log/distill.log"
 LOCK="$ROOT/ops/log/.distill.lock"
-TIMEOUT="${EVO_DISTILL_TIMEOUT:-900}"
+TIMEOUT="${EVO_DISTILL_TIMEOUT:-1800}"
+# 单会话超时预算 = 基数 + 体量增量，封顶 CAP —— 三条都有实测依据（2026-09-17/18，本机）：
+#   ① 基数：旧默认 900s 会把**正常完成中**的会话当超时杀掉；214KB 会话实测需 2040s。
+#   ② 斜率：两个实测点（219518B→2040s、1048613B→2820s）线性拟合得 94s/100KB，取整 100s/100KB；
+#       用 MB 整除做单位是错的 —— 队列主体是 200–800KB，整除后恒为 0，等于没加预算。
+#   ③ 封顶：队列里有 20–44MB 的巨型 transcript，不封顶时预算会胀到 6–13 小时，一条会话把队列堵死。
+TIMEOUT_PER_100KB="${EVO_DISTILL_TIMEOUT_PER_100KB:-100}"
+TIMEOUT_CAP="${EVO_DISTILL_TIMEOUT_CAP:-5400}"
+POLL="${EVO_DISTILL_POLL:-5}"      # 看门狗轮询间隔（秒，可小数）
 MIN_BYTES="${EVO_DISTILL_MIN_BYTES:-50000}"
 
 MAX=2
 ONLY=""
 DRY=0
+SLOT=""          # 并行 worker 的槽位号（0-based），空 = 跑单进程
+SLOTS=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --max) MAX="$2"; shift 2 ;;
     --session) ONLY="$2"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
+    --slot) SLOT="$2"; shift 2 ;;        # 仅供 runner 内部使用（worker 模式）
+    --slots) SLOTS="$2"; shift 2 ;;
     *) echo "未知参数: $1" >&2; exit 0 ;;   # fail-open
   esac
 done
 
+# 并发度。默认 1（保持原单实例语义）；>1 时本进程只当 runner，播 N 个自身副本当 worker，
+# 每个 worker 取队列的一个互不重叠切片（同余类，见下方切片处）。
+# EVO_DISTILL_JOBS=auto —— 按队列长度分档，给无人值守的定时任务用：
+#   队列 <8 → 2；8–39 → 3；40–99 → 4；≥100 → 6。
+#   分档是**保守的工程选择**，不是实测最优：1 并发时也见过 provider 报错，
+#   在没有 provider 侧并发实测前不往上冲（每倒退一次要重烧一整轮额度）。
+# 上限 8 是保护：每个 worker 是一个 hermes 进程（+ mcp 子进程），共享同一 provider 与
+# 同一份 session-refs.jsonl（写路径已加跨进程锁，见 bin/evo 的 withFileLock）。
+JOBS="${EVO_DISTILL_JOBS:-1}"
+if [ "$JOBS" = "auto" ]; then
+  QN=$("$EVO" queue --min-bytes "$MIN_BYTES" 2>/dev/null | tail -n "$MAX" | grep -c . || true)
+  if   [ "$QN" -ge 100 ]; then JOBS=6
+  elif [ "$QN" -ge 40 ];  then JOBS=4
+  elif [ "$QN" -ge 8 ];   then JOBS=3
+  else JOBS=2
+  fi
+fi
+case "$JOBS" in ''|*[!0-9]*) JOBS=1 ;; esac
+[ "$JOBS" -lt 1 ] && JOBS=1
+[ "$JOBS" -gt 8 ] && { echo "EVO_DISTILL_JOBS 上限 8，已夹到 8（要更高得先有 provider 侧实测）" >&2; JOBS=8; }
+
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >> "$LOG"; }
 
-HERMES_PY="/Users/zodyne/.hermes/hermes-agent/venv/bin/python"
-HERMES_BIN="/Users/zodyne/.hermes/hermes-agent/hermes"
+# 单会话超时秒数（基数 + 体量×斜率，封顶）。依据见 TIMEOUT_PER_100KB 处注释。
+budget_for() {
+  local b=$(( TIMEOUT + ( ${1:-0} / 100000 ) * TIMEOUT_PER_100KB ))
+  [ "$b" -gt "$TIMEOUT_CAP" ] && b="$TIMEOUT_CAP"
+  echo "$b"
+}
+
+# 浮点比较（bash 3.2 无浮点算术）：$1 >= $2 为真时返 0。
+ge() { awk -v a="$1" -v b="$2" 'BEGIN{exit !(a>=b)}'; }
+
+# 递归回收进程树。hermes 自己会派生 mcp_ 子进程（实测 PPID 链 hermes → tools/mcp_*），
+# 只 kill 本体一样留孤儿。
+kill_tree() {
+  local p="$1" c
+  for c in $(pgrep -P "$p" 2>/dev/null); do kill_tree "$c"; done
+  kill -9 "$p" 2>/dev/null
+}
+
+HERMES_PY="${EVO_HERMES_PY:-/Users/zodyne/.hermes/hermes-agent/venv/bin/python}"
+HERMES_BIN="${EVO_HERMES_BIN:-/Users/zodyne/.hermes/hermes-agent/hermes}"
+# 可被环境覆盖（EVO_HERMES_PY / EVO_HERMES_BIN）：不覆盖就只能拿真 hermes 跑集成，
+# 非并行切片/锁/哨兵判定这些**机制**没法在沙箱里回归（2026-09-18 加并发后补上）。
 [ -x "$HERMES_PY" ] && [ -f "$HERMES_BIN" ] || { log "skip: hermes 不在"; exit 0; }
 
 # 单实例：mkdir 是原子的。锁超过 2 小时视为残留（上次被 kill -9），清掉重来。
+# worker 模式（--slot）**不抢锁**：锁已由 runner（它的父进程）持有，抢锁就等于把自己拒之门外。
+# 锁的建立/心跳/释放全部由 runner 负责。
+if [ -z "$SLOT" ]; then
 if ! mkdir "$LOCK" 2>/dev/null; then
   if [ -d "$LOCK" ] && [ -z "$(find "$LOCK" -maxdepth 0 -mmin -120 2>/dev/null)" ]; then
     log "清理残留锁"; rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || exit 0
@@ -55,12 +117,51 @@ echo $$ > "$LOCK/pid" 2>/dev/null || true
 # 2026-09-15 实测：本实例跑到 5.5h（休眠把墙钟拉长）→ launchd 按 120min 判残留、清锁并发起
 # 第二个实例 → 先退出的一方无条件删锁 → 出现「无锁并跑」。判定凭据写进 $LOCK/pid。
 trap 'if [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$$" ]; then rm -rf "$LOCK"; fi' EXIT
+fi
+
+# ── runner 模式（JOBS>1）：拿完锁就直接播 worker，**不自己跑队列** ────────
+# 位置很关键：这段必须在「取队列 + 主循环」**之前**。放后面的话 runner 会先用全量队列
+# 跑一遍单会话逻辑，再播 worker 把同一批再跑一遍（同一份队列被处理两次）。
+if [ -z "$SLOT" ] && [ "$JOBS" -gt 1 ]; then
+  SELF="$ROOT/ops/bin/evo-distill.sh"
+  if [ "$DRY" = 1 ]; then
+    echo "would run $JOBS parallel workers (max $MAX each slice of the queue)"
+    exit 0
+  fi
+  log "并行启动 $JOBS 个 worker（本轮至多 $MAX 条，体量门槛 ${MIN_BYTES}B）"
+  child_pids=""
+  i=0
+  while [ "$i" -lt "$JOBS" ]; do
+    EVO_DISTILL_JOBS=1 "$SELF" --slot "$i" --slots "$JOBS" --max "$MAX" >> "$LOG" 2>&1 &
+    child_pids="$child_pids $!"
+    i=$((i + 1))
+  done
+  # 等全部 worker，同时拿心跳把锁按活（worker 卡住时别让锁被另一个实例判成残留）。
+  for p in $child_pids; do
+    while kill -0 "$p" 2>/dev/null; do touch "$LOCK" 2>/dev/null || true; sleep 5; done
+  done
+  log "并行轮结束（$JOBS 个 worker，至多 $MAX 条）"
+  exit 0
+fi
 
 # ── 取待处理清单（TSV: session \t transcript \t harness \t bytes）──
+# 失败**不能**静默成「队列为空」：2026-09-18 实测过这个形状 —— 沙箱里 evo 因缺 node_modules
+# 直接崩，而这里当时是 `2>/dev/null`，于是驱动器一本正经地报「队列为空」（真实队列有 140 条），
+# 与「distill.log 停在 8-25 而 20 天无人发现」是同一类故障：坏的那一侧不吭声。
 if [ -n "$ONLY" ]; then
   QUEUE=$("$EVO" queue --min-bytes 0 2>/dev/null | awk -F'\t' -v s="$ONLY" '$1==s')
 else
-  QUEUE=$("$EVO" queue --min-bytes "$MIN_BYTES" 2>/dev/null | tail -n "$MAX")
+  QERR="$ROOT/ops/log/.distill-queue.err"
+  QOUT=$("$EVO" queue --min-bytes "$MIN_BYTES" 2>"$QERR"); QRC=$?
+  [ "$QRC" = 0 ] || log "queue 取列表失败 rc=$QRC: $(head -c 200 "$QERR" 2>/dev/null | tr '\n' ' ')"
+  QUEUE=$(printf '%s\n' "$QOUT" | tail -n "$MAX")
+fi
+
+# 并行切片：slot i 取第 i 个同余类（i, i+N, i+2N, ...）。
+# 同余类而不是连续块 —— 队列是按体量排序的，连续块会让一个 worker 全拿巨型会话、
+# 另一些全拿小会话，整轮时长被最慢那个决定。取模能交叉大小会话。
+if [ "$SLOTS" -gt 1 ] && [ -n "$SLOT" ] && [ -n "$QUEUE" ]; then
+  QUEUE=$(printf '%s\n' "$QUEUE" | awk -v i="$SLOT" -v n="$SLOTS" 'NR % n == i')
 fi
 [ -n "$QUEUE" ] || { log "队列为空"; exit 0; }
 
@@ -127,19 +228,31 @@ session_id：${SID}
   # --yolo 免审批（launchd 无人值守）；-m pin deepseek-v4-pro，--provider 必须显式（裸 -m 不报 provider 会 No LLM provider configured）。
   # EVO_DRIVER=1：告诉 evo 的 hook/CLI「这不是真实会话」——否则驱动器会把自己登记进待蒸馏队列、
   # 还会把自己的 get/candidates 记成 agentic 使用量（自污染反馈环，2026-09-15 实测 6 条/1.5 天）。
-  ( cd "$ROOT" && EVO_DRIVER=1 "$HERMES_PY" "$HERMES_BIN" -z "$PROMPT" -m deepseek-v4-pro --provider deepseek-internal --yolo > "$OUT" 2>&1 < /dev/null ) &
+  # exec 不能省：不 exec 时 "$!" 是**包装子 shell** 的 pid，看门狗的 kill -9 只杀壳，
+  # hermes 变成无超时保护的孤儿继续跑（2026-09-18 实证：01a099a8 被杀于 13:44:03Z，
+  # 孤儿 16 min 后才写完 6 条提案 + DISTILL_OK）。exec 后子 shell **变成** hermes，$! 即本体。
+  ( cd "$ROOT" && exec env EVO_DRIVER=1 "$HERMES_PY" "$HERMES_BIN" -z "$PROMPT" -m deepseek-v4-pro --provider deepseek-internal --yolo > "$OUT" 2>&1 < /dev/null ) &
   PID=$!
+  LIMIT=$(budget_for "${BYTES:-0}")
 
-  # 看门狗：超时 kill，避免 launchd 下无人值守的挂死
+  # 看门狗：超时整树回收，避免 launchd 下无人值守的挂死。
+# 预算按**醒着的秒数**累加（不是墙钟）：机器休眠时 hermes 也停摆，
+# 拿墙钟计会把「睡前起、醒来收」的正常会话当成超时（实测有过 5.5h 的假超时）。
+# 轮询间隔可调（EVO_DISTILL_POLL，默认 5s）—— 测试里给小数，否则一条会话光轮询就等 5s。
   WAITED=0
   while kill -0 "$PID" 2>/dev/null; do
     touch "$LOCK" 2>/dev/null || true   # 心跳：活着的长会话不该被别的实例按 mtime 误判为残留锁
-    [ "$WAITED" -ge "$TIMEOUT" ] && { kill -9 "$PID" 2>/dev/null; log "timeout $SID (${TIMEOUT}s)"; break; }
-    sleep 5; WAITED=$((WAITED + 5))
+    ge "$WAITED" "$LIMIT" && { kill_tree "$PID"; log "timeout $SID (${LIMIT}s)"; break; }
+    sleep "$POLL"; WAITED=$(awk -v w="$WAITED" -v p="$POLL" 'BEGIN{printf "%.1f", w+p}')
   done
   wait "$PID" 2>/dev/null; RC=$?
 
-  if [ "$RC" = 0 ] && grep -q 'DISTILL_OK' "$OUT"; then
+  # 成功判据以 .out 里的 DISTILL_OK 哨兵为准，rc 只进日志。
+  # 哨兵是提示词里约定的完成契约（最后一行 `DISTILL_OK <n>`），而 rc 会被看门狗的超时 kill
+  # 打脏：01a099a8 被杀成 rc=137，同一份 .out 里却有完整的 `DISTILL_OK 6` —— 只按 rc 判会把
+  # 一份**已经做完**的蒸馏丢回队列重跑（catalog 的 DUP 只挡重复入库，挡不住重算的额度）。
+  # 匹配 "^DISTILL_OK <n>" 而非裸词：提示词自身含该词，避免回显类输出造成假阳性。
+  if grep -qE '^DISTILL_OK [0-9]+' "$OUT" 2>/dev/null; then
     "$EVO" mark-distilled --ids "$SID" >/dev/null 2>&1
     # DUP 行留档：查重跳过的主张也是信息（可能该去补强已有条目），别随 .out 一起删掉
     DUPS=$(grep -o '^DUP .*' "$OUT" | sed 's/^/  /')
@@ -153,4 +266,5 @@ session_id：${SID}
   fi
 done <<< "$QUEUE"
 
-[ "$DRY" = 1 ] || log "本轮完成 $DONE 个；剩余队列 $("$EVO" queue --min-bytes "$MIN_BYTES" 2>/dev/null | grep -c . || echo 0)"
+# grep -c . 在零命中时自己会打印 "0" 并以 1 退出，再接 `|| echo 0` 会多打一行 "0"（日志里挂个孤零的 0）。
+[ "$DRY" = 1 ] || log "本轮完成 $DONE 个；剩余队列 $("$EVO" queue --min-bytes "$MIN_BYTES" 2>/dev/null | grep -c . || true)"
