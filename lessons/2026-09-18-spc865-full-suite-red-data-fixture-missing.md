@@ -18,7 +18,7 @@ source: session:01a0a810-9275-7719-ba82-31fb903a37e1
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [hardcoded-data-dir-rot-fails-late, vitest-full-suite-fail-isolate-rerun]
+related: [hardcoded-data-dir-rot-fails-late, vitest-full-suite-fail-isolate-rerun, spc865-data-root-env-test-outcome]
 ---
 # 全量 pytest 红在数据文件盘点/路径断言 ≠ 本车道回归
 
@@ -51,6 +51,7 @@ related: [hardcoded-data-dir-rot-fails-late, vitest-full-suite-fail-isolate-reru
   也可能测试清单过时。不要据此删测试或造 fixture，先向仓库所有者确认数据布局。
 - 若失败断言与本次 diff 相关（例如新测试引入了数据依赖），仍要按真回归处理，本条不豁免。
 - 建议的收尾口径：车道测试全绿 + 全量红写明"既有失败 + 证据路径"，不要笼统写"全部通过"或"改坏了"。
+- 另一条同症状的根因是环境变量：`SPC865_DATA_ROOT` 决定数据探测类用例看到哪个根——设成 `/Users/zodyne/Dev/SPC865` 时套件红（`test_default_dataset_probe_prefers_darkbox` / `test_expected_scale_of_the_repository`；换根后实测 42 采集件·840 帧 ≠ 基线 63 文件·1810 帧），`env -u SPC865_DATA_ROOT` 跑同一套件即绿（汇总以 `22` 开头、无 FAILED 行）；红/绿报告要连该变量一起写，验证「默认探测」行为前先 unset。
 
 ## 失败信号（未来命中即该想起本条）
 - `assert 62 >= 63` 这种"差 1 个文件"的数据盘点断言，`ls` 显示期望位置根本没有文件。

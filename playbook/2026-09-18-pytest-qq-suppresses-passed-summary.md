@@ -18,7 +18,7 @@ source: session:01a0a80b-0eeb-7719-ba82-31f86fbaeaa7
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [selftest-pass-count-not-a-gate-exit-code-decides]
+related: [selftest-pass-count-not-a-gate-exit-code-decides, pytest-collect-only-q-prints-per-file-counts]
 ---
 
 # `-q` 叠加成 `-qq` 后 pytest 不再打印 "N passed" 汇总行：判定成败只能用退出码
@@ -44,5 +44,6 @@ related: [selftest-pass-count-not-a-gate-exit-code-decides]
 - `-qq` 只吞汇总行，**不吞退出码**：rc 仍正确反映成败，所以门禁脚本用 rc 判定不受影响，受影响的只有"读日志找 passed"的写法。
 - 其它会改输出形态的开关（`--tb=no`、`-rN`、插件静默）同样能让基于文本的判定失效；文本判定天然脆，退出码 / `--junitxml` 才是稳定接口。
 - 确实需要人读汇总行时：不要再传 `-q`，或显式 `pytest -o addopts= -q`。
+- 同族变形：`pytest -q --collect-only` 输出的是**每文件汇总行**（`tests/x.py: 13`）而非逐条 nodeid，沿用 `grep '::'` 数用例会 0 命中；grep 无命中返回 exit 1，串在 `&&` 链上还会把后续统计整段短路，表象是「收集到 0 个用例」——按 `^tests/.*: [0-9]+$` 求和才对（本例 `TOTAL 273`）。
 
 **失败信号（未来命中即该想起本条）**：pytest 明明通过，`grep passed` 却是空、日志末尾只有 `[100%]`；或"同一个测试目录，命令里多写了个 `-q` 就看不到 'N passed'"。
