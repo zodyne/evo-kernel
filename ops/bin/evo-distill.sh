@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# evo-distill —— 后台蒸馏驱动器（Hermes CLI 作为 Reflector 执行层，2026-08-14 起替代已退役的 pi）
+# evo-distill —— 后台蒸馏驱动器（**pi** 作为 Reflector 执行层）
 #
-# 定位：Claude Code 在前台干活 → session-refs.jsonl 登记 → 本脚本用 hermes 把会话蒸馏成提案。
+# 定位：harness 在前台干活 → session-refs.jsonl 登记 → 本脚本用 pi 把会话蒸馏成提案。
 #   产出只到 ops/proposals/ + ops/log/reconcile.jsonl；入库仍须人审 evo curate（I3）。
 #   fail-open：任何一步失败都不标记 distilled，下次照常重试；绝不阻塞前台。
 #
-# 后端：hermes -z（--yolo 免审批，模型 pin deepseek-v4-pro，经现有 nanoradar 中转，不改路由）。
+# 后端：**pi -p**（印刷模式；`-ne -nc -ns -np --no-session -a` 全套隔离旗标）。
+#   2026-09-18 从 hermes 切回 pi：hermes 与 evo 彻底脱钩（hooks 已摘，执行器也换）。
+#   模型不 pin —— 跟随 pi 的 defaultModel；用 EVO_DISTILL_MODEL 可覆盖。
 #
 # 用法：
 #   ops/bin/evo-distill.sh                 处理队列（默认最多 2 个会话）
@@ -17,7 +19,8 @@
 #          EVO_DISTILL_TIMEOUT_CAP（上限秒数，默认 5400）、EVO_DISTILL_MIN_BYTES（默认 50000）
 #          预算按体量放大：实测 214KB 需 ~2040s、1MB 需 ~2820s，固定预算会切掉正常会话。
 #          EVO_DISTILL_JOBS（并发 worker 数，默认 1，`auto` 按队列长度分档见下）
-#          EVO_HERMES_PY / EVO_HERMES_BIN（覆盖执行器路径，供沙箱回归用）
+#          EVO_DISTILL_PI / EVO_DISTILL_MODEL（执行器路径与模型，供沙箱回归与调参）
+#          EVO_HERMES_PY / EVO_HERMES_BIN 于 2026-09-18 随执行器切换**废弃**（已无消费者）
 
 set -u
 
@@ -62,7 +65,7 @@ done
 #   否则队列很长但只跑 2 条时也会开 6 路，白占 provider 与内存。
 #   分档是**保守的工程选择**，不是实测最优：1 并发时也见过 provider 报错，
 #   在没有 provider 侧并发实测前不往上冲（每倒退一次要重烧一整轮额度）。
-# 上限 8 是保护：每个 worker 是一个 hermes 进程（+ mcp 子进程），共享同一 provider 与
+# 上限 8 是保护：每个 worker 是一个 pi 进程（自带 bash 子进程），共享同一 provider 与
 # 同一份 session-refs.jsonl（写路径已加跨进程锁，见 bin/evo 的 withFileLock）。
 JOBS="${EVO_DISTILL_JOBS:-1}"
 if [ "$JOBS" = "auto" ]; then
@@ -89,7 +92,7 @@ budget_for() {
 # 浮点比较（bash 3.2 无浮点算术）：$1 >= $2 为真时返 0。
 ge() { awk -v a="$1" -v b="$2" 'BEGIN{exit !(a>=b)}'; }
 
-# 递归回收进程树。hermes 自己会派生 mcp_ 子进程（实测 PPID 链 hermes → tools/mcp_*），
+# 递归回收进程树。执行器自己也会派生子孙（pi 跑工具调用会 fork bash），
 # 只 kill 本体一样留孤儿。
 kill_tree() {
   local p="$1" c
@@ -97,11 +100,14 @@ kill_tree() {
   kill -9 "$p" 2>/dev/null
 }
 
-HERMES_PY="${EVO_HERMES_PY:-/Users/zodyne/.hermes/hermes-agent/venv/bin/python}"
-HERMES_BIN="${EVO_HERMES_BIN:-/Users/zodyne/.hermes/hermes-agent/hermes}"
-# 可被环境覆盖（EVO_HERMES_PY / EVO_HERMES_BIN）：不覆盖就只能拿真 hermes 跑集成，
-# 非并行切片/锁/哨兵判定这些**机制**没法在沙箱里回归（2026-09-18 加并发后补上）。
-[ -x "$HERMES_PY" ] && [ -f "$HERMES_BIN" ] || { log "skip: hermes 不在"; exit 0; }
+# 执行器：**pi**（2026-09-18 从 hermes 切回 pi，使 evo 与 hermes 彻底脱钩）。
+# 历史：初版（2b1dd77）就是 `pi -p --no-session`；2026-08-14 因为 pi harness 退役
+# 换成了 hermes；今天 pivot 回来——pi 是当前唯一接入 evo 的 harness，且能靠
+# `-ne/-nc/-ns` 把上下文剥到最小（hermes 做不到：它的系统提示/skill_view/记忆无法关）。
+# 模型不 pin：跟随 pi 的 defaultModel（现为 deepseek-v4-flash）；需要时用 EVO_DISTILL_MODEL 覆盖。
+PI_BIN="${EVO_DISTILL_PI:-pi}"
+PI_MODEL="${EVO_DISTILL_MODEL:-}"
+command -v "$PI_BIN" >/dev/null 2>&1 || { log "skip: pi 不在 PATH（${PI_BIN}）"; exit 0; }
 
 # 单实例：mkdir 是原子的。锁超过 2 小时视为残留（上次被 kill -9），清掉重来。
 # worker 模式（--slot）**不抢锁**：锁已由 runner（它的父进程）持有，抢锁就等于把自己拒之门外。
@@ -223,6 +229,9 @@ session_id：${SID}
 
 4. 写提案。每条一个文件：${ROOT}/ops/proposals/<YYYY-MM-DD>-<slug>.md
    - frontmatter 严格按 ${ROOT}/SCHEMA.md 的 14 字段；**triggers 必填 3-5 条**（面向未来任务的措辞 + 失败信号）；
+   - **id 必须唯一**：直接复用文件名里的语义 slug（文件名 `2026-09-18-foo-bar.md` → `id: foo-bar`）。
+     **禁止**写 `lesson-YYYY-MM-DD-001` 这类序号式 id —— 同时会有 N 个 worker 并行落笔，序号必然撞车
+     （2026-09-18 实测：换 pi 执行器后首批产出就写成序号式；序号在并发下无法保证唯一）。
    - status: candidate；evidence: {helpful: 0, harmful: 0}；source: session:${SID}；
    - verified_by 如实标：切片里有命令+结果佐证 → command；只有人的判断 → human；都没有 → 不要写这条提案；
    - 一条提案一个原子主张，禁止把多条揉进一个文件；失败教训与成功经验同等蒸馏。
@@ -233,20 +242,28 @@ session_id：${SID}
 禁止：运行 \`${EVO} curate\`（入库必须人审）；修改 ops/proposals/ 与 ops/log/ 以外的任何文件；git commit / git push。"
 
   OUT="${ROOT}/ops/log/.distill-${SID}.out"
-  # </dev/null 不能省：循环体的 stdin 是末尾的 here-string，hermes 继承后会把剩余队列行全读走，
+  # </dev/null 不能省：循环体的 stdin 是末尾的 here-string，执行器继承后会把剩余队列行全读走，
   # 导致无论 --max 多大都只转一圈（且退出码 0，看起来像"队列处理完了"）。
   # --yolo 免审批（launchd 无人值守）；-m pin deepseek-v4-pro，--provider 必须显式（裸 -m 不报 provider 会 No LLM provider configured）。
   # EVO_DRIVER=1：告诉 evo 的 hook/CLI「这不是真实会话」——否则驱动器会把自己登记进待蒸馏队列、
   # 还会把自己的 get/candidates 记成 agentic 使用量（自污染反馈环，2026-09-15 实测 6 条/1.5 天）。
   # exec 不能省：不 exec 时 "$!" 是**包装子 shell** 的 pid，看门狗的 kill -9 只杀壳，
-  # hermes 变成无超时保护的孤儿继续跑（2026-09-18 实证：01a099a8 被杀于 13:44:03Z，
-  # 孤儿 16 min 后才写完 6 条提案 + DISTILL_OK）。exec 后子 shell **变成** hermes，$! 即本体。
-  ( cd "$ROOT" && exec env EVO_DRIVER=1 "$HERMES_PY" "$HERMES_BIN" -z "$PROMPT" -m deepseek-v4-pro --provider deepseek-internal --yolo > "$OUT" 2>&1 < /dev/null ) &
+  # 执行器变成无超时保护的孤儿继续跑（2026-09-18 实证：01a099a8 被杀于 13:44:03Z，
+  # 孤儿 16 min 后才写完 6 条提案 + DISTILL_OK）。exec 后子 shell **变成**执行器本体。
+  #
+  # 隔离旗标（hermes 时代给不了这四个，这也是切回 pi 的实质原因）：
+  #   -ne 不发现扩展 → 不会加载 evo-kernel 扩展，也就不存在自登记/自 recall 的污染面
+  #   -nc 不读 AGENTS.md/CLAUDE.md、-ns 不扫 skills、-np 不扫 prompt 模板 → 上下文最瘦
+  #   --no-session 不留会话文件（背景作业不需要，也不该出现在 pi 的会话目录里）
+  #   -a 信任项目本地文件（无人值守下不能停在审批上）
+  MODEL_ARG=""
+  [ -n "$PI_MODEL" ] && MODEL_ARG="--model $PI_MODEL"
+  ( cd "$ROOT" && exec env EVO_DRIVER=1 "$PI_BIN" -p --no-session -ne -nc -ns -np -a $MODEL_ARG "$PROMPT" > "$OUT" 2>&1 < /dev/null ) &
   PID=$!
   LIMIT=$(budget_for "${BYTES:-0}")
 
   # 看门狗：超时整树回收，避免 launchd 下无人值守的挂死。
-# 预算按**醒着的秒数**累加（不是墙钟）：机器休眠时 hermes 也停摆，
+# 预算按**醒着的秒数**累加（不是墙钟）：机器休眠时执行器也停摆，
 # 拿墙钟计会把「睡前起、醒来收」的正常会话当成超时（实测有过 5.5h 的假超时）。
 # 轮询间隔可调（EVO_DISTILL_POLL，默认 5s）—— 测试里给小数，否则一条会话光轮询就等 5s。
   WAITED=0

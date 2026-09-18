@@ -3,12 +3,18 @@
 个人「经验治理与固化层」内核：纯文件 + git 存储，Node CLI（`evo`），当前只由 **pi 一个 harness** 接入。
 
 > **harness 接入现状（2026-09-18）**：
-> - **pi**：已接（`~/.pi/agent/extensions/evo-kernel.ts`，三个事件）；这是唯一接入的 harness。
+> - **pi**：已接（`~/.pi/agent/extensions/evo-kernel.ts`，三个事件）；**唯一**接入的 harness。
 > - **Claude Code**：有意不接（hooks 已退役且无替代桥接）。
-> - **Hermes**：**2026-09-18 退役**（用户口径「摘掉 evo↔hermes hooks」）——三件套从
->   `~/.hermes/config.yaml` 摘除。退役实测依据：hook 在蒸馏路径上本就被 `EVO_DRIVER=1`
->   + prompt 哨兵短路（本轮 47 个蒸馏会话在 recall.jsonl 里 0 行），对速度无收益。
->   恢复办法写在 config.yaml 被注释掉的段旁（三步）。存续件仍在 `ops/integrations/hermes-evo-hooks/`。
+> - **Hermes**：**已与 evo 彻底脱钩**（用户口径），两处都断：
+>   ① hooks 三件套从 `~/.hermes/config.yaml` 摘除（恢复办法写在被注释掉的段旁，三步）；
+>   ② **蒸馏执行器从 hermes 换成 pi** —— 否则 evo 的后台飞轮仍跑在 hermes 运行时里。
+>   随之删除 doctor 第 7/16 两项检查（编号留空不回收），`ops/integrations/hermes-evo-hooks/`
+>   降级为纯存档（不再有任何检查读它）。`bin/evo` 里仅保留 slice 对 hermes 导出**格式**的支持
+>   （历史数据需要解析，非运行时耦合）。
+>
+> 换执行器的实测量级差异：一条 88KB 会话 pi 用 **1m33s** / 产出 2 条提案；hermes 同量级
+> 2–27 分钟。差别来自隔离旗标（`-ne -nc -ns -np`）把上下文剥到最瘦 —— hermes 的系统提示/
+> `skill_view`/记忆无法关，而成本恰恰全在模型思考块（12–43KB 思考 / 126 字符输出 = 340 倍）。
 
 > 设计权威：`~/Dev/agent-evo/design/blueprint-v4.md`（不变量 I1–I7、§4 数据存续、§7 测量定义）。
 > 构建契约：`~/Dev/agent-evo/design/build-spec-v1.md`（v1.1，§2 命令契约卡（当时 21 个，现 25）、§3 数据/日志 schema、§5 评分系数、§8 smoke 断言）。
