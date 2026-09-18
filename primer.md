@@ -40,7 +40,11 @@
   `EVO_DRIVER=1` + prompt 哨兵短路（本轮 47 个蒸馏会话在 recall.jsonl 里 0 行），
   对速度无收益；真正的成本在模型思考块（12–43KB 思考/次调用，43KB÷126 字符 = 340 倍）。
   恢复办法写在 config.yaml 被注释掉的那段旁边（三步，含 copies 回 `~/.hermes/agent-hooks/`）。
-  存续件仍在 `ops/integrations/hermes-evo-hooks/`（doctor 第 16 项继续比对副本）。
+  存续件仍在 `ops/integrations/hermes-evo-hooks/`（仅存档，不再有 doctor 检查）。
+  **执行器也已换成 pi**（同日，`ops/bin/evo-distill.sh`）：不再依赖 hermes 运行时，
+  实测量级差异很大 —— 一条 88KB 会话 pi 耗时 **1m33s**、产出 2 条提案，
+  而 hermes 同量级要 2–27 分钟（成本全在模型思考块：12–43KB 思考/次调用）。
+  pi 侧带全套隔离旗标 `-ne -nc -ns -np --no-session -a`（不加载 evo 扩展/上下文文件/skill/模板）。
 - `~/Dev/suc221-pointcloud-2.0` —— 无人机避障雷达技术研究（原代号 UCM221，现名 SUC221）。
   雷达信号处理：CFAR、测角/DOA、点云、航迹；C 核心 + FreeRTOS + ARM 移植。
 - `~/Dev/algommw` —— 算法中间件。

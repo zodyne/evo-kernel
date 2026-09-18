@@ -691,10 +691,6 @@ EVO_ROOT="$KROOT" "$SRC/bin/evo" index rebuild >/dev/null 2>&1
 mkdir -p "$KHOME/.claude" "$KHOME/.hermes/agent-hooks" "$KHOME/.hermes"
 # Claude hooks 已退役（pi 退役，挂载迁移至 Hermes hooks）：预期无挂载
 printf '{}' > "$KHOME/.claude/settings.json"
-# Hermes hooks **已退役**（2026-09-18 用户决定「不接入 hermes」）：预期 config.yaml 里**无 hooks 段**。
-# 与第 6 项（Claude hooks 退役）同口径：doctor 第 7 项已反向成「校验退役」，
-# 下面 K7 验无挂载 → PASS，K7b 验**残留检测仍然有效**（重新接上要能看见，不是默默回归）。
-printf '{}' > "$KHOME/.hermes/config.yaml"
 # skills 软链（evo link with HOME=KHOME）
 HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" link >/dev/null 2>&1
 # K1: 全绿 → exit 0 + 无 [FAIL]
@@ -711,28 +707,6 @@ DOC5=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
 { echo "$DOC5" | grep -q '残留旧挂载'; } \
   && ok "K: 残留 Claude 挂载报 WARN" || bad "K: 残留检测失效" "(有残留未报)"
 printf '{}' > "$KHOME/.claude/settings.json"
-# K4: Hermes hooks adapter 副本漂移检测（§4.2 存续）——留副本不够，副本会悄悄过期，必须比对内容
-{ echo "$DOC" | grep -q '16. Hermes hooks adapter 副本'; } \
-  && ok "K: doctor 含 hermes adapter 副本检查" || bad "K: 副本检查缺失" "(doctor 无第 16 项)"
-# K7: Hermes hooks 已退役确认（无挂载 → PASS；与 Claude 第 6 项同口径）
-{ echo "$DOC" | grep -q '7. Hermes hooks 已退役确认' && echo "$DOC" | grep -q '预期无挂载'; } \
-  && ok "K: doctor 含 Hermes hooks 退役确认" || bad "K: 退役确认缺失" "(doctor 第 7 项未反转)"
-# K7b: 残留接线 → WARN（防退役后悄悄被重新接上；与 K6 同类）
-cat > "$KHOME/.hermes/config.yaml" << YAML
-hooks:
-  pre_llm_call:
-    - command: "$KROOT/ops/integrations/hermes-evo-hooks/evo-recall.sh"
-      timeout: 8
-YAML
-DOC7=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
-{ echo "$DOC7" | grep -q '残留 evo 挂载'; } \
-  && ok "K: 残留 Hermes 挂载报 WARN" || bad "K: 残留检测失效" "(有残留未报)"
-printf '{}' > "$KHOME/.hermes/config.yaml"
-printf '#!/usr/bin/env bash\n# 实装侧漂移\n' > "$KHOME/.hermes/agent-hooks/evo-recall.sh"
-DOC4=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
-{ echo "$DOC4" | grep -q '副本漂移'; } \
-  && ok "K: 实装与副本不一致时报漂移" || bad "K: 漂移检测失效" "(改了实装仍报一致)"
-cp "$SRC/ops/integrations/hermes-evo-hooks/evo-recall.sh" "$KHOME/.hermes/agent-hooks/evo-recall.sh"
 # K7: 蒸馏驱动器装载检查 —— 未装载时覆盖率不再增长，而此前没有任何信号：
 # 2026-09 实测停了 20 天无人发现，覆盖率冻在 8% 还被归因为「纪律问题」。
 # 必须能在隔离 HOME 下判定，否则 smoke 会读真实机器、变成环境依赖。
@@ -884,7 +858,7 @@ open(path, 'w').write('\n'.join(keep) + '\n')
 PY
 
 # 并行驱动器：JOBS=2 跑 6 条，断言「三个契约」——切片无重叠无遗漏（全标 distilled）、
-# 日志有并行边界、锁在跑完后释放。假 hermes 让这组不碰网络、秒级完成。
+# 日志有并行边界、锁在跑完后释放。假 pi 让这组不碰网络、秒级完成。
 # ⚠ 跑之前必须清掉拷进来的锁：实体 rsync 会把**真仓库正在跑的** ops/log/.distill.lock 一并拷来，
 #   而它的 mtime 是刚拷的→看着很新鲜→驱动器正确地报「已有实例在跑」并跳过（测试假红）。
 #   同理清掉 .distill-*.out 残留，避免上一轮诊断文件混入断言。
@@ -892,22 +866,22 @@ rm -rf "$EVO_ROOT/ops/log/.distill.lock"; rm -f "$EVO_ROOT"/ops/log/.distill-*.o
 # 锁路径被非目录占用也必须能自愈（实测形状：还活着的旧实例心跳用 touch 把锁目录变成了同名空文件，
 # 于是 mkdir 永远 EEXIST、[ -d ] 又不成立 → 每轮都报「已有实例在跑」且永不恢复）。
 : > "$EVO_ROOT/ops/log/.distill.lock"
-# 注：macOS 没有 /bin/true（是 /usr/bin/true）—— 写错会让驱动在 hermes 检查处就退出，
-# 于是这条断言假红，看起来像「自愈没生效」。
-EVO_DISTILL_JOBS=2 EVO_HERMES_PY=/bin/bash EVO_HERMES_BIN="/usr/bin/true" EVO_DISTILL_EVO="$EVO" \
+# 注：执行器现在用 `command -v` 找（不再是「文件存在」检查），所以这里给绝对路径的 /usr/bin/true
+# 当哑执行器；macOS 没有 /bin/true（是 /usr/bin/true），写错会让驱动在「pi 不在 PATH」处退出、断言假红。
+EVO_DISTILL_JOBS=2 EVO_DISTILL_PI=/usr/bin/true EVO_DISTILL_EVO="$EVO" \
 EVO_DISTILL_MIN_BYTES=999999999 "$EVO_ROOT/ops/bin/evo-distill.sh" --max 1 >/dev/null 2>&1
 grep -q '锁路径被非目录占用' "$EVO_ROOT/ops/log/distill.log" \
   && ok "L: 锁路径被非目录占用时自愈" || bad "L: 锁路径非目录" "(未自愈→驱动会被永久挡住)"
 rm -rf "$EVO_ROOT/ops/log/.distill.lock"; rm -f "$EVO_ROOT"/ops/log/.distill-*.out
-FAKE_HERMES="$TMP/fake-hermes.sh"
-printf '#!/usr/bin/env bash\necho "DISTILL_OK 0"\n' > "$FAKE_HERMES"; chmod +x "$FAKE_HERMES"
+FAKE_PI="$TMP/fake-pi.sh"
+printf '#!/usr/bin/env bash\necho "DISTILL_OK 0"\n' > "$FAKE_PI"; chmod +x "$FAKE_PI"
 PAR_N=6; p=0
 while [ $p -lt "$PAR_N" ]; do
   pf="$TMP/par-$p.jsonl"; head -c 3000 /dev/zero | tr '\0' 'x' > "$pf"
   "$EVO" session-end --session "$pf" --id "zz-par-$p" >/dev/null 2>&1
   p=$((p+1))
 done
-EVO_DISTILL_JOBS=2 EVO_HERMES_PY=/bin/bash EVO_HERMES_BIN="$FAKE_HERMES" EVO_DISTILL_EVO="$EVO" \
+EVO_DISTILL_JOBS=2 EVO_DISTILL_PI="$FAKE_PI" EVO_DISTILL_EVO="$EVO" \
 EVO_DISTILL_MIN_BYTES=10 EVO_DISTILL_TIMEOUT=60 EVO_DISTILL_TIMEOUT_PER_100KB=0 EVO_DISTILL_POLL=0.2 \
   "$EVO_ROOT/ops/bin/evo-distill.sh" --max "$PAR_N" >/dev/null 2>&1
 PAR_DONE=$(python3 - "$EVO_ROOT/inbox/session-refs.jsonl" "$PAR_N" <<'PY'
