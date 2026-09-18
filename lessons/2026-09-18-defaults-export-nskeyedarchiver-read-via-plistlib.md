@@ -29,3 +29,5 @@ schema_version: 1
 - `python3 <<'EOF' ... plistlib.load(open('<plist>','rb')) ... for k in ('MSAppCenterPastDevices'...)` → `--- MSAppCenterPastDevices --- {'$version': 100000, '$archiver': 'NSKeyedArchiver', '$top': {'root': UID(1)}, '$objects'...`（成功）。
 
 **边界**：只验证了这一台机器上这一个键（`MSAppCenterPastDevices`）与这一条失败路径；其它键用 `plutil -extract ... raw` 可能是好的，别推广成「raw 一律不可用」。取到对象图不等于读到了业务数据——还要顺着 `$top/root` 的 UID 在 `$objects` 里解析，本会话只走到打印对象图这一步，没有解出设备清单；只想快速看历史设备也可以直接读 app 的 sqlite（见 `rdp-bookmark-sqlite-edit-quit-app-first`）。
+
+两个可复用的写法（2026-09-18 补）：一是免落盘导出用 `defaults export <domain> -`（路径参数写 `-`，本机实测写 `/dev/stdout` 拿不到合法 plist），可直接管道喂给 `python3`；`plistlib` 读出的 NSKeyedArchiver 值**常常是 `bytes`（plist 里的 `<data>` 节点）而不是 dict**——归档既可以存成 dict 也可以序列化成字节串，后者必须对这个 bytes **再 `plistlib.loads()` 一次**才拿到 `{'$version': 100000, '$archiver': 'NSKeyedArchiver', '$top': …, '$objects': …}`。所以解码前先 `isinstance(v, (bytes, bytearray))` 判断，两种形态都兼容，别硬编码两层，也别因只解一层就断言「工具链读不出归档」。
