@@ -56,8 +56,10 @@ done
 
 # 并发度。默认 1（保持原单实例语义）；>1 时本进程只当 runner，播 N 个自身副本当 worker，
 # 每个 worker 取队列的一个互不重叠切片（同余类，见下方切片处）。
-# EVO_DISTILL_JOBS=auto —— 按队列长度分档，给无人值守的定时任务用：
-#   队列 <8 → 2；8–39 → 3；40–99 → 4；≥100 → 6。
+# EVO_DISTILL_JOBS=auto —— 按**本轮窗口大小**（--max）分档，给无人值守的定时任务用：
+#   --max <8 → 2；8–39 → 3；40–99 → 4；≥100 → 6。
+#   口径是「这一轮打算做多少条」而不是「队列里积了多少条」：worker 数该跟本轮工作量走，
+#   否则队列很长但只跑 2 条时也会开 6 路，白占 provider 与内存。
 #   分档是**保守的工程选择**，不是实测最优：1 并发时也见过 provider 报错，
 #   在没有 provider 侧并发实测前不往上冲（每倒退一次要重烧一整轮额度）。
 # 上限 8 是保护：每个 worker 是一个 hermes 进程（+ mcp 子进程），共享同一 provider 与
@@ -105,6 +107,14 @@ HERMES_BIN="${EVO_HERMES_BIN:-/Users/zodyne/.hermes/hermes-agent/hermes}"
 # worker 模式（--slot）**不抢锁**：锁已由 runner（它的父进程）持有，抢锁就等于把自己拒之门外。
 # 锁的建立/心跳/释放全部由 runner 负责。
 if [ -z "$SLOT" ]; then
+# 锁路径必须是个**目录**：心跳用 `touch "$LOCK"`，一旦 LOCK 被 touch 成普通文件，
+# mkdir 永远 EEXIST、而 `[ -d ]` 又不成立 → 每一轮都报「已有实例在跑」且**永不恢复**。
+# 2026-09-18 实测到这个形状：外部 rm -rf 掉锁目录后，还活着的实例下一次心跳就用
+# touch 造出一个同名空文件；随后新起的驱动器全部被挡，日志里只看得见「已有实例在跑」。
+if [ -e "$LOCK" ] && [ ! -d "$LOCK" ]; then
+  log "锁路径被非目录占用（异常残留，多为 touch 误造），清除：$LOCK"
+  rm -f "$LOCK"
+fi
 if ! mkdir "$LOCK" 2>/dev/null; then
   if [ -d "$LOCK" ] && [ -z "$(find "$LOCK" -maxdepth 0 -mmin -120 2>/dev/null)" ]; then
     log "清理残留锁"; rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || exit 0
