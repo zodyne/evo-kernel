@@ -63,14 +63,24 @@ out=$(echo '{"session_id":"s","prompt":"arxiv"}' | EVO_ROOT=/nonexistent-xyz $EV
 { [ $rc -eq 0 ] && [ -z "$out" ]; } && ok "EVO_ROOT 缺失静默(exit0+stdout空)" || bad "EVO_ROOT 缺失静默" "(rc=$rc out=$out)"
 
 # ════════════ D. 端到端（注入/去重/空命中不占名额，3） ════════════
-echo "——— D. 端到端（注入/去重/空命中不占名额） ———"
-t "全新 session 命中避坑"  "arxiv-download-proxy-truncation" bash -c "echo '{\"session_id\":\"fresh-\$RANDOM\",\"prompt\":\"帮我批量下载 arXiv 论文 PDF\"}' | $EVO hook-recall"
+# ⚠ 本组固定 EVO_PRECISION_MIN=0，为的是**把机制与策略分开断言**（2026-09-18 踩到）：
+#   这两条走 hook（auto）路径，而 auto 路径上有「逐条精度闸门」（bin/evo 的 lowPrecisionIds，
+#   n≥10 且精度<20% 就不自动注入）。那个闸门读的是**活的** ops/log/reconcile.jsonl，
+#   也就是一份会随蒸馏持续增长、由另一个后台进程写入的账本。实测：
+#   `arxiv-download-proxy-truncation` 在 2026-09-18 01:07Z 之前是 2/10 = **恰好 20%**
+#   （零余量、靠 < 而非 ≤ 过关），本轮并行蒸馏 30 分钟内又写了 12 条对账（11 irrelevant +
+#   1 adopted）→ 4/22 = 18.2% → 被闸门排除 → 本组突然变红，而代码一行没改。
+#   即：本组想守的是「hook 收到实义 prompt → 能注入命中条目」这条**管道**，不是
+#   「某条特定条目当下是否过了精度闸门」这条**策略**。策略本身在文件末尾有确定性的守护
+#   （合成条目 + 合成账本，不依赖活库）。所以这里把闸门阈值调成 0（= 不排除任何条目）
+#   夹住变量；若将来想让本组也覆盖闸门，必须用**夹具**而不是活账本。
+t "全新 session 命中避坑"  "arxiv-download-proxy-truncation" bash -c "echo '{\"session_id\":\"fresh-\$RANDOM\",\"prompt\":\"帮我批量下载 arXiv 论文 PDF\"}' | EVO_PRECISION_MIN=0 $EVO hook-recall"
 SID="dedup-$RANDOM"
-echo "{\"session_id\":\"$SID\",\"prompt\":\"arxiv 下载 pdf 损坏\"}" | $EVO hook-recall >/dev/null 2>&1
-t "同 session 去重"        "__NOOUTPUT__" bash -c "echo '{\"session_id\":\"$SID\",\"prompt\":\"再问一次\"}' | $EVO hook-recall"
+echo "{\"session_id\":\"$SID\",\"prompt\":\"arxiv 下载 pdf 损坏\"}" | EVO_PRECISION_MIN=0 $EVO hook-recall >/dev/null 2>&1
+t "同 session 去重"        "__NOOUTPUT__" bash -c "echo '{\"session_id\":\"$SID\",\"prompt\":\"再问一次\"}' | EVO_PRECISION_MIN=0 $EVO hook-recall"
 SID2="retry-$RANDOM"
-echo "{\"session_id\":\"$SID2\",\"prompt\":\"今天天气如何\"}" | $EVO hook-recall >/dev/null 2>&1
-t "空命中后仍重试"         "arxiv" bash -c "echo '{\"session_id\":\"$SID2\",\"prompt\":\"批量下载 arXiv 论文\"}' | $EVO hook-recall"
+echo "{\"session_id\":\"$SID2\",\"prompt\":\"今天天气如何\"}" | EVO_PRECISION_MIN=0 $EVO hook-recall >/dev/null 2>&1
+t "空命中后仍重试"         "arxiv" bash -c "echo '{\"session_id\":\"$SID2\",\"prompt\":\"批量下载 arXiv 论文\"}' | EVO_PRECISION_MIN=0 $EVO hook-recall"
 
 # ════════════ D2. 检索打分不变量（§5 治理权重 + tag 通道） ════════════
 echo "——— D2. 检索打分不变量 ———"
@@ -186,7 +196,7 @@ GB=$(grep -c . "$GH" 2>/dev/null || echo 0)
 t "guard warn 引号内提及不浮现" '"action":"allow"' $EVO guard --tool bash --input-json '{"command":"git commit -m \"fix warn-cmd handling\""}'
 GA=$(grep -c . "$GH" 2>/dev/null || echo 0)
 { [ "$GA" = "$((GB+1))" ] && tail -1 "$GH" | grep -q '"quality":"mention"'; } \
-  && ok "F: 提及仍落盘 quality:mention（准入④取证不丢）" || bad "F: 提及落盘" "(行数 $GB→$GA, 末行: $(tail -1 "$GH" | cut -c1-90))"
+  && ok "F: 提及仍落盘 quality:mention（准入④取证不丢）" || bad "F: 提及落盘" "(行数 ${GB}→${GA}, 末行: $(tail -1 "$GH" | cut -c1-90))"
 $EVO guard --tool bash --input-json '{"command":"warn-cmd x"}' >/dev/null 2>&1
 { tail -1 "$GH" | grep -q '"quality":"exec"'; } && ok "F: 命令位命中落盘 quality:exec" || bad "F: exec 落盘" "(末行: $(tail -1 "$GH" | cut -c1-90))"
 # block 一律按裸匹配判，**不看 quality**：危险命令本就常写在引号里（bash -c "rm -rf /"），
@@ -467,18 +477,18 @@ B4=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
 echo "{\"session_id\":\"sess-live\",\"prompt\":\"arxiv 论文下载\",\"transcript_path\":\"$LIVE\"}" | $EVO hook-recall >/dev/null 2>&1
 A1=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
 { [ "$A1" = "$((B4+1))" ] && grep -q '"session":"sess-live"' "$EVO_ROOT/inbox/session-refs.jsonl"; } \
-  && ok "I: 登记前移（首次 hook-recall 即登记，不等 SessionEnd）" || bad "I: 登记前移" "(行数 $B4→$A1)"
+  && ok "I: 登记前移（首次 hook-recall 即登记，不等 SessionEnd）" || bad "I: 登记前移" "(行数 ${B4}→${A1})"
 # 二次 hook-recall 不得新增行（upsert 幂等；append 会虚增哨兵率与蒸馏节律分母）
 echo "{\"session_id\":\"sess-live\",\"prompt\":\"另一个问题\",\"transcript_path\":\"$LIVE\"}" | $EVO hook-recall >/dev/null 2>&1
 A2=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
-{ [ "$A2" = "$A1" ]; } && ok "I: 登记 upsert 幂等（同 session 不产生第二行）" || bad "I: 登记 upsert 幂等" "($A1→$A2)"
+{ [ "$A2" = "$A1" ]; } && ok "I: 登记 upsert 幂等（同 session 不产生第二行）" || bad "I: 登记 upsert 幂等" "(${A1}→${A2})"
 # 哨兵升级：先登记不存在的路径（'?'），再带真实路径登记 → 同一行升级，行数不变
 $EVO session-end --session "/nonexistent/later.jsonl" --id sess-upgrade >/dev/null 2>&1
 U1=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
 $EVO session-end --session "$LIVE" --id sess-upgrade >/dev/null 2>&1
 U2=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
 { [ "$U2" = "$U1" ] && grep '"session":"sess-upgrade"' "$EVO_ROOT/inbox/session-refs.jsonl" | grep -q "$LIVE"; } \
-  && ok "I: 哨兵行可被真实路径升级（单向，行数不变）" || bad "I: 哨兵升级" "(行数 $U1→$U2)"
+  && ok "I: 哨兵行可被真实路径升级（单向，行数不变）" || bad "I: 哨兵升级" "(行数 ${U1}→${U2})"
 # queue 静默期：未见 SessionEnd 且 transcript 刚写过 → 不入队（防蒸馏半截会话）
 Q_LIVE=$($EVO queue --min-bytes 0 | grep -c "sess-live" || true)
 Q_ENDED=$($EVO queue --min-bytes 0 --quiet-min 0 | grep -c "sess-live" || true)
@@ -763,7 +773,7 @@ $EVO mark-distilled --ids sess-big >/dev/null 2>&1
 LAFTER=$(grep -c . "$EVO_ROOT/inbox/session-refs.jsonl")
 Q2=$($EVO queue --min-bytes 50000 2>&1)
 { [ "$LBEFORE" = "$LAFTER" ] && ! echo "$Q2" | grep -q 'sess-big'; } \
-  && ok "L: mark-distilled 回写出队（原地重写不增行）" || bad "L: mark-distilled" "(行数 $LBEFORE→$LAFTER; 队列: ${Q2:0:60})"
+  && ok "L: mark-distilled 回写出队（原地重写不增行）" || bad "L: mark-distilled" "(行数 ${LBEFORE}→${LAFTER}; 队列: ${Q2:0:60})"
 # reconcile 四态：judged_by 必须是 reflector（与 adopt/reject 的 human 区分）
 $EVO reconcile --ids arxiv-api-rate-limit --state relevant-unused --session sess-big >/dev/null 2>&1
 { tail -1 "$EVO_ROOT/ops/log/reconcile.jsonl" | grep -q '"judged_by":"reflector"' \
@@ -778,7 +788,7 @@ RMID=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
 printf '{"session_id":"real-1","prompt":"arxiv API 批量下载被限流该怎么处理"}' | $EVO hook-recall >/dev/null 2>&1
 RAFTER=$(grep -c . "$EVO_ROOT/ops/log/recall.jsonl" 2>/dev/null || echo 0)
 { [ "$RBEFORE" = "$RMID" ] && [ "$RAFTER" -gt "$RMID" ]; } \
-  && ok "L: hook-recall 噪声门槛（噪声不记账，实义 prompt 照常）" || bad "L: 噪声门槛" "(计数 $RBEFORE→$RMID→$RAFTER)"
+  && ok "L: hook-recall 噪声门槛（噪声不记账，实义 prompt 照常）" || bad "L: 噪声门槛" "(计数 ${RBEFORE}→${RMID}→${RAFTER})"
 # 驱动器隔离的完整性：EVO_DRIVER=1 下**直调** recall 也不得记账（2026-09-17 实测的漏网点）。
 # 未堵时驱动器/一次性探针会以 session:null 落进 recall.jsonl，被 reflect 的注入统计计入；
 # slice/覆盖率按 session 过滤不受影响 —— 所以这是只有靠断言才守得住的静默污染。
@@ -915,6 +925,93 @@ PY
   || bad "L: 并行驱动器切片" "(标上 ${PAR_DONE}/${PAR_N}；切片重叠或漏登？)"
 { grep -q '并行启动' "$EVO_ROOT/ops/log/distill.log" && ! [ -d "$EVO_ROOT/ops/log/.distill.lock" ]; } \
   && ok "L: 并行轮记边且锁已释放" || bad "L: 并行轮边界/锁" "(缺『并行启动』或有锁残留)"
+
+# 源码卫生：`$VAR` 紧跟多字节字符会被 bash **吞进变量名**（set -u 下报 unbound，
+# 且报错里的变量名是断字节、连 python 都解不出来）。本仓库到处是中文，全角标点紧跟在变量
+# 后面是高频写法 —— 2026-09-18 一天内踩了三次（本文件自己的 bad 分支、evo-distill.sh、
+# evo-drain.sh），而其中 smoke 这六处**藏在失败分支里**：平时不报，一旦某条断言失败就抛出
+# 第二条莫名其妙的 unbound，把真正的失败信息盖掉。
+# 这里做静态扫：非注释行里出现 `$name` + 非 ASCII 字节即判违规（写法应为 ${name}）。
+BADV=$(python3 - "$SRC" <<'PY'
+import re, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+pat = re.compile(rb'\$[A-Za-z_][A-Za-z0-9_]*[\x80-\xff]')
+hits = []
+for p in sorted(list((root / 'ops/bin').glob('*.sh')) + [root / 'test/smoke.sh']):
+    if not p.exists(): continue
+    for i, line in enumerate(p.read_bytes().split(b'\n'), 1):
+        if line.lstrip().startswith(b'#'): continue
+        if pat.search(line): hits.append(f"{p.name}:{i}")
+print(','.join(hits))
+PY
+)
+{ [ -z "$BADV" ]; } \
+  && ok "L: shell 脚本无 \$VAR 紧跟多字节字符（应为 \${VAR}）" \
+  || bad "L: \$VAR 紧跟多字节字符" "(会被吞进变量名: $BADV)"
+
+# ── 逐条精度闸门的**确定性**守护（合成条目 + 合成账本，不依赖活库）───────────────
+# 为何在这里补（2026-09-18）：D 组那两条 hook 断言曾经隐式地依赖「某条真实条目当下没被闸门
+# 排掉」，而闸门读的是活的 reconcile.jsonl（另一个后台进程在写）→ 代码没改、测试变红。
+# 闸门本身的契约是三条：
+#   ① n ≥ 10 且精度 < 20% 的条目，**automatic 注入路径**（hook）不再列它；
+#   ② 同一条目**直调** `evo recall` 仍拿得到（文档承诺的逃生通道，人手要检索时必须照做）；
+#   ③ n 不足 10 条时闸门不生效（避开小样本）。
+# 用夹具把这三条钉住，就不再看活库脸色。
+GATE_ENTRY="$EVO_ROOT/playbook/zz-gate-probe.md"
+cat > "$GATE_ENTRY" <<'EOF'
+---
+id: zz-gate-probe
+type: lesson
+status: validated
+scope: global
+domain: testing
+tags: [zzgateprobe]
+triggers:
+  - "zzgateprobe 专项排查"
+  - "验证 zzgateprobe 的行为一致性"
+created: 2026-09-18
+evidence: {helpful: 0, harmful: 0}
+verified_by: command
+source: session:smoke-fixture
+last_verified: 2026-09-18
+superseded_by: null
+schema_version: 1
+---
+合成夹具：只用于验证逐条精度闸门，不表达任何经验内容。
+EOF
+GATE_TASK="zzgateprobe 专项排查"
+# 先确认夹具本身可被命中（否则后面的断言假绿）
+if "$EVO" recall --task "$GATE_TASK" 2>/dev/null | grep -q 'zz-gate-probe'; then
+  ok "L: 闸门夹具可命中（前置）"
+  # 写 10 条 irrelevant（n=10、精度 0% → 应触发闸门）
+  i=0
+  while [ $i -lt 10 ]; do
+    printf '{"ts":"2026-09-18T00:00:00.000Z","session":"zz-gate-s%d","id":"zz-gate-probe","task":"","state":"irrelevant","channel":"recall","helpful_delta":0,"harmful_delta":0,"judged_by":"reflector"}\n' "$i" >> "$EVO_ROOT/ops/log/reconcile.jsonl"
+    i=$((i+1))
+  done
+  "$EVO" recall --task "$GATE_TASK" 2>/dev/null | grep -q 'zz-gate-probe' \
+    && ok "L: 闸门只作用于自动路径（直调 recall 仍取得到）" \
+    || bad "L: 闸门淹了直调 recall" "(逃生通道被打断)"
+  printf '{"session_id":"zzgate-%s","prompt":"zzgateprobe 专项排查"}\n' "$RANDOM" | "$EVO" hook-recall 2>/dev/null | grep -q 'zz-gate-probe' \
+    && bad "L: 精度闸门未生效" "(n=10 全 irrelevant 仍被自动注入)" \
+    || ok "L: 精度闸门确实拦住了自动注入（n=10 全 irrelevant）"
+else
+  bad "L: 闸门夹具不可命中" "(前置失败，后续闸门断言无意义)"
+fi
+rm -f "$GATE_ENTRY"
+# 清掉夹具账本行，免污染后面可能新增的断言
+python3 - "$EVO_ROOT/ops/log/reconcile.jsonl" <<'PY'
+import json, sys
+path = sys.argv[1]
+keep = []
+for line in open(path, encoding='utf-8', errors='replace'):
+    if not line.strip(): continue
+    try:
+        if json.loads(line).get('id') == 'zz-gate-probe': continue
+    except Exception: pass
+    keep.append(line.rstrip('\n'))
+open(path, 'w').write('\n'.join(keep) + '\n')
+PY
 
 echo
 echo "================ PASS=$PASS FAIL=$FAIL ================"
