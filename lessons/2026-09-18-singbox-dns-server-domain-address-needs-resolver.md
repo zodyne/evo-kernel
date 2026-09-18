@@ -24,7 +24,7 @@ related: [singbox-legacy-dns-servers-deprecated-1-12, singbox-config-doc-validat
 
 **一句话主张**：sing-box（本机实测 1.13.19）里 `dns.servers[i]` 的 `server` 写成**域名**（如 `dns.google`）时，
 配置在 DNS 初始化阶段直接失败：`FATAL[0000] initialize DNS server[0]: missing domain resolver for domain server`；
-把该 server 写成 **IP**（新格式 `{"type":"udp","tag":"local-dns","server":"223.5.5.5"}`）配置就能起（实测 rc=0）。
+把该 server 写成 **IP**（新格式 `{"type":"udp","tag":"local-dns","server":"<dns>"}`）配置就能起（实测 rc=0）。
 要用域名就必须额外给一个 domain resolver，只换 DNS 段格式、不动地址是不够的。
 
 **为什么**：DNS server 条目本身要用域名时，这个域名得先被解析，而解析它又得先有可用的 DNS —— 自举依赖；
