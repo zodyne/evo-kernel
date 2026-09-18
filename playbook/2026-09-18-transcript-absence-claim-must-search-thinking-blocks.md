@@ -18,7 +18,7 @@ source: session:01a0a7af-fee9-725c-a75a-f993fad354fe
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [subagent-transcript-exec-vs-mention, checker-positive-control-or-negative-void, located-quote-claims-must-be-grepped-in-source]
+related: [checker-positive-control-or-negative-void, located-quote-claims-must-be-grepped-in-source]
 ---
 
 # 判定「某关键词在会话记录里从未出现」前，必须把 thinking 块纳入检索范围

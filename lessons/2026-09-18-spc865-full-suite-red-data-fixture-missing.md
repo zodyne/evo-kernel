@@ -18,7 +18,7 @@ source: session:01a0a810-9275-7719-ba82-31fb903a37e1
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [hardcoded-data-dir-rot-fails-late, vitest-full-suite-fail-isolate-rerun, spc865-data-root-env-test-outcome]
+related: [hardcoded-data-dir-rot-fails-late, vitest-full-suite-fail-isolate-rerun]
 ---
 # 全量 pytest 红在数据文件盘点/路径断言 ≠ 本车道回归
 

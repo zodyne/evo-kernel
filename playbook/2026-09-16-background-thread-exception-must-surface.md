@@ -18,7 +18,7 @@ source: session:01a0a56f-582e-7353-8a3d-42c5ca5a3860
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [board-reload-stop-old-thread-first, thread-exception-surfaces-in-thread-threading-only]
+related: [board-reload-stop-old-thread-first]
 ---
 
 # 后台线程异常不能静默吞：存 error 字段并上浮

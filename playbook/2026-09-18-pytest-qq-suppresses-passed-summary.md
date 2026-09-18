@@ -18,7 +18,7 @@ source: session:01a0a80b-0eeb-7719-ba82-31f86fbaeaa7
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [selftest-pass-count-not-a-gate-exit-code-decides, pytest-collect-only-q-prints-per-file-counts]
+related: [selftest-pass-count-not-a-gate-exit-code-decides]
 ---
 
 # `-q` 叠加成 `-qq` 后 pytest 不再打印 "N passed" 汇总行：判定成败只能用退出码

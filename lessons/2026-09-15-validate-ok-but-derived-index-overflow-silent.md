@@ -17,7 +17,7 @@ source: session:01a0a6b9-89c5-7353-8a3d-42e7d5d82a48
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [diagnose-by-measured-output-not-proxy-status-word, validation-params-readable-from-artifact, algommw-nan-passes-status-checks]
+related: [diagnose-by-measured-output-not-proxy-status-word, validation-params-readable-from-artifact]
 ---
 
 主张：init/validate 返回 `eOk`（0）只表示「配置维度合法」，不校验派生数据结构的容量、也不代表下游数值正确；对账必须读实际计算值（fold 表内容、doppler 输出），不能只看返回码。

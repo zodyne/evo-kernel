@@ -17,7 +17,7 @@ source: session:01a0a7aa-e522-725c-a75a-f97a33010dba
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [subagent-transcript-exec-vs-mention]
+related: []
 ---
 
 **主张**：只读派发词若写成「不要启动 nvim 进程」，子 agent 为探测环境跑的 `nvim --version` 会被审计判成**字面违规**——本会话就是这么判的。禁令应绑定到危害（**会加载用户配置、与用户正在运行的实例互相干扰的交互式启动**）并显式豁免 `--version` / `--help` 这类只读探测；否则「是否违约」取决于审计者的字面口径，而不是行为有没有害。

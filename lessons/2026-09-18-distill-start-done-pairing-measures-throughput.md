@@ -18,7 +18,7 @@ source: session:01a0b2f3-86b5-73b1-bdd8-c2dceaa1549e
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [distill-log-done-line-is-the-completion-ledger, awk-hhmm-threshold-matches-other-dates-inflating-progress, evo-queue-lists-no-status-column]
+related: [distill-log-done-line-is-the-completion-ledger, awk-hhmm-threshold-matches-other-dates-inflating-progress]
 ---
 
 **主张**：量化 evo-distill 飞轮「跑得怎么样」要把 `distill.log` 的 `start <sid>` 与 `done <sid> — DISTILL_OK n` **按 sid 配对**：窗口内 start/done/fail 三个计数 + 每对 `done_ts − start_ts` 的分布 + 有 start 而没配到 done 的 unpaired 清单，三者一起报；只数 done 条数或看队列长度都会漏掉「开工多但拖着不收尾」这种坏状态。

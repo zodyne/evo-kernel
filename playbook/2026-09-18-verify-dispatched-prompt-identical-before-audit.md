@@ -17,7 +17,7 @@ source: session:01a0a7aa-e522-725c-a75a-f97a33010dba
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [stamp-baseline-before-review, subagent-transcript-exec-vs-mention]
+related: [stamp-baseline-before-review]
 ---
 
 **主张**：审计被派发的子 agent 是否守约，第一步不是看它干了什么，而是**钉住它实际收到的指令原文**：用派发词里的独特句子 `rg -l` 定位相关 transcript，把两份记录的派发词各自提取落盘、`diff` 确认逐字一致，再拿它当判据。否则整份合规判定可能建立在「派发者以为它说了什么」之上。

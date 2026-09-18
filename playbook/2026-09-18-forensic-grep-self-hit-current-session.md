@@ -18,7 +18,7 @@ source: session:01a0a7aa-e5b0-725c-a75a-f97e671dc5aa
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [subagent-transcript-exec-vs-mention, substring-matcher-cannot-tell-exec-from-mention, benchmark-traffic-isolated-from-telemetry]
+related: [substring-matcher-cannot-tell-exec-from-mention, benchmark-traffic-isolated-from-telemetry]
 ---
 
 # 跨文件搜『谁提到过 X』必然自命中：执行这次搜索的会话自己会进结果集

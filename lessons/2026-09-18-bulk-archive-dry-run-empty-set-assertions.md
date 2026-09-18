@@ -18,7 +18,7 @@ source: session:01a0a8c1-5e3e-710a-b61a-fd2478c30f87
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [derived-list-read-back-against-source-before-use, git-mv-bulk-verify-byte-identical-renames]
+related: [derived-list-read-back-against-source-before-use]
 ---
 
 **主张**：批量归档/搬迁脚本必须**先在 DRY 模式跑，并用四条断言把错误挡在执行前**：① 计划条数 == 源目录实际文件数；② 未被归类的 == 0；③ 计划里源不存在的 == 0；④ 目标重名 == 0。四项全过才允许 `DRY=0` 实搬。本会话首轮 dry-run 计划 **69** 个而桌面实际只有 **59** 个（清单开头编号 1、2 是同一源文件映射到同一目标目录，重复记账），修规则后才 `59 == 59` 且三项为空，随后搬运一次成功。

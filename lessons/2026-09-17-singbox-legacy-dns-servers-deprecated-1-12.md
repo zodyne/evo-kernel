@@ -17,7 +17,7 @@ source: session:01a0affb-58dd-73b1-bdd8-c2ca9d44ed64
 last_verified: 2026-09-17
 superseded_by: null
 schema_version: 1
-related: [singbox-1-12-route-needs-default-domain-resolver, pi-ts-net-gateway-http-proxy-sing-box]
+related: [pi-ts-net-gateway-http-proxy-sing-box]
 ---
 
 sing-box 1.12.0 起 `dns.servers` 旧格式（`"address": "<dns>"` 字符串形式）被弃用，`sing-box check` 直接报错 `legacy DNS servers is deprecated in sing-box 1.12.0 and will be removed`，写 TUN 配置必须用新格式（`"type": "udp"` + `server` 字段的对象形式）。

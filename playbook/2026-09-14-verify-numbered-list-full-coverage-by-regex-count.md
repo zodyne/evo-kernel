@@ -18,7 +18,7 @@ source: session:01a09f4d-d02c-7129-be3e-248c7ca82c43
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [recall-failure-empty-vs-noise-taxonomy, refs-json-count-range-contiguity]
+related: [recall-failure-empty-vs-noise-taxonomy]
 ---
 
 # 主张

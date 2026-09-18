@@ -18,7 +18,7 @@ source: session:01a099a8-07d2-766c-b240-9eaed5f6ca6d
 last_verified: 2026-09-18
 superseded_by: null
 schema_version: 1
-related: [evo-slice-normalize-toolname-case-and-path-field, pi-workflow-script-node-check-esm]
+related: [evo-slice-normalize-toolname-case-and-path-field]
 ---
 
 # 工具调用参数编码是 per-tool 的，不能按 harness 一刀切
