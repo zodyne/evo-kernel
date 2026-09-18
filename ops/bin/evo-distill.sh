@@ -229,8 +229,8 @@ session_id：${SID}
 
 4. 写提案。每条一个文件：${ROOT}/ops/proposals/<YYYY-MM-DD>-<slug>.md
    - frontmatter 严格按 ${ROOT}/SCHEMA.md 的 14 字段；**triggers 必填 3-5 条**（面向未来任务的措辞 + 失败信号）；
-   - **id 必须唯一**：直接复用文件名里的语义 slug（文件名 `2026-09-18-foo-bar.md` → `id: foo-bar`）。
-     **禁止**写 `lesson-YYYY-MM-DD-001` 这类序号式 id —— 同时会有 N 个 worker 并行落笔，序号必然撞车
+   - **id 必须唯一**：直接复用文件名里的语义 slug（文件名 \`2026-09-18-foo-bar.md\` → \`id: foo-bar\`）。
+     **禁止**写 \`lesson-YYYY-MM-DD-001\` 这类序号式 id —— 同时会有 N 个 worker 并行落笔，序号必然撞车
      （2026-09-18 实测：换 pi 执行器后首批产出就写成序号式；序号在并发下无法保证唯一）。
    - status: candidate；evidence: {helpful: 0, harmful: 0}；source: session:${SID}；
    - verified_by 如实标：切片里有命令+结果佐证 → command；只有人的判断 → human；都没有 → 不要写这条提案；

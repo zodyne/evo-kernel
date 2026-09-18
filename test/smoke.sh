@@ -926,6 +926,25 @@ PY
 { [ -z "$BADV" ]; } \
   && ok "L: shell 脚本无 \$VAR 紧跟多字节字符（应为 \${VAR}）" \
   || bad "L: \$VAR 紧跟多字节字符" "(会被吞进变量名: $BADV)"
+# 同类第二剂：PROMPT 块里的**裸反引号** = 命令替换。2026-09-18 当场踩到：给 prompt 补 id 规则时
+# 漏转义，shell 把 `id: foo-bar` 当命令跑 → 日志刷 `id:: command not found`，
+# **而且 prompt 文本被吃掉**（模型收到残缺指令）——静默降质，比报错更难发现。
+# 口径：PROMPT="..." 块内只允许 \`，裸的一个也不行。
+BADT=$(python3 - "$SRC" <<'PY'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1]) / 'ops/bin/evo-distill.sh'
+try:
+    s = p.read_text(encoding='utf-8')
+    i = s.index('PROMPT="'); j = s.index('\n  OUT=', i)
+except Exception:
+    print('?')
+else:
+    print(len(re.findall(r'(?<!\\)`', s[i:j])))
+PY
+)
+{ [ "$BADT" = "0" ]; } \
+  && ok "L: 蒸馏 prompt 无裸反引号（不会触发命令替换）" \
+  || bad "L: prompt 内有裸反引号" "(${BADT} 个 → 会被当命令跑，且 prompt 文本被吃掉)"
 
 # ── 逐条精度闸门的**确定性**守护（合成条目 + 合成账本，不依赖活库）───────────────
 # 为何在这里补（2026-09-18）：D 组那两条 hook 断言曾经隐式地依赖「某条真实条目当下没被闸门
