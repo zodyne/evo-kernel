@@ -1754,30 +1754,28 @@ const cmds = {
     }
     add(6, h6, 'Claude hooks 已退役确认', d6);
 
-    // 7. Hermes hooks 三件套挂线 —— pi harness 于 2026-08-12 退役，挂载迁移至
-    //    Hermes shell hooks（config.yaml hooks 段 → agent-hooks/*.sh adapter）
-    let h7 = 'WARN', d7 = 'Hermes hooks 未挂线';
+    // 7. Hermes hooks **已退役确认** —— 2026-09-18 用户决定「不接入 hermes」，三件套从
+    //    ~/.hermes/config.yaml 搞除。本项从「校验挂线」反向成「校验退役」，与第 6 项
+    //    （Claude hooks 已退役确认）同口径：**残挂是异常，不是回归**。
+    //    为何不再挂：实测对蒸馏速度无收益（hook 在蒸馏路径上本就被 EVO_DRIVER=1 + prompt
+    //    哨兵短路，本轮 47 个蒸馏会话在 recall.jsonl 里 0 行；成本全在模型思考块）。
+    //    代价：hermes 会话不再回流经验/不再被注入，evo 的输入只剩 pi 一个 harness。
+    //    保留了「能把残挂查出来」的能力，因为反向漂移（被重新接上）同样需要可见。
+    let h7 = 'WARN', d7 = '未检查';
     try {
       const hcfg = yaml.load(fs.readFileSync(path.join(homeDir(), '.hermes/config.yaml'), 'utf8')) || {};
-      const want7 = {
-        pre_llm_call: ['evo-recall.sh'],
-        on_session_end: ['evo-session-end.sh'],
-        pre_tool_call: ['evo-guard.sh'],
-      };
+      const evtNames = ['pre_llm_call', 'on_session_end', 'pre_tool_call'];
       const hookEntries = hcfg.hooks || {};
-      const matched7 = [];
-      const miss7 = [];
-      for (const evt of Object.keys(want7)) {
+      const residual = [];
+      for (const evt of evtNames) {
         const list = hookEntries[evt] || [];
         const scripts = (Array.isArray(list) ? list : []).map((e) => (e && e.command) || '');
-        const found = want7[evt].some((s) => scripts.some((c) => c.includes(s)));
-        if (found) matched7.push(evt);
-        else miss7.push(`${evt}:缺`);
+        if (scripts.some((c) => c.includes('evo-'))) residual.push(evt);
       }
-      if (miss7.length) { h7 = 'FAIL'; d7 = miss7.join(', ') + ' → 在 ~/.hermes/config.yaml hooks 段接线（参考 ops/integrations/hermes-evo-hooks/）'; }
-      else { h7 = 'PASS'; d7 = `三件套挂线 (${Object.keys(want7).length} 事件)`; }
+      if (residual.length) { h7 = 'WARN'; d7 = `残留 evo 挂载（已退役，建议清理）: ${residual.join(', ')}`; }
+      else { h7 = 'PASS'; d7 = '已退役（预期无挂载）'; }
     } catch (e) { h7 = 'WARN'; d7 = `~/.hermes/config.yaml 解析失败: ${e.message}`; }
-    add(7, h7, 'Hermes hooks 三件套挂线', d7);
+    add(7, h7, 'Hermes hooks 已退役确认', d7);
 
     // 16. Hermes agent-hooks adapter 仓库副本同步 —— 比对实装与 ops/integrations 副本
     let h16 = 'WARN', d16 = '副本缺失';

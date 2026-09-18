@@ -1,6 +1,14 @@
 # Evo-Kernel
 
-个人「经验治理与固化层」内核：纯文件 + git 存储，Node CLI（`evo`），被 Hermes hooks + Claude Code hooks 两个 harness 共用。
+个人「经验治理与固化层」内核：纯文件 + git 存储，Node CLI（`evo`），当前只由 **pi 一个 harness** 接入。
+
+> **harness 接入现状（2026-09-18）**：
+> - **pi**：已接（`~/.pi/agent/extensions/evo-kernel.ts`，三个事件）；这是唯一接入的 harness。
+> - **Claude Code**：有意不接（hooks 已退役且无替代桥接）。
+> - **Hermes**：**2026-09-18 退役**（用户口径「不掉 evo↔hermes hooks」）——三件套从
+>   `~/.hermes/config.yaml` 摘除。退役实测依据：hook 在蒸馏路径上本就被 `EVO_DRIVER=1`
+>   + prompt 哨兵短路（本轮 47 个蒸馏会话在 recall.jsonl 里 0 行），对速度无收益。
+>   恢复办法写在 config.yaml 被注释掉的段旁（三步）。存续件仍在 `ops/integrations/hermes-evo-hooks/`。
 
 > 设计权威：`~/Dev/agent-evo/design/blueprint-v4.md`（不变量 I1–I7、§4 数据存续、§7 测量定义）。
 > 构建契约：`~/Dev/agent-evo/design/build-spec-v1.md`（v1.1，§2 命令契约卡（当时 21 个，现 25）、§3 数据/日志 schema、§5 评分系数、§8 smoke 断言）。
