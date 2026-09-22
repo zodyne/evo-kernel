@@ -1,7 +1,7 @@
 ---
 id: emacs-news-fetch-cgit-silent-fail-use-github-mirror
 type: playbook
-status: candidate
+status: validated
 scope: global
 domain: research-methodology
 tags: [emacs, news, curl, savannah, github-mirror, fetch-verify]
@@ -44,3 +44,30 @@ related: [curl-o-code-000-no-output-file, curl-max-time-timeout-empty-looks-like
 - 本会话没有定位 cgit 失败的原因（超时 / 网络 / 端点行为都有可能），只证明「该时刻该 URL 不可用、镜像可用」，不能断言 savannah 永久不可用。
 - `<ref>` 可以是 tag（`emacs-31.1`）也可以是分支（`feature/igc3`，另一条证据里以 jsDelivr 取得）；镜像路径是 `etc/NEWS`，不代表仓库其他路径同样。
 - 若上游改动只存在于本地未推送提交，任何镜像都拿不到。
+
+## 2026-09-22 独立复核增补
+
+下列是复核时在本机跑过的**自包含最小复现**：
+
+```
+复测于 2026-09-22，本机 macOS，两条命令自包含：
+
+  1) 静默失败（切片同一 URL）：
+     $ curl -sL --max-time 60 "https://git.savannah.gnu.org/cgit/emacs.git/plain/etc/NEWS?h=emacs-31.1" -o /tmp/n.txt; echo "exit=$?"; ls /tmp/n.txt
+     exit=28
+     ls: /tmp/n.txt: No such file or directory      # 文件根本没落盘，-s 把错误吞了
+
+  2) 加 -S 暴露真因（不是 HTTP 404，不是 savannah 宕机，是连接超时）：
+     $ curl -sS -L --max-time 60 "https://git.savannah.gnu.org/cgit/emacs.git/plain/etc/NEWS?h=emacs-31.1" -o /tmp/n2.txt; echo "exit=$?"
+     curl: (28) Connection timed out after 60003 milliseconds
+     exit=28
+
+  3) 镜像可用，行数与切片一致：
+     $ curl -sS -L --max-time 60 "https://raw.githubusercontent.com/emacs-mirror/emacs/emacs-31.1/etc/NEWS" -o /tmp/n3.txt && wc -l /tmp/n3.txt
+     4274 /tmp/n3.txt                # 切片当时也是 4274 NEWS31.txt
+```
+
+
+**审核给出的修改意见（要点）**：条目本身站得住：主张被切片支撑，且我今天（2026-09-22）复跑复现——cgit plain 仍失败（curl exit 28）、镜像仍成功且行数同为 4274。三条 citations 全部能在切片里找到对应输出（两条命令被切片截断，属切片固有截断，非条目的错）。两处建议修：① 让稳定方法领起标题/主张——「curl 的 -s（不带 -S）会在连接失败时静默吞错、输出文件根本不落盘；抓完先 `[ -s FILE ]`/`ls` 验落盘再用，失败切镜像（raw.githubusercontent 或 jsDelivr）」，把 Emacs/savannah 降为具体实例；② 补上复测已确证的机制/定性：cgit 失败真因是**连接超时**（curl exit 28），属本机到 savannah 的网络可达性，不是 HTTP 404、也不是 savannah 宕机——这与条目 边界 里「没定位原因（超时/网络/端点行为都有可能）」的悬置相呼应，现在可以坐实，且说明该「savannah 失败」事实带本机网络前提，别当永久律。注：addedMechanism=true（「-s 吞连接/超时错误」这一机制切片里没有——切片只有 -s 的 cgit 跑法与 -sS 的镜像跑法，没有 -sS 的 cgit 跑法），但该机制是 curl 通用行为，我已用上面第 2 条命令实证，故不动主张、只作
+
+**判定**：keep-with-fix · 拟 promote-playbook · 原证据快照风险=low · 复核时本机可复跑=true

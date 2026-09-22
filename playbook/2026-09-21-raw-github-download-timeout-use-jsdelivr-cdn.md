@@ -1,7 +1,7 @@
 ---
 id: raw-github-download-timeout-use-jsdelivr-cdn
 type: playbook
-status: candidate
+status: validated
 scope: global
 domain: web-scraping
 tags: [curl, raw-githubusercontent, jsdelivr, cdn, timeout, fetch]
@@ -43,3 +43,28 @@ related: [curl-max-time-timeout-empty-looks-like-no-match, curl-o-code-000-no-ou
 - 本会话只对 1 个文件做了 raw→jsDelivr 的对照，不能推广为「raw 超时一定是链路问题」或「jsDelivr 永远可用/无限额」。
 - jsDelivr 的成功只证明该 ref 下的文件可被它取到，不代表私有仓库/未公开 ref 也走这条通道。
 - 若内容本身是动态生成（非仓库文件），此镜像不适用。
+
+## 2026-09-22 独立复核增补
+
+下列是复核时在本机跑过的**自包含最小复现**：
+
+```
+两路取同一 ref 的同名文件，哈希应相等（tag ref 稳定；本机 2026-09-22 实测）：
+
+$ curl -sSL --max-time 40 "https://raw.githubusercontent.com/emacs-mirror/emacs/emacs-31.1/etc/NEWS" | shasum | cut -d' ' -f1
+47309384095d860e74e88992e1cd40a02b13c32e
+$ curl -sSL --max-time 40 "https://cdn.jsdelivr.net/gh/emacs-mirror/emacs@emacs-31.1/etc/NEWS" | shasum | cut -d' ' -f1
+47309384095d860e74e88992e1cd40a02b13c32e
+# 两路同哈希 ⇒ jsDelivr gh 镜像与 raw 同源同内容。
+
+# 分支 ref 同样可用（条目主张的关键：@<ref> 不止 tag）：
+$ curl -sS -o /dev/null -w "http=%{http_code}\n" -L --max-time 40 "https://cdn.jsdelivr.net/gh/emacs-mirror/emacs@feature/igc3/etc/NEWS"
+http=200        # 与 raw 同哈希 e90a372b39fb2487ef98a9cd682a0def6bbe5d00（该分支 2026-09-22 时为 22765 bytes）
+
+注意：本机重跑时 raw 链路也返回 200（1.7s），即原会话的 150s 超时是瞬时/环境性的——本条可稳定复现的是「两路同源同内容」，不是「raw 必然超时」。
+```
+
+
+**审核给出的修改意见（要点）**：主张站得住（jsDelivr gh 支持分支 ref、与 raw 同源同内容，本机复验通过），但升级前建议两处收紧： 1. 证据节「成功」行显式标注：该命令在切片中被截断（`...@feature/igc3/et`），**非逐字可重跑**；别让后人直接复制。 2. 用 tag 版稳定复现替换/补充绑在可变分支上的例子（raw 与 jsdelivr 取 emacs-31.1/etc/NEWS 同哈希 47309384095d860e74e88992e1cd40a02b13c32e）；`feature/igc3` 已被推进（当时 12440 → 现 22765 bytes），作范例会随时间腐坏。 边界节已正确声明不可推广，无需改。
+
+**判定**：keep-with-fix · 拟 promote-playbook · 原证据快照风险=low · 复核时本机可复跑=true
