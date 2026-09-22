@@ -1,7 +1,7 @@
 ---
 id: data-file-discovery-vendor-prefix-glob-skips-batch
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: data-pipeline
 tags: [glob, data-discovery, silent-skip, frame-header, parser, suc221]
@@ -49,3 +49,25 @@ related: [hardcoded-data-dir-rot-fails-late, macos-tcc-protected-dir-empty-glob]
 - 换了设备/批次后帧数骤降或为 0，脚本退出码 0、无报错。
 - 代码/文档里出现带厂商前缀的 glob（`TarData*`、`*_Target_*`），而目录里文件名已经换代。
 - 新采的一批数据"解析器读不到"，实际是发现逻辑没放行。
+
+## 2026-09-22 独立复核增补
+
+下列是复核时在本机跑过的**自包含最小复现**：
+
+```
+d=$(mktemp -d) && cd "$d" && touch TarData_20260801_0000.bin UCM221_Target_20260914_0000.bin && python3 -c "import glob; print('prefix glob ->', sorted(glob.glob('TarData*.bin'))); print('*.bin ->', sorted(glob.glob('*.bin')))"
+# 实测输出：
+#   prefix glob -> ['TarData_20260801_0000.bin']            <- 静默漏掉 UCM221_Target_...，无报错
+#   *.bin       -> ['TarData_20260801_0000.bin', 'UCM221_Target_20260914_0000.bin']
+#   退出码 0（无异常）—— 即「前缀 glob 静默挡文件」这一条本机可当场复现
+```
+
+
+**审核给出的修改意见（要点）**：主张与证据要改三处（核心方向「不要写死厂商前缀、按内容/通用模式判格式」是对的，但被举例写歪了）： 1) 罪魁 glob 不是 `TarData*.bin`，而是 TCP 分支的 `SUC221_Target*.bin`。viewer_filtered 旧实现有两支：`TarData*.bin`→load_file_fast（裸 64 KiB/帧），`SUC221_Target*.bin`→load_tcp_frames（外层 6 B 帧头）。UCM221 抓包是被第二支的写死前缀挡住的。把「旧实现」引用与主张里的 `TarData*.bin` 换成 `SUC221_Target*.bin`，或明确写成「两支 glob 都写死了前缀」。 2) 删掉「同一格式」。TarData 与 *_Target_* 是两种框架（差 6 B 外层帧头），本机实测：`glob('*.bin')` 后交给 TarData 解析器 load_file_fast 硬解 UCM221 抓包，不报错但得 8,957 帧 / 8,290,692 个「点」（真值 50,005）。故「应扫 *.bin 并用帧头判格式」/「*.bin 是安全上界」只在「按帧头或前缀分派到正确解析器」时才成立——仓内现行 `dbf_scene.data_files()` 正是用 `TarData*.bin` / `*_Target_*
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 同一格式的 `UCM221_Target_*.bin` 会被静默挡在门外（主张节）—— 产物反证二者不是同一格式：TarData 为裸 65,536 B/帧，`*_Target_*` 为外层多 6 B 帧头的 TCP 抓包（viewer_filtered docstring + dbf_scene.data_files 注释）。
+- `*.bin` 是安全上界（为什么节）—— 本机实测：`glob('*.bin')` 后交给 TarData 解析器 load_file_fast 硬解 UCM221 抓包，不报错但产出 8,957 帧 / 8,290,692 个「点」（真值 50,005），即静默垃圾；仓内 ce07a71 亦以「拿 TarData 解析器硬解抓包不报错，只是永远错位」记之。
+- 失败模式是静默的：目录存在、命令退出码 0、统计数字变小或为 0（为什么节 / 失败信号节）—— 切片从未跑过修复前的代码；且旧 viewer_filtered.load_frames 在无匹配时 `raise FileNotFoundError`（响亮），静默产垃圾的其实是 dbf_scene 的单 `*.bin` glob。
+
+**判定**：keep-with-fix · 拟 promote-playbook · 原证据快照风险=low · 复核时本机可复跑=true

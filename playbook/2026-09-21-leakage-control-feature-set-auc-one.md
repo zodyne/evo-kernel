@@ -1,7 +1,7 @@
 ---
 id: leakage-control-feature-set-auc-one
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: machine-learning
 tags: [leakage, feature-engineering, auc, control-experiment, threshold-learning, radar]
@@ -47,3 +47,36 @@ related: [calibration-set-not-validation-set, recalibrate-thresholds-before-comp
 
 - 学习/调参实验报告 AUC 0.99+，特征清单里却有直接参与标签定义的量。
 - 拿"学习模型 AUC 0.97 > 现判据"当结论，但没有任何对照说明标签可分性的上限。
+
+## 2026-09-22 独立复核增补
+
+下列是复核时在本机跑过的**自包含最小复现**：
+
+```
+python3 - <<'PY'
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+rng=np.random.default_rng(0); n=40000
+x=rng.normal(size=n); y=(x>np.quantile(x,0.2)).astype(int)   # 标签 = 关于 x 的确定性门限规则
+tr,te=slice(0,n//2),slice(n//2,n)
+for name,X in (("clean(no leak)",np.c_[x+rng.normal(size=n),rng.normal(size=n)]),
+               ("leak",np.c_[x,rng.normal(size=n)])):        # leak 组把「规则自己的输入 x」放进特征
+    m=LogisticRegression(max_iter=2000).fit(X[tr],y[tr])
+    print(name, round(roc_auc_score(y[te],m.predict_proba(X[te])[:,1]),4))
+PY
+# 实测输出（本机 sklearn 1.8.0, numpy）:
+#   clean(no leak)   held-out AUC = 0.8563
+#   leak             held-out AUC = 1.0000
+# 与条目主张同构：无泄漏特征 <1.0；把标签规则同源量放进特征 → AUC 顶到 1.0000。
+```
+
+
+**审核给出的修改意见（要点）**：三处改后即可留，并够格升注入集（真值是本机稳定的通用 ML 事实，已用自包含复现验证）：(1) 删掉或换成切片可核的表述——「学习模型 AUC 0.97」在切片里查无此数（grep 无 0.97），应改为「学习模型 AUC 高于现行判据 0.9554」或直接引用切片确有出现的 0.9558（快照内对照），不要留一个无从核验的 0.97。(2) 给绝对律加限定：标题与主张的「AUC 1.0000 只能来自泄漏 / 只可能来自泄漏」应改为「AUC 1.0000 是泄漏的强指示；本实验里唯有并入泄漏特征才达到」，并补一句边界——退化/极小评测集或本就可分的问题也可能给 1.0（我本次复现里 leak 组恰为 1.0000，也正说明 1.0 是『规则同源量可完全复现标签』的必然而非唯一诊断）。(3) 证据节注明命令状态：第 1 条 [A] 输出（AUC 0.9554）在切片里来自已被截断、且指向 /tmp/learned_thr.py 的命令，不可照抄重跑；持久载体 docs/design_bf/learned_threshold_study.py 在另仓且输入 *.bin 被 gitignore，本机亦不可复跑——把「命令被截断 / 依赖别仓快照数据」写清，避免读者照抄踩空。
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 学习模型 AUC 0.97 > 现有判据 0.9554
+- 当特征里混入标签生成链路上用到的量（距离门、多普勒这类门限/采样口径）时，模型可以直接复现标注规则，AUC 跳到 1.0
+- AUC 顶到 1.0 只可能来自泄漏（标题亦作「AUC 1.0000 只能来自泄漏」）
+
+**判定**：keep-with-fix · 拟 promote-playbook · 原证据快照风险=low · 复核时本机可复跑=true
