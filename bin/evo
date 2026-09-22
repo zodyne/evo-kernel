@@ -1461,7 +1461,11 @@ const cmds = {
       `| M1 recall 累计 | ${calls} 次 | ≥200 | ${calls >= 200 ? '命中' : '未命中'} |`,
       `| M2 条目数 | ${entryCount} | ≥500 | ${entryCount >= 500 ? '命中' : '未命中'} |`,
       `| P4 空命中关系型特征 | ${misses.length} 个空命中 | 真实多跳需求 | ${misses.length >= 10 ? '观察' : '未触发'} |`,
-      `| 蒸馏节律（登记未蒸馏且 transcript 失效） | ${refsStale}/${refsTotal} (${refsTotal ? Math.round(refsStale / refsTotal * 100) : 0}%) | 占比升高→缩短周期 | ${refsTotal && refsStale / refsTotal > 0.5 ? '⚠ 失效比例偏高' : 'ok'} |`,
+      // 口径订正（2026-09-22）：分母是**全部登记行**（含已蒸馏的），不是「未蒸馏」——
+      // sessionRefStats 逐行判 transcript 是否还在盘；一条已蒸馏的行若 transcript 事后被
+      // 清理期删掉，同样计入分子。旧文案写「登记未蒸馏且 transcript 失效」会把这行读成
+      // 「积压了多少条没蒸」，而它实际回答的是「登记过的会话里有多少条的原始证据已不可得」。
+      `| 蒸馏节律（登记行中 transcript 已失效） | ${refsStale}/${refsTotal} (${refsTotal ? Math.round(refsStale / refsTotal * 100) : 0}%) | 占比升高→缩短蒸馏周期／拉长 transcript 保留期 | ${refsTotal && refsStale / refsTotal > 0.5 ? '⚠ 失效比例偏高' : 'ok'} |`,
       // L3b agentic 通道：词法层实测 recall 天花板 63%（1292 对盲标），剩下 37% 只能靠
       // agent 自己粗筛。所以「这条通道有没有被用」是 M1 能否突破的直接观测点。
       (() => {
