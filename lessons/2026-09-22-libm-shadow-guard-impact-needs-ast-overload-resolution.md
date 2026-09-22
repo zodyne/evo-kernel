@@ -13,7 +13,7 @@ triggers:
   - "rg 命中里出现注释/宏里的 sin/cos，被当成真实调用计入影响面"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: session:01a0b74a-6062-7475-af70-36b57a4c1bf9
 last_verified: 2026-09-22
 superseded_by: null
@@ -50,3 +50,12 @@ related: [libm-symbol-chosen-by-arg-type-not-call-syntax, libm-call-audit-via-ar
 - 单个 TU 的 AST JSON 实测 26,391,806 字节（切片 `26391806 t.json`），要落盘成文件再解析，不要指望内联一段 python 一次说完。
 
 **失败信号（未来命中即该想起本条）**：给守卫影响面出数时手上只有 `rg -c 'sin|cos|…'` 之类的名字计数；文本处数与编译错误/报告处数对不上却不逐条归因；把 `sinf(` 的出现与否当成「float 重载有没有被调用」的判据。
+
+## 独立复核与证据快照（2026-09-22）
+
+本条**不进注入集**（`lessons` 候选），原因是证据快照已变，不是主张被推翻。复核结论：
+
+- `verified_by` 由 `command` 降为 `human`：引用命令在切片里被截断、**不能照抄重跑**，
+  证据绑在别仓/临时环境的一次输出上，按本库口径只算「当时跑过」。
+- **快照漂移**：`/tmp/review-astlibm` 沙箱 + algommw-plus `33a58c0`（现 `228f8ff`）。
+- 范围：①删「写 `fabsf(` 与写 `fabs(` 落到同一个被删版本」——切片无此对照，且真实用例 `dml.cpp:181` 的 `fabsf` 根本不在 `scan2.py` 的 NAMES 里、未被扫描；②「文本计数与真实集合**双向**不一致」收成单向（文本会多出注释里的假阳性）；反向实例切片里没有；③「11 处」等具体数只对 algommw-plus@33a58c0 的快照成立。
