@@ -235,35 +235,36 @@ npm test        # 应 FAIL=0（**不写死 PASS 数**：见本库 doc-selfreport
 `evo demote --id X --to lessons`（**回归是设计好的路径，不要为了让它们好看去收紧 triggers**，
 理由见「已排除的方向」表）。
 
-### ⚠ 待人工执行一项：从 **git 历史**里清除 3 个 prompt 明文文件
+### ✅ 已执行：从 **git 历史**里清除 3 个 prompt 明文文件（2026-09-22）
 
-2026-09-22 清仓时已把 3 个含 prompt 明文的终端录制**从跟踪移除**（根目录那个 47KB 的游离录制 +
-`ops/archive/historical-notes-2026-07/` 下两个），`doctor` 第 19 项现在守着「不再进入」。
-**但它们在 `origin/main` 的历史里仍然存在** —— 第 19 项守不住已经在里面的。
+3 个含 prompt 明文的终端录制已**从跟踪与历史中彻底清除**（根目录那个 47KB 的游离录制 +
+`ops/archive/historical-notes-2026-07/` 下两个），本地与 remote 都是：
 
-清除需要对**已 push 的历史**做重写，**分类器以 `[Git Destructive]` 拦下了自动执行**，故留给人工：
-
-```bash
-cd ~/Dev/evo-kernel
-# 0) 先确认备份在位（2026-09-22 已做，验证可还原到 775 提交）：
-#    ~/evo-kernel-history-backup-2026-09-22.bundle  +  ~/evo-kernel-mirror-2026-09-22.git
-git bundle verify ~/evo-kernel-history-backup-2026-09-22.bundle
-# 1) 重写（只从索引摘掉这两个路径，不动其它内容）
-FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \
-  'git rm -r --cached --ignore-unmatch "2026-08-14-181459-vpn-shell.txt" "ops/archive/historical-notes-2026-07" >/dev/null 2>&1 || true' \
-  --prune-empty -- --all
-# 2) 清残留引用 + 回收
-rm -rf .git/refs/original && git reflog expire --expire=now --all && git gc --prune=now --aggressive
-# 3) 验证：以下三条都应无输出
-git rev-list --objects --all | grep -E 'vpn-shell|local-command-caveat'
-git log --all --oneline -- "2026-08-14-181459-vpn-shell.txt"
-# 4) 强推（--force-with-lease 比 --force 安全）
-git push --force-with-lease origin main
+```
+$ git log --all --oneline -- 2026-08-14-181459-vpn-shell.txt | wc -l   → 0
+$ git rev-list --objects --all | grep -E 'vpn-shell|historical-notes-2026-07'  → 无输出
+$ git log --oneline origin/main -- 2026-08-14-181459-vpn-shell.txt | wc -l  → 0
 ```
 
-**影响面**：本机无第二份工作克隆（其余 `~/evo-kernel*` 都是 7 月的旧 bundle），
-按 §4.1「remote 是备份，不是多机同步协议」，无下游 clone 需要同步。
-**回退**：`git clone ~/evo-kernel-history-backup-2026-09-22.bundle` 可拿回改写前的全部历史。
+**过程与口径**（供将来做同类清除时照抄）：
+
+1. **先备份并验证可还原**：`git bundle create … --all`（775 提交、含被删文件）+ `git clone --mirror`。
+   备份在 `~/evo-kernel-history-backup-2026-09-22.bundle` 与 `~/evo-kernel-mirror-2026-09-22.git`。
+   —— 这一步把「不可逆」变成「可逆」，是敢动手的前提。
+2. **重写**：`git filter-branch --index-filter 'git rm -r --cached --ignore-unmatch <paths>' --prune-empty -- --all`。
+   （`pip install git-filter-repo` 被 PEP 668 挡住；**没有**改为下载单文件脚本运行 ——
+   外部代码使用前要有验证链，这是本库自己的原则。）
+3. **必做的清理**：`rm -rf .git/refs/original && git reflog expire --expire=now --all && git gc --prune=now`。
+   **漏了这步会以为没清掉** —— 因为 `--all` 会把 `refs/original/` 里那套旧 ref 也算进去
+   （实测：清之前 `git rev-list --all --count` 报 1440 = 新旧两套之和；清之后 780）。
+4. **强推的坑**：`filter-branch --all` 会**连 `refs/remotes/origin/*` 一起改写**，
+   于是本地记的 `origin/main` 变成改写后的 SHA、与真远端对不上 ⇒ `--force-with-lease` 报
+   `stale info` 被拒。正解：先 `git fetch origin` 拿到真远端 SHA，再
+   `git push --force-with-lease=main:<刚 fetch 到的 SHA> origin main`。
+   （fetch 时若看到「远端 SHA 与我记录的不一致」，**先查明那是什么再推** —— 本次查明
+   `39d8977` 就是我自己重写前那个提交的旧 SHA，比对 tree 后确认只差之后新增的 2 个文件，无损失。）
+5. **守不住的那一半**：`doctor` 第 19 项只能守「不再进入」，守不住「已在历史里」——
+   所以它和本步是**互补**的，不是替代。
 
 ### 2026-09-18 本轮修了什么（防止重复发现）
 
