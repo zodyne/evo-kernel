@@ -84,3 +84,39 @@ clang++ -std=c++17 -fsyntax-only $D/use_float_guard.cpp; echo "E rc=$?"  # rc=1
 - 换成 arity 正确的整张声明头（20 个函数）并带一次调用，编译 rc=0
 
 **判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true
+
+## ⚠ 2026-09-22 独立复核：正文有两处刻画**写反了**，以本节为准
+
+复核在本机实跑了卡片 §5-D10 的真实形态（`PLAN.md:262` 逐字）与发现方的形态：
+
+```
+# ① 卡片真实形态：同名 wrapper **带函数体**，arity 正确（两参）→ rc=0
+namespace amw{
+  inline double atan2(double y,double x){ return std::atan2(y,x); }
+  float atan2(float,float) = delete;
+  double f(double a,double b){ return atan2(a,b); }
+}
+# ② 发现方写的形态：一元 wrapper，体内 std::atan2 只给一个参 → rc=1（报在 **body**）
+  inline double atan2(double d){ return std::atan2(d); }
+# ③ 关键对照：一元**定义**本身合法 → rc=0
+  inline double atan2(double x){ return x; }
+```
+
+**更正 1（最严重）**：原正文说卡片的守卫是「按真实 arity 的**声明** + delete，**没有函数体**」、
+「不是同名 wrapper 定义」。**与卡片相反** —— §5-D10 的载体**正是带函数体的同名 wrapper 定义**
+（①，实测 rc=0）。「声明型、无函数体」是 **M12**（另一里程碑的 `dSin` 探针，`PLAN.md:68`），
+被本条误当成了卡片的形状。**该维度（声明 vs 定义）应整条删掉**，只留 **arity** 一维。
+
+**更正 2**：原正文说「给二元 libm 函数写字面一元 wrapper 定义**会在定义处**硬报错」——**不准**。
+一元**定义**（③，体为 `return x;`）编译通过；报错来自**函数体内的一元调用** `std::atan2(d)`（②）。
+应写成「一元 wrapper 的**体**里的一元调用在定义处硬报错」。
+
+**另两条**：证据第 1 条引错节（应是 `PLAN.md:262-265`，不是 M12 行 68）；
+`unit.cpp:54` 已漂移到 `:55` 且写法变了；第 5 条「『20 个 inline』在 card/PLAN 里零命中」不成立
+（该短语在 `docs/handoff/claude-P1.0b.md:67` 有命中，且发现方原文用的是「20 个函数/20 个包装」）
+——留它会让读者以为发现方凭空造词。
+
+**新增边界**：D10 的 `float f(float)=delete` **只在 `namespace amw` 内合法**；放全局作用域会与
+`<cmath>` 的 float 重载冲突（`declaration conflicts with target of using declaration`）。
+这正是「同名遮蔽」必须配 namespace 的原因，也是照抄探针时最容易踩的点。
+
