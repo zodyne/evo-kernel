@@ -25,18 +25,23 @@
 **活跃项目**（按近期会话量降序）
 - `~/Dev/agent-evo`（设计/调研）+ `~/Dev/evo-kernel`（实现）—— Agent 经验系统自研。
   纯 frontmatter markdown + git 的经验内核，零依赖 Node CLI。
-  **挂载现状（2026-09-14）**：**pi 侧桥接已恢复并实测生效** —— 扩展
+  **挂载现状（2026-09-22）**：**pi 侧桥接已恢复并实测生效** —— 扩展
   `~/.pi/agent/extensions/evo-kernel.ts`（存续件 `ops/integrations/pi-evo-kernel.ts`，
   同日从 `ops/archive/pi-retired-2026-08-12/` 取消归档）。三个钩子均有落盘证据：
   `before_agent_start`→`hook-recall`（recall.jsonl）、`tool_call`→`guard`（guard-hits.jsonl，
   两条规则均为 warn 观察期、非 block）、`session_shutdown`→`hook-session-end`
   （session-refs.jsonl，`harness:"pi"` 标注正确）。
-  **Claude Code 是有意不接入 evo**（使用与接入是两件事）—— 它的 hooks 已退役且无替代桥接，
-  故 Claude 侧会话既不回流经验也得不到 recall 注入，此为设计取舍。**不要再当缺口处理**：
-  2026-09-14 曾把登记数下降（7月 121 → 8月 67 → 9月 1）误盘成「半个 harness 失效」。
+  **Claude Code 已重新接入（2026-09-22）**：三件套挂 `~/.claude/settings.json`
+  （`UserPromptSubmit`→`hook-recall` / `SessionEnd`→`hook-session-end` /
+  `PreToolUse`（Bash|Write|Edit）→`hook-guard`），command 指向 `~/Dev/evo-kernel/bin/evo`。
+  接入前（2026-08-12 起）Claude 侧会话既不回流经验也得不到注入，积压了
+  **122 条不可蒸馏的 claude 登记**（transcript 已被清理期删掉或早写成哨兵）——
+  即「有意不接入」期间的代价，别再把这段历史误盘成「半个 harness 失效」。
+  doctor 第 6 项已从「已退役确认」改为「**挂载确认**」：三件套齐且指向本仓库 → PASS，
+  未挂/缺件/指向他处 → WARN（内核不依赖 harness 也能跑，故不 FAIL，但必须可见）。
   **Hermes 侧已于 2026-09-18 退役**（用户口径「摘掉 evo↔hermes hooks」）：三件套从
   `~/.hermes/config.yaml` 摘除，hermes 会话同样不再回流、不再注入、不再走 guard。
-  即现**只有 pi 一个 harness 接入 evo**。退役原因：实测 hook 在蒸馏路径上本就被
+  即现**pi + Claude Code 两个 harness 接入 evo**。退役原因：实测 hook 在蒸馏路径上本就被
   `EVO_DRIVER=1` + prompt 哨兵短路（本轮 47 个蒸馏会话在 recall.jsonl 里 0 行），
   对速度无收益；真正的成本在模型思考块（12–43KB 思考/次调用，43KB÷126 字符 = 340 倍）。
   恢复办法写在 config.yaml 被注释掉的那段旁边（三步，含 copies 回 `~/.hermes/agent-hooks/`）。

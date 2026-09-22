@@ -1,10 +1,15 @@
 # Evo-Kernel
 
-个人「经验治理与固化层」内核：纯文件 + git 存储，Node CLI（`evo`），当前只由 **pi 一个 harness** 接入。
+个人「经验治理与固化层」内核：纯文件 + git 存储，Node CLI（`evo`），当前由 **pi + Claude Code 两个 harness** 接入。
 
-> **harness 接入现状（2026-09-18）**：
-> - **pi**：已接（`~/.pi/agent/extensions/evo-kernel.ts`，三个事件）；**唯一**接入的 harness。
-> - **Claude Code**：有意不接（hooks 已退役且无替代桥接）。
+> **harness 接入现状（2026-09-22）**：
+> - **pi**：已接（`~/.pi/agent/extensions/evo-kernel.ts`，三个事件）。
+> - **Claude Code**：**已接（2026-09-22 恢复）** —— 三件套挂 `~/.claude/settings.json`
+>   （`UserPromptSubmit`→`hook-recall` / `SessionEnd`→`hook-session-end` /
+>   `PreToolUse`(Bash|Write|Edit)→`hook-guard`），command 指向本仓库 `bin/evo`。
+>   此前（2026-08-12 起）为「有意不接入」，代价是**积压 122 条不可蒸馏的 claude 登记**
+>   （transcript 被清理期删掉或早写成哨兵）——恢复办法见下方 SETUP 第 3 步。
+>   `doctor` 第 6 项即此状态的判据：**挂载确认**（齐+指向本仓库→PASS；未挂/缺件/指向他处→WARN）。
 > - **Hermes**：**已与 evo 彻底脱钩**（用户口径），两处都断：
 >   ① hooks 三件套从 `~/.hermes/config.yaml` 摘除（恢复办法写在被注释掉的段旁，三步）；
 >   ② **蒸馏执行器从 hermes 换成 pi** —— 否则 evo 的后台飞轮仍跑在 hermes 运行时里。
@@ -17,7 +22,7 @@
 > `skill_view`/记忆无法关，而成本恰恰全在模型思考块（12–43KB 思考 / 126 字符输出 = 340 倍）。
 
 > 设计权威：`~/Dev/agent-evo/design/blueprint-v4.md`（不变量 I1–I7、§4 数据存续、§7 测量定义）。
-> 构建契约：`~/Dev/agent-evo/design/build-spec-v1.md`（v1.1，§2 命令契约卡（当时 21 个，现 25）、§3 数据/日志 schema、§5 评分系数、§8 smoke 断言）。
+> 构建契约：`~/Dev/agent-evo/design/build-spec-v1.md`（v1.1，§2 命令契约卡（当时 21 个，现 26）、§3 数据/日志 schema、§5 评分系数、§8 smoke 断言）。
 
 ## 目录即状态机（§1.1）
 
@@ -44,7 +49,7 @@ ROOT = process.env.EVO_ROOT || <bin/evo 脚本的父目录>
 
 `EVO_ROOT` 环境变量优先；缺省时 CLI 自定位（本脚本父目录 = 仓库根）。**这使仓库位置无关**——可放在 `~/evo-kernel`、`~/Dev/evo-kernel` 或任意路径，无需改代码。smoke 的临时 ROOT 模式（`EVO_ROOT=<tmp>`）照常工作。
 
-## 21 个命令
+## 26 个命令
 
 见 `bin/evo` 头注释或 `~/Dev/agent-evo/design/build-spec-v1.md` §2。退出码规则（§0.3）：除 `doctor` 外所有命令所有路径 `exit 0`（fail-open，I1）；`doctor` 是诊断命令，FAIL 时 `exit 1`。
 
@@ -83,7 +88,20 @@ evo index rebuild   # 生成 index/manifest.yaml（I5 派生物）
 }
 ```
 
+挂完验三样（缺一样都别急着往下走）：
+
+```bash
+jq -e '.hooks | keys' ~/.claude/settings.json          # 三个事件都在
+bin/evo doctor | grep '6\.'                            # 须 PASS「三件套已挂载」
+# 三件套各跑一次管道测试（探针请用临时 EVO_ROOT，别污染真库日志）：
+echo '{"session_id":"t","transcript_path":"/tmp/t.jsonl","prompt":"测试"}' | bin/evo hook-recall
+echo '{"session_id":"t","transcript_path":"/tmp/t.jsonl"}' | bin/evo hook-session-end
+echo '{"tool_name":"Bash","tool_input":{"command":"ls"}}' | bin/evo hook-guard
+```
+
 > ⚠ `UserPromptSubmit`（每次输入触发，去重）≠ `SessionStart`（拿不到 prompt，见 `playbook/claude-hook-sessionstart-no-prompt`）。
+> ⚠ 挂载点与库位置必须一致：command 指向别的仓库路径时，`doctor` 第 6 项报「指向非本仓库路径」——
+> 这种漂移最难发现（挂载在、注入看着也在，写的却是另一份库）。smoke 组 K 有守护。
 
 ### 4. Pi extension 落位
 
@@ -128,11 +146,12 @@ evo doctor --full # 附带跑 smoke 全量
 ## 继续后续工作（交接给下一次会话）
 
 > 写在 README 而不是留在对话里 —— 下次会话没有今天的记忆，会重新踩一遍已排除的路。
-> 最后更新：**2026-09-18**。
+> 最后更新：**2026-09-22**。
 
 **现状一句话**：9/15–16 修的两个仪器故障（自污染反馈环、驱动器锁）+ 对账去重已验；
 9/18 又修了**驱动器的三个真缺陷并开了并发**（看门狗杀错进程、只按 rc 判成功、队列串行 →
-现在 4–6 worker 并发跑，实测 4 路同时起）。同时把 26 条待审提案清空入库（库 325→352）。
+现在 4–6 worker 并发跑，实测 4 路同时起）；**9/22 Claude Code 重新接入 evo（三件套已挂并实测生效），
+积压的 75 条提案 + 12 条 capture 全部整理入库（库 613 → 688，队列归零）**。
 **账目干净、产能已提上来了，仍然纯等数据**：L3b agentic 通道精度 50%（n=2），离门槛（≥10 任务）还早。
 
 ### 第一步：跑这三条
@@ -149,8 +168,9 @@ npm test        # 应 FAIL=0（**不写死 PASS 数**：见本库 doc-selfreport
 |---|---|---|
 | `L3b agentic 通道使用` | 1 get · 1 candidates（2 个任务） | < 10 个不同任务 → **等，别改代码**；长期为 0 → 查 primer 两处装载（doctor #17） |
 | `L3b agentic 通道精度` | 50%（1/2） | ≥10 任务后再读：高于召回精度 >10pp ⇒ 迁默认路径到「只给短名单」；相当 ⇒ 查 agent 挑得保守；更低 ⇒ 查 agentic.jsonl 的 session 归属 |
-| 新入库的 8 条 playbook 条目 | 入库当天即被 4 个会话注入 | 攒够对账后看 `(adopted+relevant-unused)/n` vs 全库 34% 基线：低于基线 ⇒ 收紧 triggers；否则保留 |
-| 队列长度 | ~117 条（日登记 ~70） | 持续增长 ⇒ 产能不够；不增长 ⇒ 收支平衡。**9/18 起产能不再由「一天一次 `--max 8`」决定**：已开并发（见下），所以此行的读法变了 —— 先看 `EVO_DISTILL_JOBS` 实际分档与每轮时长，再判产能 |
+| 新入库的 playbook 条目 | **9/22 一次加了 56 条**（9/18 那批 8 条已被 4 个会话注入过） | 攒够对账后看 `(adopted+relevant-unused)/n` vs 全库 34% 基线：低于基线 ⇒ `evo demote --id X --to lessons`（**不要再走「收紧 triggers 提精度」**，该方向已实测排除） |
+| 队列长度 | **提案 0 条 · capture 0 条**（2026-09-22 清零）；session-refs 63 条可蒸馏 | 提案/capture 队列**持续 >0 超过一周 ⇒ 整理产能不够**。session-refs 侧看的是**新增速率**不是存量（325 条陈旧行是仪器，见 9-22 节）。**9/18 起产能不再由「一天一次 `--max 8`」决定**：已开并发（见下），所以此行的读法变了 —— 先看 `EVO_DISTILL_JOBS` 实际分档与每轮时长，再判产能 |
+| Claude 侧回流（2026-09-22 新挂） | 已挂载（doctor #6 PASS） | 若 `doctor` #6 报「未挂载/缺件/指向他处」⇒ 按 SETUP 第 3 步重挂。若挂载正常但 `session-refs.jsonl` 长时间无 `harness:"claude"` 新行 ⇒ 查 hooks 是否真被触发（跑 `claude` 后看 `ops/log/recall.jsonl` 是否新增 `session`） |
 | 蒸馏并发 | 4 worker（`--max 48` 档） | 看日志里同秒 start 的条数 ≈ worker 数。若并发上不去（只剩单条 start）⇒ 查 `--slot` 进程是否还在、锁路径是否被非目录占住（该情形已能自愈，但会记一行「锁路径被非目录占用」） |
 | provider 并发承受度 | **首测：4 并发 · 16 条 · 0 失败**（2026-09-18 01:05Z 起 43 min，`--max 48` 轮，n 小待攒） | 4–6 并发跑几轮后统计 `fail` 里的 `can't reach the model provider` / `Broken pipe` 占比：与单并发时相当 ⇒ 可继续升档；显著升高 ⇒ 把 `EVO_DISTILL_JOBS` 写死回 2–3 |
 | 对账重复 | 已自动去重（留最后一次） | 若再现「原始行数 vs 报告分母」偏差，先怀疑去重读法被绕过 |
@@ -175,6 +195,45 @@ npm test        # 应 FAIL=0（**不写死 PASS 数**：见本库 doc-selfreport
 | 用「零模型显著性」替代固定比例 | 就是 DFR，与 idf 家族等价（换皮） |
 | 治「长 prompt 过度注入」 | 实现产物（字段长度归一 + 跨查询绝对阈值），代价只是 token，真损失在召回侧 |
 | 收紧 tags/triggers 提精度 | 2026-09-16 实测：短任务合法命中 7/8、噪声 0/4；真实跨域注入只发生在长 briefing（上一条）。收紧只砍召回，而**漏/误 = 3.44** |
+
+### 2026-09-22 本轮做了什么（防止重复发现）
+
+**1. Claude Code 重新接入 evo**（此前 2026-08-12 起为「有意不接入」，本节推翻该决定）：
+三件套挂 `~/.claude/settings.json`（`UserPromptSubmit`→`hook-recall` / `SessionEnd`→`hook-session-end` /
+`PreToolUse`(Bash|Write|Edit)→`hook-guard`），command 指向本仓库 `bin/evo`。
+
+- **落盘证据（不是管道测试，是真实会话）**：挂载后数分钟内，另两个 Claude 会话自行登记成功 ——
+  `~/Dev/dotfiles` 的会话经 **SessionEnd**（`ended:true`）、`suc221-pointcloud-2.0` 的经
+  **UserPromptSubmit**（`ended:false`），两条 transcript 均在盘。
+- **doctor 第 6 项语义反转**：`已退役确认`（预期无挂载）→ **`挂载确认`**
+  （三件套齐 + 指向本仓库 → PASS；未挂/缺件/指向他处 → WARN）。原因是旧文案是**反话**：
+  挂上之后它会报「残留旧挂载，建议清理」，把下个会话引向拆掉 hooks。smoke 组 K 随之扩到 3 条对照
+  （未挂 WARN / 齐+同仓 PASS / 指向他处 WARN / 部分挂载 WARN）。
+- **顺手修的旧 bug**：`~/.claude/agents/evo-{curator,reflector}.md` 与 `~/.claude/commands/evo-{learn,reflect}.md`
+  里的仓库路径写的是 `~/evo-kernel`（**不存在**），已改 `~/Dev/evo-kernel`。
+
+**2. 队列清零**：`ops/proposals/` **75 条 → 0**（56 → playbook / 19 → lessons）；
+`inbox/` **12 条 capture → 0**（11 条整理成新提案入库 + 1 条判重丢弃）。
+逐条台账在 `ops/archive/processed-captures-2026-09-22/LEDGER.md`（**「移走 N 条」不等于完成度**）。
+库规模 613 → 688，`manifest` 已一致。
+
+- 落位口径：**主张真值是「本机工具链/语言/通用方法」→ playbook**（可当场复验）；
+  **「别仓一次快照 / 瞬态网络观测 / verified_by:human」→ lessons**。
+- 入库前先过两道闸（`evo curate` 会拒）：**4 条提案含 IPv4 或凭据字段引用**，已按脱敏约定改为
+  `<localhost>:<port>` 与「由 shell 命令取值，不回显明文」。
+- `related` 建链：reflector 已建大部分，补齐 10 处最近邻（含把 4 条无 `related` 行的补上）。
+
+**3. session-refs 的 325 条永久不可蒸馏 —— 确认「不删」**：725 行里 388 个未蒸馏会话中，
+223 条是哨兵 `?`、102 条 transcript 已被清理期删掉。**它们不是垃圾，是仪器**：
+`doctor` 第 15 项与 `reflect` 判据表的「蒸馏节律」行直接读它们；删掉等于把「腐烂窗口」这个
+指标归零 —— 而正是这个指标暴露了「Claude 未接入期间登记全烂」这件事。`evo queue` 本来就
+用 `statSync` 把它们挡在外面，**不占队列、不阻塞蒸馏**。要盯的是**新增速率**，不是存量。
+
+**4. 待观察（下轮 reflect 必看）**：本轮一次性给**注入集加了 56 条 playbook**，
+而 M1 召回精度当前 **32%（<50% 阈值，已「命中」判据）**。这 56 条入库当天起就会被注入，
+所以下轮必须看它们的对账：`(adopted+relevant-unused)/n` 低于全库基线 ⇒ 按既有梯度走
+`evo demote --id X --to lessons`（**回归是设计好的路径，不要为了让它们好看去收紧 triggers**，
+理由见「已排除的方向」表）。
 
 ### 2026-09-18 本轮修了什么（防止重复发现）
 
