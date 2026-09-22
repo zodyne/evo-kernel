@@ -13,7 +13,7 @@ triggers:
   - "编译错误不再落在调用点，而落在 main() 之前的声明行（失败信号：症状从 ambiguous 变成 unknown type name）"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: session:01a0b74a-5fdc-7475-af70-36b1e6d248da
 last_verified: 2026-09-22
 superseded_by: null
@@ -41,3 +41,12 @@ related: [using-directive-vs-shim-namespace-ambiguity, using-namespace-injection
 - 更一般的注入前提（TU 是否 include 了声明该命名空间的头）见 related 的 `using-namespace-injection-requires-namespace-declared-in-tu`；本条是同一批机械动作的另一个失败面。
 
 **失败信号（未来命中即该想起本条）**：机械挪动 using 作用域后，编译错误从调用点的 `ambiguous` 变成 `main()` 之前声明行的 `unknown type name`；或有人声称「把 using 收窄进函数就能消掉 libm 二义」。
+
+## 独立复核与证据快照（2026-09-22）
+
+本条**不进注入集**（`lessons` 候选），原因是证据快照已变，不是主张被推翻。复核结论：
+
+- `verified_by` 由 `command` 降为 `human`：引用命令在切片里被截断、**不能照抄重跑**，
+  证据绑在别仓/临时环境的一次输出上，按本库口径只算「当时跑过」。
+- **快照漂移**：`/tmp/review-blockB-live` 沙箱 + algommw-plus `33a58c0`（现 `228f8ff`）。
+- 范围：主张/title 需带上边界节已有的限定——「文件作用域**确有未限定引用**的 TU 才会炸」，别让 title 读成普适律。「为什么」段属推断（本次复现证实了它，但仍非切片所有）。
