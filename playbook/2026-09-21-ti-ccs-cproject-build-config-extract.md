@@ -1,7 +1,7 @@
 ---
 id: ti-ccs-cproject-build-config-extract
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: embedded
 tags: [ti, ccs, cproject, mmwave, iwr6843, build-config, python]
@@ -27,9 +27,9 @@ related: [2026-09-16-tiarmclang-subtarget-cortex-r5-not-r5f]
 **证据**（本会话切片，命令 ↔ 结果）：
 
 1. `cd project/high_accuracy_68xx_mss && python3 - <<'EOF' … open('.cproject', encoding='utf-8', errors='replace') …` → 输出 include 路径 `${PROJECT_ROOT}/utils ${CG_TOOL_ROOT}/include ${COM_TI_MMWAVE_SDK_INSTALL_DIR}/packages/ti/utils/cli/lib`。
-2. 同法扫 `project/high_accuracy_68xx_dss/.cproject` → `${PROJECT_ROOT}/utils ${CG_TOOL_ROOT}/include ${COM_TI_MMWAVE_SDK_INSTALL_DIR}/packages/ti/utils/mathutils/lib libmathut…`（DSS 核多一条 mathutils 库）。
+2. 同法扫 `project/high_accuracy_68xx_dss/.cproject` → `${PROJECT_ROOT}/utils ${CG_TOOL_ROOT}/include ${COM_TI_MMWAVE_SDK_INSTALL_DIR}/packages/ti/utils/mathutils/lib libmathut…`（**两核库集不同**：MSS 有 `utils/cli/lib`、mathutils 出现 0 次；DSS 反之）。
 3. 第三次扫 MSS `.cproject`，脚本自身带段标 `---- listOptionValue entries containing path-ish text ----`；同一次提取还带出器件配置 `DEVICE_CONFIGURATION_ID=Cortex R.IWR6843 DEVICE_CORE_ID= …`。
-4. 旁证：`Debug/` 下的 `sources.mk` / `objects.mk` / `subdir_vars.mk` 结果首行均为 `# Automatically-generated file. Do not …` —— Debug 侧是工具生成的派生物，配置来源不在那里。
+4. 旁证：`Debug/` 下的 `sources.mk` / `objects.mk` / `subdir_vars.mk` 结果的第 2 行是 `# Automatically-generated file. Do not edit!`（第 1 行是 `####…` 分隔行） —— Debug 侧是工具生成的派生物，配置来源不在那里。
 
 **为什么**：源码里只有 `#include` 名字，没有 `-I` / `-l` 信息；CCS 把 build configuration 的 include / 库 / 器件设置写进 `.cproject`，所以「这个头文件从哪来、要不要链某个库」只能从这里反查。
 
@@ -39,3 +39,18 @@ related: [2026-09-16-tiarmclang-subtarget-cortex-r5-not-r5f]
 - 本次为纯只读分析（切片「写/改文件」段为空），未与 CCS GUI 导出的配置对账，也未验证按此配置能否构建成功。
 
 **证据链接**：`evo slice --session /Users/zodyne/.pi/agent/sessions/--Users-zodyne-Dev-wtr10-wtr10_v3.00--/2026-09-20T13-33-33-256Z_01a0bf05-a4c7-7043-b23e-f82967643bc9.jsonl --ids 01a0bf05-a4c7-7043-b23e-f82967643bc9`，命令 11–13（.cproject 提取）与命令 5、9（Debug/*.mk）。
+
+## 2026-09-22 独立复核：本机复跑通过，建议**升格进注入集**
+
+复核在本机重跑了提取（真实 `.cproject` 上）：
+
+```
+$ cd <proj>/high_accuracy_68xx_mss && python3 -c "import re;s=open('.cproject',encoding='utf-8',errors='replace').read();v=re.findall(r'<listOptionValue[^>]*value=\"([^\"]*)\"',s);print('total',len(v));print([x for x in v if '${' in x][:3]);print([x for x in v if 'DEVICE_' in x])"
+total 152
+['PRODUCT_MACRO_IMPORTS={...}', '${COM_TI_BIOS_INCLUDE_PATH}', '${COM_TI_MMWAVE_SDK_INCLUDE_PATH}']
+['DEVICE_CONFIGURATION_ID=Cortex R.IWR6843', 'DEVICE_CORE_ID=', 'DEVICE_ENDIANNESS=little', ...]
+```
+
+主张成立、本机可复跑、与别仓无关 ⇒ **够格从 lessons 升进 playbook**（待升格）。
+原证据 1–3 的 python 命令在切片中被截断（不能照抄），上表是可重跑的那份。
+
