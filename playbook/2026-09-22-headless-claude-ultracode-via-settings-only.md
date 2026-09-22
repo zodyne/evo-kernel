@@ -33,7 +33,7 @@ assistant 消息 `effort=xhigh`（而 `modelUsage` 仍只有 deepseek）。
 - 开前后同一句 `pong` 的输入 token：**19.4K → 23.6K**。
 
 证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录。
-本条的可复现部分很轻（开一次无头会话看 `init.tools` 里有没有 `Workflow`），跑通后可升回 `command`。
+**未经本机复核** —— `command` 档要求命令级可复现证据，本条没有。
 
 ## 边界 / 反例
 

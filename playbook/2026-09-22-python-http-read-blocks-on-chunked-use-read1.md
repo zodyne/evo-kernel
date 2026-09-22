@@ -35,7 +35,7 @@ related: [streaming-protocol-snapshot-vs-delta, claude-code-nanoradar-gateway-se
 本条只记「实测表现成什么样」，不解释机制。
 
 证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录（样本量 1）。
-回环起一个 chunked 响应打两行日志即可复现，跑通后可升回 `command`。
+**未经本机复核** —— `command` 档要求命令级可复现证据，本条没有。
 
 ## 边界 / 反例
 

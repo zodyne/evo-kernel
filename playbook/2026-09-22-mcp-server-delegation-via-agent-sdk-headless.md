@@ -25,7 +25,11 @@ related: [agentic-delegation-empty-response-must-fail-explicitly, mcp-stateful-t
 **主张**：本次会话落地的一条派活形态是 **MCP server**（`~/Dev/claude-executor-mcp`）：
 内部用 Agent SDK `query()` 起无头 Claude Code，`options.env` **整体替换**为网关
 `BASE_URL` + `API_KEY` + `DEFAULT_*_MODEL`（订阅不参与），`effort: max`，
-`allowedTools` 白名单而非 `bypassPermissions`，`strictMcpConfig` + 空 `mcpServers`。
+`allowedTools` 白名单而非 `bypassPermissions`，`strictMcpConfig` + 空 `mcpServers`（capture 记的用途是**防递归**）。
+
+> ⚠ 本条 capture 用的「白名单」是它的字面措辞。**`allowedTools` 本身只负责自动放行、不限制可用工具基集**
+> ——该说法见同批的 `agent-sdk-allowedtools-grants-not-restricts`（另一条 capture）。两者不矛盾但极易误读：
+> 要**限制**执行端的工具边界，得用 `options.tools`，不是 `allowedTools`。
 主会话侧 MCP 调用超 2 分钟会自动转后台任务、结束以通知送回（≥2.1.212）。
 
 ## 证据
@@ -36,7 +40,7 @@ related: [agentic-delegation-empty-response-must-fail-explicitly, mcp-stateful-t
   `Client.setNotificationHandler` 必须传 zod schema。
 
 证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录。
-「起一次 MCP 调用看是否落后台 + 是否通知」可当场复现，跑通后可升回 `command`。
+**未经本机复核** —— `command` 档要求命令级可复现证据，本条没有。
 
 ## 边界 / 反例
 

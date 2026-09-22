@@ -21,7 +21,7 @@ related: [nvim-terminal-alt-screen-kills-scrollback]
 
 # nvim 主屏模式下让 CLI 输入框锚底：包一层 `printf "\033[999B"` 再 exec
 
-**主张**：本次实测对象是 **Claude Code**，它从当前光标行开始画；主屏模式下光标停在中间，UI 就悬在中间。
+**主张**：本次实测对象是 **Claude Code**，它从当前光标行开始画——所以光标不在屏底时，UI 的起点也不在屏底。
 在 `sidekick` 的 cmd 外再包一层 `sh -c 'printf "\033[999B"; exec claude'`（CUD 把光标压到屏底）
 即可让 UI 贴底 —— 实测 29 行窗口里 UI 落在 **20..28** 行。
 
@@ -32,7 +32,7 @@ related: [nvim-terminal-alt-screen-kills-scrollback]
   （`pi-tui` 的 `tui-main-screen.js` `fullRender`），且无开关，只能等输出填满屏。
 
 证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录。
-在 nvim 里开一个主屏 `:terminal` 跑同一条包装即可复现，跑通后可升回 `command`。
+**未经本机复核** —— `command` 档要求命令级可复现证据，本条没有。
 
 ## 边界 / 反例
 

@@ -32,16 +32,17 @@ related: [xelatex-section-math-hyperref-texorpdfstring, generated-tex-lint-gate-
 - 参数内写 `\_` **会原样打印反斜杠**（应用裸 `_`，因为 detokenize 已令其 catcode=12）。
 - 参数内写 `\%` 会把整行注释掉 —— 除 `%` `&` `#` 外，`\%` 也是雷。
 
-三条都是「报了错 → 改写法 → 错误消失」的观测链。**成因（为什么裸 `_` 会在读回时炸）capture 未记录**
+三条都是 capture 记录的**现象 + 对应写法**。**成因（为什么裸 `_` 会在读回时炸）capture 未记录**
 ——本条不解释机制，只记「什么写法会炸、什么写法不炸」。
 
 证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录。
-一次两遍 xelatex 编译即可复现，跑通后可升回 `command`。
+**未经本机复核** —— `command` 档要求命令级可复现证据，本条没有。
 
 ## 边界 / 反例
 
 - 观测范围是**章节标题 + `.toc`**（`\section`/`\subsection`）。其它「会进辅助文件再读回」的语境
   （如交叉引用）**本次未测**，不要替它们下结论。
-- 正文里的 `\detokenize`（不经辅助文件往返）不受影响——这一半是本次的对照观测。
+- capture 给出的正确做法是「**正文**用 `\newcommand{\id}[1]{\texttt{\detokenize{#1}}}`」——
+  即该宏在正文里是可用的，问题出在章节标题。本次没有单独跑过「正文 vs 标题」的对照组。
 - 与 `xelatex-section-math-hyperref-texorpdfstring`（标题里夹数学）是**两条独立记录**，
   本次没有比过两者的成因异同，也没有验证过修法能否互换。

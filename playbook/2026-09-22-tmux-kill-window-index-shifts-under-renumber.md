@@ -23,16 +23,18 @@ related: [tmux-continuum-save-needs-status-bar-rendering]
 
 **主张**：在 `renumber-windows=on` 的配置下，**第一条 `kill-window` 删完，索引立即前移**，
 于是第二条 `-t main:2` 命中的是**原来的 3 号**。
-本次记录给出的两个做法：用 **window id**（`tmux list-windows` 显示的 `@NN`，如 `-t main:@12`），
-或临时 `set -g renumber-windows off`。
+要精确关窗口，用 **window id**（`tmux list-windows` 显示的 `@NN`，如 `-t main:@12`）——
+这是本次事后确认的做法，不依赖索引。capture 另提到「临时 `set -g renumber-windows off`」，
+但**没有验证过**关掉之后按索引关是否就安全（见边界）。
 
 ## 证据（一次事故的复盘，样本量 1）
 
 - 本想关 1、2 号（两个 zsh），实际关掉了 **1 号 zsh 和 3 号 nvim**。
-- 事后确认的做法：用 `tmux list-windows` 取 `@NN`，或临时关掉 renumber。
+- 事后确认的做法：用 `tmux list-windows` 取 `@NN`。capture 另记录了「临时 `set -g renumber-windows off`」
+  这个动作，但没有对「关掉之后按索引关是否安全」作过验证——**本条不把 `off` 当作已确认的解法**。
 
 证据等级：`verified_by: human` —— 来源是会话内的事故口述（`capture:…`），无命令转录、样本量 1。
-跑一次「两条 kill-window + list-windows 看索引」即可复现，跑通后可升回 `command`。
+**未经本机复核** —— `command` 档要求命令级可复现证据，本条没有。
 
 ## 边界 / 反例
 

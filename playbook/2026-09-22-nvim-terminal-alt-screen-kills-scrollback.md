@@ -26,8 +26,8 @@ related: [nvim-tty-probe-more-pager-blocks, nvim-terminal-tmux-env-poisons-osc52
 libvterm 只把主屏滚出顶部的行推进 scrollback，备用屏一行不留，于是 nvim buffer 行数恒等于窗口高度。
 同一 nvim 打 200 行验证：主屏 201 行 / 备用屏 28 行（= winheight）。
 
-开关（本次记录的两条）：pi 在 `~/.pi/agent/settings.json` 的 `tuiMode` 起时传 `--tui-mode regular` 覆盖；
-Claude Code 2.1.x 进备用屏，`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` 关。
+开关（本次记录的两条）：pi 在 `~/.pi/agent/settings.json` 的 `tuiMode=fullscreen`
+（起时传 `--tui-mode regular` 覆盖）；Claude Code 2.1.x 进备用屏，`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` 关。
 
 ## 证据
 
@@ -37,7 +37,7 @@ Claude Code 2.1.x 进备用屏，`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` 关。
   根本不进备用屏。→ 这条只说明 **`script(1)` 这个探针**在本场景不可用，不等于一般性的「探针都会改变被测行为」。
 
 证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录。
-`pty.fork` 数 `1049h` 的探针可当场重跑，跑通后可升回 `command`。
+**未经本机复核** —— `command` 档要求命令级可复现证据，本条没有。
 
 ## 边界 / 反例
 

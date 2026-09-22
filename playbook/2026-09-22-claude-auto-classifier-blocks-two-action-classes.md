@@ -22,7 +22,7 @@ related: [auto-approval-classifier-outage-blocks-bash, claude-code-daemon-restar
 
 # Claude Code auto 模式分类器拦下的两类动作：写无人值守启动脚本、给自己加 allow 规则
 
-**主张**：2026-09-20 那次会话里，auto 模式分类器拦下两类动作，且拦的不是 allowlist 那一层：
+**主张**：2026-09-20 那次会话里，auto 模式分类器拦下两类动作：
 ① 写入/测试「无人值守 `claude -p` + 可写可提交」的启动脚本（拒绝理由 `Create Unsafe Agents`，
 **这一条**换 `--allowedTools` 也拦）；
 ② 往 `.claude/settings.json` 加 allow 规则（拒绝理由 `Self-Modification`）。
@@ -37,7 +37,7 @@ related: [auto-approval-classifier-outage-blocks-bash, claude-code-daemon-restar
   （12s 睡眠在 5s 超时设置下跑完）。
 
 证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录。
-跑一次「改 flag 后是否仍被拦」的对照即可证伪，通过后可升回 `command`。
+**未经本机复核** —— `command` 档要求命令级可复现证据，本条没有。
 
 ## 边界 / 反例
 
@@ -45,6 +45,7 @@ related: [auto-approval-classifier-outage-blocks-bash, claude-code-daemon-restar
   id 里也不带计数——见到第三类的证据再补。
 - 这是**单次观测**（2026-09-20 一个会话、一次 `/dispatch` 场景）；不要据此推断分类器的判定层级、
   也不要推断「试别的 flag 同样无效」——只测过 `--allowedTools` 一个。
-- 「用户亲手加 allow 规则」是 capture 给出的做法；它为什么是唯一解（不可自动化的原因）capture 未记录。
+- 「用户亲手加 allow 规则」是 capture 给出的做法，并写明**「这一步不可自动化也不该自动化」**；
+  至于**为什么**不可自动化，capture 未记录，本条不补。
 - 后台 Bash 不受 timeout 约束是该版本的观测；capture 没有据此推过「长任务没有超时保护」，
   本条也不推——那只是这条现象的**后果之一**，不是实测结论。
