@@ -1,7 +1,7 @@
 ---
 id: missing-extern-c-header-mangles-c-abi-exports
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: c-abi
 tags: [extern-c, name-mangling, nm, c-abi, cpp-port]
@@ -41,3 +41,24 @@ related: [verify-dylib-port-completeness-via-nm-symbols, cpp-mode-libm-symbol-di
 - 本会话 demangle 的 python 路径抛过一次 Traceback（切片里只保留到异常开头，原因未展开），最终换方式拿到了 demangled 名；复现时先确认 demangler 可用。
 
 **失败信号**：C ABI 完整度统计里未修饰数对不上、差值恰是少量 ` T __Z`；或 C 调用方报 undefined symbol 而函数在源码中存在。
+
+## 复核证据（2026-09-22，本机重跑）
+
+原提案的证据（algommw-plus 的 4 个 `__Z` 导出、`snap.h` 缺 `extern "C"`）**载体已消失**
+（`core/src/dpu/doa/snap.h` 现已被删除；当前 `libcore.a` 135 个 `T` 全是 `__Z`）。
+下列自包含复现只演示**机制**：
+
+```
+$ printf 'int cpp_func(){return 2;}\n' > cpp.cpp          # 注意：无 extern "C"
+$ clang++ -c cpp.cpp -o cpp.o && ar rcs libtest.a cpp.o
+$ nm -g libtest.a | grep ' T '
+0000000000000000 T __Z8cpp_funcv                           # 以 C++ 修饰名导出，不是 C ABI 名
+```
+
+**范围收窄**：本条只主张「缺 `extern "C"` ⇒ 该声明以 `__Z…` 导出」这一步（上表即证）。
+原提案由「符号表里有 4 个 `__Z`」推出的后果——「C 调用方链接新库报找不到符号」——
+**本次从未观测过链接/调用方测试**，属解释，不作为已验证事实。
+
+> **同源（n 记账）**：本条与同一会话 `01a0b3e7-de9e` 的另 2 条提案同源于PLAN.md:57 的 M6 那一行——**一次观测被拆成多条**，别当独立经验计权。
+> 更大一层：2026-09-18 那批有 3 个会话在 **33 秒内**先后启动、切片里「首条 user」逐字相同（对同一份 PLAN.md 的并行符合性审计），所以 A/B 两簇 12 条的**有效独立来源 ≈2 次**，不是 12 次。
+> 另：`evo slice` 会**截断长命令**——凡依赖被截断部分的引用，只能算「当时跑过」。
