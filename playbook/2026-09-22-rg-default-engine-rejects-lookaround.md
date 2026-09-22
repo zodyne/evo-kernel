@@ -1,7 +1,7 @@
 ---
 id: rg-default-engine-rejects-lookaround
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: cli-tools
 tags: [ripgrep, rg, regex, lookaround, pcre2]
@@ -45,3 +45,25 @@ related: [rg-literal-marker-needs-f-flag, rg-capital-e-is-encoding-not-extended-
 - 若把 `(?<!…)` 改写成 `(^|[^A-Za-z0-9_])` 之类的普通分组，捕获组会把边界字符一起吃进 `-o` 输出，需要额外处理分组/边界，不能直接等价替换。
 
 **失败信号（未来命中即想起本条）**：`rg` 报 `regex parse error` 且错误里提到 `look-around`，却准备从头改模式；或把同一断言模式在 python/perl 下的成功当成「rg 也能跑」。
+
+## 复核证据（2026-09-22，本机重跑 —— 本条据此进注入集）
+
+原提案的命令证据绑在别仓工作树、且切片里被截断；下列是最小自包含复现，**现在仍可逐字重跑**：
+
+```
+$ echo x | rg '(?<=a)b'
+rg: regex parse error:
+    (?:(?<=a)b)
+       ^^^^
+error: look-around, including look-ahead and look-behind, is not supported
+
+Consider enabling PCRE2 with the --pcre2 flag, which can handle backreferences
+and look-around.
+$ echo $?
+2
+```
+
+**范围**：主张就是「rg 默认引擎不认 look-around，且以解析错误 + rc=2 退出，零输出」——上表即全部。
+原提案「为什么」里那句「Rust regex 引擎为可证线性时间而放弃 look-around」属**外部知识**，非本次观测，
+已按此定位保留（错误文本自身已声明该限制）。原证据节第 2 条（python 命令、15/14/14/13 计数）
+绑在已变的 algommw-plus 工作树上，是辅助佐证，**不能当主证**。
