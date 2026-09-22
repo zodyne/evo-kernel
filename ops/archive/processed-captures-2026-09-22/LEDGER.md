@@ -19,3 +19,12 @@
 | `capture-2026-09-21-07-51-49-525-yil1` | playbook/`tmux-kill-window-index-shifts-under-renumber` | a（新建） |
 
 **收口**：12 条 capture → 11 条新条目 + 1 条判重丢弃；`unexamined = 0`。
+
+## 第二段：2026-09-22 本会话自身的蒸馏（capture-2026-09-22-05-51-31-237-7osd）
+
+| capture | 去向 | 增量 |
+|---|---|---|
+| `capture-2026-09-22-05-51-31-237-7osd`（「改写一手来源的两个固定手法」） | 拆成 3 条提案：lessons/`rewriting-firsthand-source-two-fixed-failure-modes`（本体）+ lessons/`evidence-grade-is-command-record-not-observed-wording` + playbook/`check-expected-state-must-flip-with-design-decision` | a（新建 3 条；其中 2 条经入库前独立评审判 ingest-with-fix 并已整改） |
+
+同批另 2 条来自同一会话但不源自该 capture：playbook/`mount-check-must-verify-ownership-not-existence`、
+lessons/`recall-self-hit-injects-the-material-under-discussion`。**「移走 N 条」不等于完成度**（同 `proposal-fold-ledger-not-delete-count`）。
