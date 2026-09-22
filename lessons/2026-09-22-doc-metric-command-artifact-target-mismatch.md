@@ -13,7 +13,7 @@ triggers:
   - "对拍脚本 legacy 侧 dlopen 旧仓 dylib，被误当作本仓核心产物"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: session:01a0b3e7-de9e-7475-af70-36a88ea79127
 last_verified: 2026-09-22
 superseded_by: null
@@ -42,3 +42,16 @@ related: [doc-selfreported-counts-drift, doc-drift-fix-grep-by-concept, verify-d
 - 与 `verify-dylib-port-completeness-via-nm-symbols` 的区别：那条教怎么用 nm 查 dylib 符号是否齐全，本条教先确认文档指称的产物是否存在、类型对不对。
 
 **失败信号**：照文档命令复跑时报找不到文件、或数字与文档对不上；或审计报告引用的产物名在任何 CMakeLists 里 grep 不到。
+
+## 独立复核与证据快照（2026-09-22）
+
+本条**不进注入集**（`lessons` 候选），原因是证据快照已变，不是主张被推翻。复核结论：
+
+- `verified_by` 由 `command` 降为 `human`：引用命令在切片里被截断、**不能照抄重跑**，
+  证据绑在别仓/临时环境的一次输出上，按本库口径只算「当时跑过」。
+- **快照漂移**：**所描述的漂移已被修复**：algommw-plus 的 PLAN.md 里 M6 已从 `:57` 移到 `:62`，命令本身已改为 `nm -gU build/core/libcore.a`，`libcore_cxx.dylib` 已从该文件消失；且 `build/core/libcore.a` 已重建，现跑出 **135/135**（全为 `__Z`），原文的 88/4 已不存在。
+- 范围：「根 CMakeLists.txt 零命中」是**缺席推断**（截断输出未显式展示空结果）。本条与 `nm-t-underscore-count-includes-mangled-symbols` 是**同一行文档的两处独立缺陷**（本条＝产物名错；那条＝计数口径错）——只修一处别以为 M6 就对了。
+
+> **同源（n 记账）**：本条与同一会话 `01a0b3e7-de9e` 的另 2 条提案同源于PLAN.md:57 的 M6 那一行——**一次观测被拆成多条**，别当独立经验计权。
+> 更大一层：2026-09-18 那批有 3 个会话在 **33 秒内**先后启动、切片里「首条 user」逐字相同（对同一份 PLAN.md 的并行符合性审计），所以 A/B 两簇 12 条的**有效独立来源 ≈2 次**，不是 12 次。
+> 另：`evo slice` 会**截断长命令**——凡依赖被截断部分的引用，只能算「当时跑过」。
