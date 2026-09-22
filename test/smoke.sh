@@ -722,6 +722,17 @@ JSON
 DOC5C=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
 { echo "$DOC5C" | grep -q '部分挂载，缺: SessionEnd, PreToolUse'; } \
   && ok "K: 部分挂载报 WARN" || bad "K: 部分挂载判定失效" "(实得: $(echo "$DOC5C" | grep '6\. Claude'))"
+# K19: §4.4 红线 —— 被跟踪文件含 prompt 明文录制须 FAIL（2026-09-22 清仓时实测 3 个该类文件已在 remote 上）
+{ echo "$DOC" | grep -q '19. 无 prompt 明文录制.*未发现'; } \
+  && ok "K: 干净树报 PASS（无 prompt 明文）" || bad "K: 第 19 项缺失或误报" "(实得: $(echo "$DOC" | grep '19\.'))"
+# 植入一个终端录制：注意**必须避开 bin/evo 与 test/smoke.sh 自身**（判据已自排除它们，
+# 否则检查源码里的模式串会自命中——首版就踩了这个，见 bin/evo 该检查的注释）
+printf '%s\n' '╭─── Claude Code v0.0.0' '❯ 一句 prompt 明文' > "$KROOT/zz_capture_probe.md"
+( cd "$KROOT" && git add -f zz_capture_probe.md >/dev/null 2>&1 )
+DOC19=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+{ echo "$DOC19" | grep -q '\[FAIL\].*19\. 无 prompt 明文录制'; } \
+  && ok "K: 植入录制报 FAIL（§4.4 红线）" || bad "K: §4.4 判据失效" "(实得: $(echo "$DOC19" | grep '19\.'))"
+( cd "$KROOT" && git rm -q --cached --ignore-unmatch zz_capture_probe.md >/dev/null 2>&1 ); rm -f "$KROOT/zz_capture_probe.md"
 printf '{}' > "$KHOME/.claude/settings.json"
 # K7: 蒸馏驱动器装载检查 —— 未装载时覆盖率不再增长，而此前没有任何信号：
 # 2026-09 实测停了 20 天无人发现，覆盖率冻在 8% 还被归因为「纪律问题」。

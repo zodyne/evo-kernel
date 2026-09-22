@@ -1810,6 +1810,33 @@ const cmds = {
     } catch (e) { h18 = 'WARN'; d18 = `检查失败: ${e.message}`; }
     add(18, h18, '后台蒸馏驱动器（launchd）', d18);
 
+    // 19. §4.4 红线：被跟踪的文件里不得有 prompt 明文 / 终端录制
+    //     2026-09-22 清仓时实测到 **3 个**这类文件已在 remote 上：一个 47KB 的根目录游离录制
+    //     （8/14 那次「资产迁移」提交里误入）、两个躺在 ops/archive/historical-notes-2026-07/
+    //     且该目录连说明文件都没有。三者共同点：**无处引用、无知识价值、却含 prompt 明文**。
+    //     为什么值得一条硬检查：§4.4 是明文红线，而 .gitignore 只能挡"未跟踪的新文件"——
+    //     一旦 `git add -A` 把游离录制卷进某次主题提交（正是 8/14 发生的事），ignore 就失效了。
+    //     判据的精确性是验证过的两个方向：正例（那 3 个文件）命中 88/104 行，反例（全库其余
+    //     含 "Claude Code 2.1.277" 一类版本号引用的正规条目）0 命中——所以打的是**录制特征**
+    //     （box-drawing 横幅 / ❯ prompt 符 / ⏺ 助手符 / local-command-caveat），不是版本号。
+    //     ⚠ **必须自排除**：首版没排，它把 `bin/evo` 自己判成了违规（本段注释与正则字面量就在源码里，
+    //     git grep 照样命中）——正是 `grep-lint-gate-calibrate-before-enforce` 点名的
+    //     「闸门脚本自身文本」那类误报。排除本文件与 smoke（后者断言里也含这些模式串）。
+    //     代价：真有一份录制**恰好只在 bin/evo 里**时会被漏掉——但 bin/evo 是代码不是数据，
+    //     该形态不存在。
+    let h19 = 'PASS', d19 = '未发现 prompt 明文录制';
+    try {
+      const out = execSync(
+        "git grep -l -E '^╭─── Claude Code v|^❯ |^⏺ |local-command-caveat' -- . ':!bin/evo' ':!test/smoke.sh' 2>/dev/null || true",
+        { cwd: ROOT, stdio: 'pipe' }
+      ).toString().trim();
+      if (out) {
+        const files = out.split('\n').filter(Boolean);
+        h19 = 'FAIL'; d19 = `被跟踪文件含 prompt 明文录制（§4.4）: ${files.slice(0, 3).join(', ')}${files.length > 3 ? ` 等 ${files.length} 个` : ''} → git rm`;
+      }
+    } catch (e) { h19 = 'WARN'; d19 = `检查失败（fail-open）: ${e.message}`; }
+    add(19, h19, '无 prompt 明文录制', d19);
+
     // 编号 7 与 16 已随 hermes 退役移除（2026-09-18，用户口径「与 evo 彻底脱钩」）：
     //   7 = Hermes hooks 挂线/退役确认；16 = Hermes agent-hooks adapter 仓库副本同步。
     // 编号不回收（空着）以免扰动既有引用；16 由 `--full` 的 smoke 项继续占用（原本就重号）。
