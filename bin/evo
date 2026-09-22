@@ -320,20 +320,25 @@ function parseFm(src) {
 // 2026-09-14 修：两处原实现都只数哨兵，漏掉后者——本机实测 176 条（占登记 49%）被漏，
 // 于是报告说 50% 而真实不可用率是 99%。分母口径错会把归因引向错方向。
 // 顺带回传 liveSessions：对账覆盖率要用它区分「可对账」与「结构性不可对账」。
-function sessionRefStats() {
-  const st = { total: 0, stale: 0, live: new Set() };
+function sessionRefStats(windowDays = 30) {
+  const st = { total: 0, stale: 0, live: new Set(), winTotal: 0, winStale: 0, pendingStale: 0, pendingTotal: 0 };
+  const cutoff = Date.now() - windowDays * 86400000;
   try {
     for (const line of fs.readFileSync(SESSION_REFS, 'utf8').split('\n')) {
       if (!line.trim()) continue;
       try {
         const j = JSON.parse(line); st.total++;
         const t = j.transcript || '?';
-        if (t === '?') st.stale++;
-        else if (fs.existsSync(t)) { if (j.session) st.live.add(j.session); }
-        else st.stale++;
+        const gone = t === '?' ? true : !fs.existsSync(t);
+        if (gone) st.stale++;
+        else if (j.session) st.live.add(j.session);
+        const inWin = new Date(j.ts || 0).getTime() >= cutoff;
+        if (inWin) { st.winTotal++; if (gone) st.winStale++; }
+        if (!j.distilled && j.session && j.session !== '?') { st.pendingTotal++; if (gone) st.pendingStale++; }
       } catch {}
     }
   } catch {}
+  st.windowDays = windowDays;
   return st;
 }
 
@@ -1920,11 +1925,20 @@ const cmds = {
     add(14, degradeRecent === 0 ? 'PASS' : 'WARN', '降级事件近期', degradeRecent ? `近 7 天 ${degradeRecent} 次` : '无降级');
 
     // 15. transcript 时效（§M0.4 时效约束③；阈值 D10 暂用 WARN，无硬 FAIL）
-    const st2 = sessionRefStats();
-    const refsTotal = st2.total, refsStale = st2.stale;
-    const ratio = refsTotal ? refsStale / refsTotal : 0;
+    // 分母口径修正（2026-09-22）：原用**全部历史登记行**作分母，而那些失效行是**永久不可补救**的
+    // （transcript 已被 harness 保留期清掉，永远追不回来）⇒ 该比只可能趋近 100%、**永不回落**——
+    // 一个永远不会绿的仪表。这正是本库既有条目 `coverage-denominator-is-a-moving-target` 讲的
+    // 「以全部历史事件为分母的覆盖率是永不可达的移动靶」。本文件里的 reflect 对账覆盖率已按同一口径
+    // 修过（见其注释：结构性损失单独成行、不污染纪律判定），此处照办：
+    //   门禁信号 = **可补救窗口内**（最近 30 天登记）的失效率；
+    //   累计失效率降为背景（含永久不可补救的历史行），不作门禁。
+    const st2 = sessionRefStats(30);
+    const ratio = st2.winTotal ? st2.winStale / st2.winTotal : 0;
     let h15 = ratio > 0.5 ? 'WARN' : 'PASS';
-    add(15, h15, 'transcript 时效', refsTotal ? `${refsStale}/${refsTotal} 不可用（哨兵或文件已不在）(${Math.round(ratio * 100)}%)` : '无登记');
+    const cum = st2.total ? Math.round((st2.stale / st2.total) * 100) : 0;
+    add(15, h15, 'transcript 时效', st2.winTotal
+      ? `近 ${st2.windowDays} 天窗口 ${st2.winStale}/${st2.winTotal} 失效（${Math.round(ratio * 100)}%）· 累计 ${st2.stale}/${st2.total}（${cum}%，含永久不可补救的历史行，不作门禁）`
+      : '窗口内无登记');
 
     // --full：附带跑 smoke 全量
     if (full) {

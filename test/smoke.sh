@@ -730,6 +730,14 @@ DOC5C=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
 printf '%s\n' '╭─── Claude Code v0.0.0' '❯ 一句 prompt 明文' > "$KROOT/zz_capture_probe.md"
 ( cd "$KROOT" && git add -f zz_capture_probe.md >/dev/null 2>&1 )
 DOC19=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+# K15: transcript 时效的分母必须是**可补救窗口**，不是全部历史行
+# （2026-09-22：原口径分母=全部登记行，而失效行永久不可补救 ⇒ 只可能趋近 100%、永不回落，
+#  是个永远不会绿的仪表 —— 见 lessons/coverage-denominator-is-a-moving-target。
+#  改后门禁看「近 N 天窗口」，累计数只作背景并显式标注不作门禁）
+{ echo "$DOC" | grep -qE '15\. transcript 时效.*近 [0-9]+ 天窗口'; } \
+  && ok "K: transcript 时效按可补救窗口计（分母非全部历史行）" || bad "K: #15 分母口径" "(实得: $(echo "$DOC" | grep '15\.'))"
+{ echo "$DOC" | grep -q '不作门禁'; } \
+  && ok "K: 累计失效数标注为背景、不作门禁" || bad "K: #15 未标注累计数口径" "(实得: $(echo "$DOC" | grep '15\.'))"
 { echo "$DOC19" | grep -q '\[FAIL\].*19\. 无 prompt 明文录制'; } \
   && ok "K: 植入录制报 FAIL（§4.4 红线）" || bad "K: §4.4 判据失效" "(实得: $(echo "$DOC19" | grep '19\.'))"
 ( cd "$KROOT" && git rm -q --cached --ignore-unmatch zz_capture_probe.md >/dev/null 2>&1 ); rm -f "$KROOT/zz_capture_probe.md"
