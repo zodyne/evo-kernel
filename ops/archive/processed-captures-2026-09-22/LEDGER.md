@@ -28,3 +28,9 @@
 
 同批另 2 条来自同一会话但不源自该 capture：playbook/`mount-check-must-verify-ownership-not-existence`、
 lessons/`recall-self-hit-injects-the-material-under-discussion`。**「移走 N 条」不等于完成度**（同 `proposal-fold-ledger-not-delete-count`）。
+
+## 第三段：2026-09-22 15:53 到的一条 capture（非本会话产出）
+
+| capture | 去向 | 增量 |
+|---|---|---|
+| `capture-2026-09-22-07-53-40-927-ivvi`（auto 模式分类器走自己的模型、计在订阅账上） | lessons/`claude-auto-mode-classifier-uses-own-model` | a（新建；证据是 prose capture，标 `human`，已在条目里写明升级路径） |
