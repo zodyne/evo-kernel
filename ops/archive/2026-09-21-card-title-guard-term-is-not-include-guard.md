@@ -1,7 +1,7 @@
 ---
 id: card-title-guard-term-is-not-include-guard
 type: lesson
-status: candidate
+status: deprecated
 scope: project:algommw-plus
 domain: verification
 tags: [algommw-plus, p1.0b, include-guard, terminology, grep, false-positive, ledger]
@@ -46,3 +46,25 @@ related: [algommw-plus-core-headers-ifndef-guard-convention, inline-constexpr-he
 
 - 审计结论写「P1.0b 已包含守卫处理」而唯一依据是卡名/标题里的「守卫」二字。
 - `grep 守卫` 命中列表只有文档标题，却被当成规划覆盖。
+
+## ⚠ 2026-09-22 独立复核：**核心快照句已被证伪，建议清退**
+
+横切批评员与审核员一致给出清退建议，理由是可复核的，不是口味：
+
+1. **主张的一半与切片不符**：原文说「对 PLAN/audit 的**同类搜索**得到 `NO mention in PLAN/audit`」。
+   但 raw session 显示第二段 `rg` 用的是**更窄、不同的模式**（`redefinition|unguarded`），
+   根本不是「同类搜索」；而 `PLAN.md@33a58c0` 用**全模式**
+   （`redefinition|include guard|unguarded|多重包含|守卫|guard`）有 **7 处命中**
+   （第 62/68/126/252/736/855/933 行，含「libm 编译期守卫」「### D10 — libm 守卫」「只剩 include guard」）。
+   → 照原文读会得出「PLAN 也不提 include guard」的**错结论**。
+2. **另一半在现库已被证伪**：现 `docs/ledger/2026-09-18-P1.0b/REPORT.md` 已是 r2「施工完成」，
+   正文第 28–36 行多处出现 guard（`guard BASE_FP_HPP` / `guard BASE_LIBM_HPP`）。
+3. **同源已重复**：该会话（`01a0b751-eca1`）的实质价值已由既有 playbook 的
+   `card-target-file-absent-is-prospective-risk` 与 `include-closure-per-tu-impact-count` 承载；
+   而「字面命中 ≠ 语义覆盖」这个通用内核，与既有
+   `zero-include-header-still-has-includers`、`doc-ledger-column-is-not-enforcement` 已构成同族。
+
+**处置建议**：清退（`evo demote --id card-title-guard-term-is-not-include-guard --to archive`）。
+它既不注入、核心句又已被证伪，留着只占 `catalog` 的查重面（本库对「被拒绝的提案不留痕」
+本身就有条目 `rejected-proposals-are-invisible-to-dedup-base`，故此处写上清退理由而不是静默删）。
+
