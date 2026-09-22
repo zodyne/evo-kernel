@@ -11,7 +11,7 @@ triggers:
   - "发了 logging 通知但空闲窗没有被重置"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: capture:inbox/capture-2026-09-20-09-07-03-800-2v9c
 last_verified: 2026-09-22
 superseded_by: null
@@ -36,6 +36,8 @@ related: [mcp-server-delegation-via-agent-sdk-headless, mcp-stateful-tool-error-
 
 ## 边界 / 反例
 
-- 本条是**文档核实**结论，不是本机端到端复现 → `verified_by: command` 指文档核对与设计落地，
-  首次遇到掐断时应先用一次长时工具实测确认版本行为。
+- 本条是**文档核实**结论，不是本机端到端复现 ⇒ `verified_by: human`
+  （2026-09-22 复核时由 `command` 降级：权重 0.8 → 0.6。证据是官方文档原文 + 设计落地，
+  没有跑出可复现的观测；首次遇到掐断时应先用一次长时工具实测确认版本行为，
+  复现通过后可再升回 `command`）。
 - 30 分钟是文档值，随版本可调；以 `CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT` 的实际生效值为准。

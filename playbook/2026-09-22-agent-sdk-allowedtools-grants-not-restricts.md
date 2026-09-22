@@ -11,7 +11,7 @@ triggers:
   - "disallowedTools 的 Bash(pattern) 写法在任何 permissionMode 下都被拒"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: capture:inbox/capture-2026-09-20-09-07-03-836-xwzi
 last_verified: 2026-09-22
 superseded_by: null
@@ -38,5 +38,8 @@ related: [mcp-server-delegation-via-agent-sdk-headless, pi-tools-allowlist-filte
 
 ## 边界 / 反例
 
+- 本条是**读源码/类型定义注释**得出的结论，没有跑出可复现的观测 ⇒ `verified_by: human`
+  （2026-09-22 复核时由 `command` 降级：权重 0.8 → 0.6。跑一次 `allowedTools` 与实际可调工具
+  的对照实验即可证伪/证实，通过后可升回 `command`）。
 - 版本相关（0.3.278）；升级 SDK 后先复核 `sdk.d.ts` 再沿用本条。
 - `skills` 是唯一入口这条也只在该版本核实过。

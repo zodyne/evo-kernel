@@ -11,7 +11,7 @@ triggers:
   - "只想关遥测，结果把项目指令文件也一起关掉了"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: capture:inbox/capture-2026-09-20-09-50-30-370-ofut
 last_verified: 2026-09-22
 superseded_by: null
@@ -37,5 +37,7 @@ related: [claude-code-global-mcp-registry-claude-json]
 
 ## 边界 / 反例
 
-- 是**文档核实**结论，未在本机做开/关对照实验 → 首次遇到时按「加一行 `@AGENTS.md`」验证即可证伪。
+- 是**文档核实**结论，未在本机做开/关对照实验 ⇒ `verified_by: human`
+  （2026-09-22 复核时由 `command` 降级：权重 0.8 → 0.6。开/关该变量各跑一次看是否读到
+  `AGENTS.md` 即可证伪，通过后可升回 `command`）。
 - 只覆盖 `AGENTS.md` 这一条已知回落；同族还有哪些能力被 flag 门控，文档那一节才是权威清单。
