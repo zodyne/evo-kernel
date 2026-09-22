@@ -13,7 +13,7 @@ triggers:
   - "旧文档删除后仍希望以后能取回原文"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: session:01a0b3d9-1442-7475-af70-367c26fa603f
 last_verified: 2026-09-22
 superseded_by: null
@@ -34,3 +34,16 @@ related: [docs-code-path-refs-existence-scan]
 **为什么**：文件被删除后，「谁还在引用它」不会在 `git status` 里出现。残留引用分两种命运——活文档里指向该路径的引用会变成断链，历史性提及（审计报告、ADR、版本注记）应保留但要给出取回办法。`git show <sha>:<path>` 是 sha 锚定的不可变对象引用，比写「见 xxx.md」的路径指针更耐搬动。
 
 **边界/反例**：`git show` 指针成立的前提是旧文档曾经被提交进 git 且有可用的 sha；本会话删除前已确认 v1 独有内容另有承接（见 related 条目的扫描思路）。引用扫描只覆盖非 .git 工作树，`-g '!.git'` 不能省；本会话的 4718594 等独有数字承接另见同会话产出的 `retire-doc-remeasure-hardcoded-metrics`。
+
+## 独立复核与证据快照（2026-09-22）
+
+本条**不进注入集**（`lessons` 候选），原因是证据快照已变，不是主张被推翻。复核结论：
+
+- `verified_by` 由 `command` 降为 `human`：引用命令在切片里被截断、**不能照抄重跑**，
+  证据绑在别仓/临时环境的一次输出上，按本库口径只算「当时跑过」。
+- **快照漂移**：被引的 `PLAN.md:4` 已漂到 `:5` 且措辞已改。**唯一耐久的是 `git show 1a0ae80:PLAN.v1.md`**（commit 对象，复核方本机复跑得 408 行、`git cat-file -t` = commit）。
+- 范围：「为什么」节两条机制（`git status` 看不见引用、sha 指针比路径指针更耐搬动）标为推断/依据，不作证据陈列。判据本身由一次观测升格而来（n=1，scope 原写 global），已收窄。与同题材的既有 lessons/`docs-code-path-refs-existence-scan` 对齐。
+
+> **同源（n 记账）**：本条与同一会话 `01a0b3d9-1442` 的另 2 条提案同源于PLAN.v1.md 退役那一次——**一次观测被拆成多条**，别当独立经验计权。
+> 更大一层：2026-09-18 那批有 3 个会话在 **33 秒内**先后启动、切片里「首条 user」逐字相同（对同一份 PLAN.md 的并行符合性审计），所以 A/B 两簇 12 条的**有效独立来源 ≈2 次**，不是 12 次。
+> 另：`evo slice` 会**截断长命令**——凡依赖被截断部分的引用，只能算「当时跑过」。
