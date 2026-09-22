@@ -1829,10 +1829,18 @@ const cmds = {
     //     「闸门脚本自身文本」那类误报。排除本文件与 smoke（后者断言里也含这些模式串）。
     //     代价：真有一份录制**恰好只在 bin/evo 里**时会被漏掉——但 bin/evo 是代码不是数据，
     //     该形态不存在。
+    //     ⚠ **第二次自命中（同日，更本质）**：加进 README 一段「待人工清除 prompt 明文」的说明后，
+    //     它又 FAIL 了——因为那段**说明文字**里写了 `local-command-caveat` 这个描述性词。
+    //     即子串匹配分不清「**有一份录制**」与「**文中提到录制**」，正是本库
+    //     `substring-matcher-cannot-tell-exec-from-mention` 说的那类。修法不是继续加排除名单
+    //     （文档只会越写越多），而是**把判据收紧到录制本身的特征**：
+    //     box-drawing 横幅 / ❯ / ⏺ 都是**行首**的终端画面字符（文档里几乎不可能行首出现），
+    //     而 caveat 那一支改成**带尖括号的标签** `<local-command-caveat>`（录制里是 XML 标签，
+    //     文档里通常只写裸词）。这样打的是「画面」，不是「说法」。
     let h19 = 'PASS', d19 = '未发现 prompt 明文录制';
     try {
       const out = execSync(
-        "git grep -l -E '^╭─── Claude Code v|^❯ |^⏺ |local-command-caveat' -- . ':!bin/evo' ':!test/smoke.sh' 2>/dev/null || true",
+        "git grep -l -E '^╭─── Claude Code v|^❯ |^⏺ |<local-command-caveat>' -- . ':!bin/evo' ':!test/smoke.sh' 2>/dev/null || true",
         { cwd: ROOT, stdio: 'pipe' }
       ).toString().trim();
       if (out) {
