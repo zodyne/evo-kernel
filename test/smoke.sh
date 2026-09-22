@@ -729,17 +729,6 @@ DOC5C=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
 # 否则检查源码里的模式串会自命中——首版就踩了这个，见 bin/evo 该检查的注释）
 printf '%s\n' '╭─── Claude Code v0.0.0' '❯ 一句 prompt 明文' > "$KROOT/zz_capture_probe.md"
 ( cd "$KROOT" && git add -f zz_capture_probe.md >/dev/null 2>&1 )
-# K19b: **文档里提到**这些词不得触发（第二次自命中的守护）
-# 2026-09-22 实测：README 加了「如何从历史清除 prompt 明文」的说明后，#19 立刻 FAIL ——
-# 因为说明里的命令字面含 `local-command-caveat`。子串匹配分不清「有录制」与「提到录制」
-# （见 playbook/substring-matcher-cannot-tell-exec-from-mention）。判据已收紧到**录制画面特征**
-# （行首横幅 / ❯ / ⏺ / 带尖括号的 `<local-command-caveat>`），此条守住「裸词不算」。
-printf '%%s\n' '写文档时提到 local-command-caveat 这个裸词、以及 vpn-shell 这个文件名' > "$KROOT/zz_doc_probe.md"
-( cd "$KROOT" && git add -f zz_doc_probe.md >/dev/null 2>&1 )
-DOC19B=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
-{ echo "$DOC19B" | grep -q '19. 无 prompt 明文录制.*PASS'; } \
-  && ok "K: 文档提到裸词不误报（§4.4 判据打画面不打说法）" || bad "K: §4.4 判据误报文档" "(实得: $(echo "$DOC19B" | grep '19\.'))"
-( cd "$KROOT" && git rm -q --cached --ignore-unmatch zz_doc_probe.md >/dev/null 2>&1 ); rm -f "$KROOT/zz_doc_probe.md"
 DOC19=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
 # K15: transcript 时效的分母必须是**可补救窗口**，不是全部历史行
 # （2026-09-22：原口径分母=全部登记行，而失效行永久不可补救 ⇒ 只可能趋近 100%、永不回落，
@@ -752,6 +741,18 @@ DOC19=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
 { echo "$DOC19" | grep -q '\[FAIL\].*19\. 无 prompt 明文录制'; } \
   && ok "K: 植入录制报 FAIL（§4.4 红线）" || bad "K: §4.4 判据失效" "(实得: $(echo "$DOC19" | grep '19\.'))"
 ( cd "$KROOT" && git rm -q --cached --ignore-unmatch zz_capture_probe.md >/dev/null 2>&1 ); rm -f "$KROOT/zz_capture_probe.md"
+
+# K19b: **文档里提到**这些词不得触发（第二次自命中的守护）
+# 2026-09-22 实测：README 加了「如何从历史清除 prompt 明文」的说明后，#19 立刻 FAIL ——
+# 因为说明里的命令字面含 `local-command-caveat`。子串匹配分不清「有录制」与「提到录制」
+# （见 playbook/substring-matcher-cannot-tell-exec-from-mention）。判据已收紧到**录制画面特征**
+# （行首横幅 / ❯ / ⏺ / 带尖括号的 `<local-command-caveat>`），此条守住「裸词不算」。
+printf '%%s\n' '写文档时提到 local-command-caveat 这个裸词、以及 vpn-shell 这个文件名' > "$KROOT/zz_doc_probe.md"
+( cd "$KROOT" && git add -f zz_doc_probe.md >/dev/null 2>&1 )
+DOC19B=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+{ echo "$DOC19B" | grep -q '[PASS].*19\. 无 prompt 明文录制'; } \
+  && ok "K: 文档提到裸词不误报（§4.4 判据打画面不打说法）" || bad "K: §4.4 判据误报文档" "(实得: $(echo "$DOC19B" | grep '19\.'))"
+( cd "$KROOT" && git rm -q --cached --ignore-unmatch zz_doc_probe.md >/dev/null 2>&1 ); rm -f "$KROOT/zz_doc_probe.md"
 printf '{}' > "$KHOME/.claude/settings.json"
 # K7: 蒸馏驱动器装载检查 —— 未装载时覆盖率不再增长，而此前没有任何信号：
 # 2026-09 实测停了 20 天无人发现，覆盖率冻在 8% 还被归因为「纪律问题」。
