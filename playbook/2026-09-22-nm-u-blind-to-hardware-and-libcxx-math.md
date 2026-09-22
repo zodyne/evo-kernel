@@ -1,7 +1,7 @@
 ---
 id: nm-u-blind-to-hardware-and-libcxx-math
 type: lesson
-status: candidate
+status: validated
 scope: global
 domain: cpp-toolchain
 tags: [libm, nm, disassembly, macos, libc++, sqrt, lround, symbol-audit]
@@ -58,3 +58,29 @@ related: [libm-call-audit-via-artifact-symbols, libm-symbol-chosen-by-arg-type-n
 - 反汇编里出现 `fsqrt` / `fmul` 之外的开方指令，或 `__ZNSt3__16__math…` 调用，而手上的数学符号清单来自 `nm -u`。
 - 某 TU 的 `nm -u` 数学符号为空，却据此写「该 TU 无 libm/math 依赖」。
 - 门禁的产物符号段只跑 `nm -u`，就宣称覆盖了全部数学调用。
+
+## 复核证据（2026-09-22，本机重跑 —— 本条据此进注入集）
+
+下列自包含复现证明 `nm -u` 对**哪两类**是盲的，同时**否证**原提案过宽的那句：
+
+```
+$ cat > p.cpp <<'EOF'
+#include <cmath>
+float f(float x){ return std::sqrt(x) + (float)std::lround(x); }
+double g(double x){ return std::sin(x); }
+EOF
+$ clang++ -std=c++17 -O0 -c p.cpp -o p.o
+$ nm -u p.o
+_sin                              ← 经典 libm 引用仍在，-u 并非全盲
+$ nm p.o | grep -c '__math'
+2                                 ← __math::lround 以 weak/private 定义在本对象内，-u 看不到
+```
+
+**修正原提案**：证据节原写「未定义面里找不到数学符号」——**过宽**。正确表述是
+「未定义面里没有 `_sqrt` / `_lround`（也没有提示 float libc++ wrapper 的符号）」，
+`_sin` / `_cos` / `_exp2` 这类**仍会出现**。作者 2026-09-22 的独立复核也给出同一纠正
+（当时存活的 `beam.o` 的 `nm -u` 实含 `_sin`/`_cos`/`_asin`）。
+
+**范围**：本条不否定 `nm -u` 对经典 libm 引用的效力，只否定「只扫 `nm -u` 即完备」。
+绑定工具链：Apple arm64 + libc++（`lround` 的 ABI tag 随 libc++ 版本变）。原提案引的
+具体沙箱/构建已变，上述最小复现是可重跑的那部分。
