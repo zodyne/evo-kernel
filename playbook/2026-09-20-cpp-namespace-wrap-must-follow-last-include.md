@@ -48,3 +48,34 @@ related: [cpp-mode-libm-symbol-diff-per-tu]
    - namespace 在**最后**一条 include 之后（repo_correct）：`build rc=2`，`errors: 27`；`grep -E "Built target core|Linking CXX static library libcore.a"` → `[ 32%] Linking CXX static library libcore.a` 与 `[ 32%] Built target core`；错误分布 28 / 26 条落在 `tests/`。
    - namespace 在**第一**条 include 之后（repo_first）：`build rc=2`，`errors: 150`；错误种类统计 `Real_t: 47  ComplexF_t: 18  dPi: 2  amw::amw:: 206`；`grep -o "did you mean '::amw::amw::amw::ComplexF_t'"` 有命中（三级嵌套）。
 4. 独立副本复核：`/tmp/review-scan-core/build7.log` → `total error lines: 147`，`Real_t: 46  ComplexF_t: 18  amw::amw:: 202`（同一失败指纹，量级一致）。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+本机实测（Apple clang version 17.0.0 / clang-1700.4.4.1），自包含、可当场重跑：
+
+cd "$(mktemp -d)" && mkdir -p correct first
+printf '#ifndef BASE_H\n#define BASE_H\ntypedef float Real_t;\n#endif\n' > base.hpp
+printf '#ifndef INNER_H\n#define INNER_H\n#include "base.hpp"\nnamespace amw {\nint inner_fn();\n}\n#endif\n' > inner.hpp
+printf '#ifndef OUTER_H\n#define OUTER_H\n#include "base.hpp"\n#include "inner.hpp"\nnamespace amw {\n}\n#endif\n' > correct/outer.hpp
+printf '#ifndef OUTER_H\n#define OUTER_H\n#include "base.hpp"\nnamespace amw {\n#include "inner.hpp"\n}\n#endif\n' > first/outer.hpp
+printf '#include "correct/outer.hpp"\nint main(){ return amw::inner_fn(); }\n' > tu_correct.cpp
+printf '#include "first/outer.hpp"\nint main(){ return amw::inner_fn(); }\n' > tu_first.cpp
+clang++ -std=c++17 -I. -fsyntax-only tu_correct.cpp; echo "correct rc=$?"
+clang++ -std=c++17 -I. -fsyntax-only tu_first.cpp; echo "first rc=$?"
+
+实测输出：
+- correct 变体（namespace 开在最后一条 include 之后）：correct rc=0（无输出）。
+- first 变体（namespace 开在第一条 include 之后，后续 include 落进命名空间、被包头的同名 namespace 再开一层）：
+  tu_first.cpp:2:20: error: no member named 'inner_fn' in namespace 'amw'; did you mean 'amw::amw::inner_fn'?
+  ./inner.hpp:5:5: note: 'amw::amw::inner_fn' declared here
+  first rc=1
+即复现了主张里的「同名 namespace 逐层嵌套」与「did you mean '...::amw::amw::...'」信号。另可加一条：把 base.hpp 的 #include 放进 namespace 内，全局作用域引用 Real_t 即得 "unknown type name 'Real_t'; did you mean 'amw::Real_t'?"（本机同样复现），对应条目里的 unknown type name 形态。
+```
+
+**审核给出的修改意见（要点）**：留注入集，只换证据、不动主张：证据节的 4 条全部落在两处已消失的 /tmp 沙箱（/tmp/review-refute-ns、/tmp/review-scan-core）且命令在切片中被截断，无法照抄复跑——建议把证据 4（或新增一条）替换为 minimalRepro 里那段自包含 clang 复现，使该条可被任何未来会话当场重跑。主张真值（C++ 命名空间作用域/嵌套 + #include 纯文本展开 + #ifndef 守卫）是语言/clang 的稳定属性，本次已独立复现，故保留在 playbook、并保留 verified_by: command。措辞微调：为什么节首条的「namespace 开在 include 之前」与实测情形不精确对齐，应改为「namespace 开在第一条 include 之后（等价于后续 include 都落在命名空间内）」；同条把 unknown type name 的成因从「守卫单独致因」收窄为「基础头的 #include 落进命名空间使其类型被限定 + 守卫阻止其在该 TU 内于全局作用域重新展开」，二者共同作用。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

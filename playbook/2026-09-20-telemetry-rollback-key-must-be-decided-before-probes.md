@@ -61,3 +61,28 @@ target/规则特征，要么给台账补一个 session 字段（本次都没做�
 - 本条不反对 fixture 隔离（见 related）：能隔离就隔离；只有"必须测真实链路"时才走事后回滚。
 - 复查只验"grep 无残留"，没有做行数守恒校验（事前行数 − 事后行数 = removed 数），也没检查下游是否已聚合过这些行。
 - 记录型台账（本条的 recall/guard/session-refs）不参与执行判定，删错代价是统计失真；**执行判定用的数据（如 guard 的 deny 决定）不应事后回滚**，否则审计链就断了——本条不覆盖那种场景。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+命令（自包含，本机可当场重跑）：
+cd /Users/zodyne/Dev/evo-kernel && node -e 'const fs=require("fs");for(const f of ["ops/log/guard-hits.jsonl","ops/log/recall.jsonl","inbox/session-refs.jsonl"]){const o=JSON.parse(fs.readFileSync(f,"utf8").trim().split("\n").pop());console.log(f.padEnd(28),"keys:",Object.keys(o).join(","))}'
+
+2026-09-22 实测输出：
+ops/log/guard-hits.jsonl     keys: ts,rule,mode,tool,target,quality
+ops/log/recall.jsonl         keys: ts,session,task,ids,chars,backend
+inbox/session-refs.jsonl     keys: ts,session,transcript,harness,distilled,ended
+
+即：guard-hits 无 session（只有 ts 可当回滚键），recall/session-refs 有 session —— 条目核心主张复现成立。
+源码佐证：bin/evo:779 `appendGuardHit({ ts: new Date().toISOString(), rule: r.id, mode: r.mode, tool: toolName, target: target.slice(0, 100), quality });`
+```
+
+**审核给出的修改意见（要点）**：换证据、收窄一般律，核心主张保留。(1) 证据节：删掉无法复跑的 2026-09-20 具体行（ts 578Z、514 行、4 行探针原文）与「事前 rg -c 命中 3+1」，换成下面 minimalRepro 那条三份台账键集对比 + bin/evo:779 的 appendGuardHit 字段集——后者才是「guard-hits 无回滚键」的可复跑证据。(2) 把「探针流量必然写进生产台账、只能事后回滚」收窄为「走真实 hook 链路的探针在本仓三份台账上确实都落盘（本次实测）」，并明确「先确认键→再造流量」是由这一次观测得出的顺序建议，非已验证的普遍律。(3) 该条仍在 playbook：真值是本机 schema 的稳定属性（guard-hits 无 session、recall/session-refs 有），不绑已消失的快照，且已给出自包含最小复现。
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 探针流量必然写进生产台账，只能事后回滚（把单次会话里三份台账都曾落盘，升格为「必然」）
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

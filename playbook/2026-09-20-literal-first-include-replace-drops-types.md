@@ -50,3 +50,35 @@ related: [algommw-real-t-switchable-typedef]
 ## 失败信号（未来命中即该想起本条）
 
 批量改完 include 后 `cmake --build` 在**没改过的**下游 TU 上大面积报 `error: unknown type name '<Real_t 之类的公共类型>'` → 先 diff 一下被改头的首条 include 是不是被新 include **顶掉**了，而不是只加了新 include。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+在 scratchpad 实跑通过（mre2/）。自包含最小复现（合成 3 文件，不依赖 algommw-plus / 旧沙箱）：
+
+set -e
+D=$(mktemp -d); cd "$D"; mkdir -p inc repl ins
+printf '#pragma once\n#define F 1\n' > inc/fp.hpp
+printf '#pragma once\nnamespace amw { using Real_t=float; struct ComplexF_t{Real_t r,i;}; }\n' > inc/types.hpp
+printf '#include "types.hpp"\nnamespace amw { Real_t scale(Real_t); ComplexF_t mk(); }\n' > canon.hpp
+sed '1s|.*|#include "fp.hpp"|' canon.hpp > repl/a.hpp      # REPLACE: 首条 include 被顶掉 -> 丢 types.hpp
+{ echo '#include "fp.hpp"'; cat canon.hpp; } > ins/a.hpp   # INSERT: 新头插首行 -> 保留 types.hpp
+printf '#include "a.hpp"\nint main(){ amw::Real_t r=amw::scale(1.0f); amw::ComplexF_t c=amw::mk(); (void)r;(void)c; return 0; }\n' > user.cpp
+clang++ -std=c++17 -Iinc -Irepl -c user.cpp -o /dev/null 2>repl.log; echo "REPLACE rc=$?"; grep -o "error: [^\"]*'" repl.log | sort | uniq -c
+clang++ -std=c++17 -Iinc -Iins  -c user.cpp -o /dev/null 2>ins.log;  echo "INSERT rc=$?"; wc -l < ins.log
+
+实测输出：
+REPLACE rc=1
+  2 error: unknown type name 'Real_t'
+  1 error: unknown type name 'ComplexF_t'
+INSERT rc=0   (ins.log 0 行)
+
+即与主张同形：字面 replace 首条 include → unknown type name 公共类型；insert → rc=0。真值与语言/方法绑定、现可复跑。
+```
+
+**审核给出的修改意见（要点）**：证据节整体被绑在已消失的 /tmp 沙箱（/tmp/review-refute-literal-first-include-replacement-drops-types/）+ 自写脚本 apply_card.py + algommw-plus 的 2026-09-19 HEAD 上：那条 tally 当时是 27，现已推进为 fp.hpp×30 / types.hpp×2（本机实测），旧命令一条也照抄不了。核心主张（「第一条 include 改为 X」按字面 replace 会顶掉承载类型定义的首条 include → 下游整库报 unknown type name；应改按 insert）是稳定的 C++ 属性，已用自包含最小复现当场复跑（见 minimalRepro），故保留在注入集。改法：(1) 证据节把上述快照性引用降为背景，主证据换成 minimalRepro 里的合成复现（含期望 REPLACE rc=1 + unknown type name、INSERT rc=0）；(2) 主张末句「必须按插入执行，不能按替换」把限定直接并进句子——「仅当被替换的首条 include 承载下游必需定义时 replace 才炸」，别只把限定留在边界节（否则单次观测被读成无条件一般律）；(3) 注明数字 27 在切片内另有 26 的计数、且仓库现况已变，数字只作当时快照；(4) 证据节
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

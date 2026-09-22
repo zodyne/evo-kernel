@@ -46,3 +46,36 @@ related: [cpp-mode-libm-symbol-diff-per-tu, adversarial-review-separate-evidence
 - 只有另一段在同一探针上真的命中，才可判「不是洞」；若两段共因（同一输入源/同一模式族），两段同漏仍是洞。
 - 探针必须覆盖被发现声称漏掉的那种写法；否则「没洞」和「有洞」一样没有证据。
 - 本条只判「闸门整体是否漏」，不判被漏形态的实际影响面（实例数另计，见 `blind-spot-claim-needs-instance-count` 方向的条目）。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+自包含、可当场重跑（clang++/rg/nm 本机均在）：
+
+  d="$(mktemp -d)"; cd "$d" || exit 1
+  cat > t.cpp <<'EOF'
+  #include <cmath>
+  namespace amw { double probe( float x ){ return (std::sin)(x); } }
+  EOF
+  cat > u.cpp <<'EOF'
+  #include <cmath>
+  namespace amw { double probe( float x ){ return std::sin(x); } }
+  EOF
+  clang++ -std=c++17 -O3 -fno-builtin -c t.cpp -o t.o
+  clang++ -std=c++17 -O3 -fno-builtin -c u.cpp -o u.o
+  echo "A-seg (source regex 'std::sin\\(' hits):"
+  printf '  t.cpp: %s\n' "$(rg -c 'std::sin\(' t.cpp || echo 0)"
+  printf '  u.cpp: %s\n' "$(rg -c 'std::sin\(' u.cpp || echo 0)"
+  echo "B-seg (nm -u libm float symbols):"
+  printf '  t.o: %s\n' "$(nm -u t.o | tr '\n' ' ')"
+  printf '  u.o: %s\n' "$(nm -u u.o | tr '\n' ' ')"
+
+期望输出（2026-09-22 本机实测）：A 段对 t.cpp（括号化 `(std::sin)(x)`）报 0 命中，而 B 段 nm -u 仍抓到 `_sinf`；u.cpp（裸 `std::sin(x)`）A/B 两段都命中。即：单段漏报（A 段 0）不是闸门有洞——同一失败被另一段（B 段符号层）覆盖。命令未依赖任何被删的 /tmp 沙箱或 algommw-plus 树。
+```
+
+**审核给出的修改意见（要点）**：核心主张站得住，且换到全新探针上仍成立（见 minimalRepro），故不降级；但证据节需换证据。理由：证据里四条引用**均为切片原文、无捏造**，但记录形态不可复跑——①引用绑在已删除的 /tmp/review-refute-libm-gate-c-segment-regex-holes 沙箱上；②切片把两条关键命令截断（第 27 行 rg 模式串、第 37-40 行 injected_fptr heredoc 未闭合），照抄不能重跑。做法：(1) 在证据节补入 minimalRepro 那条自包含命令及其实测输出，作为可复跑主证据；(2) 把对 /tmp 沙箱与真实树 rg 的引用标注为「仅示当时观测，沙箱已删」；(3) 前两条 bullet 里被截断的命令片段（`double probe( float x`、`rg -n '(std::|::)(...`）不要当可执行命令呈现。主张文字无需改（边界节已自带限定：另一段须在同一探针上真命中、探针须覆盖被漏写法），不建议改写 主张。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

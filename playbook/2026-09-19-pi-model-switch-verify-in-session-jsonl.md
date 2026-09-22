@@ -48,3 +48,27 @@ related: [pi-fallback-target-must-be-in-model-registry, pi-model-fallback-early-
 - jsonl 能判"切没切"，判不了"**谁**切的"：扩展 `setModel` 与手动 `/model` 都写 `model_change`，形态相同。要归因得靠 `MODEL_FALLBACK_DEBUG` 的 trace（本例未开，所以会话里查不到 trace，用 `ls /tmp/*fallback*` 和 shell profile 里没有 `MODEL_FALLBACK_DEBUG` 佐证过）。
 - `provider` 字段是"这次请求实际用的模型"，不是用户选的目标模型；切换只影响后续请求，所以同一会话里会看到新老 provider 交错（本例 10:25 切回又切走）。
 - 这套字段是 pi 的会话格式（本机 v3 会话）；换 harness 或 pi 大版本前先看一眼首行 `type:"session"` 的 version。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+f=~/.pi/agent/sessions/--Users-zodyne-Dev-algommw-plus--/2026-09-18T13-10-21-079Z_01a0b4a3-ae96-7475-af70-36ad39adaba4.jsonl
+jq -r 'select(.type=="model_change")|"\(.timestamp)\t\(.provider)/\(.modelId)"' "$f" | grep '2026-09-19T10:22:57'
+# 期望输出： 2026-09-19T10:22:57.613Z	glm-coding/glm-5.3-flash
+jq -r 'select(.type=="message" and .message.role=="assistant" and .timestamp>="2026-09-19T10:22:57" and .message.provider=="glm-coding")|.message.stopReason + " out=" + ((.message.usage.output // .message.usage.outputTokens // 0)|tostring)' "$f" | sort | uniq -c
+# 期望输出：  11 ...toolUse out=<非0>  +  2 ...length out=1
+sed -n '145,149p' ~/.pi/agent/extensions/model-fallback/index.ts
+# 期望输出： const safeNotify = (ctx, text, level) => { try { if (ctx.hasUI) ctx.ui.notify(text, level); } catch {} };  —— 无任何 session 写入
+grep -n 'writeFileSync\|appendFileSync\|sendMessage\|ui.notify' ~/.pi/agent/extensions/model-fallback/index.ts
+# 期望输出： 写盘只有 138 appendFileSync(MODEL_FALLBACK_DEBUG trace) 与 292 sendMessage；147 为唯一 notify，不落盘
+```
+
+**审核给出的修改意见（要点）**：核心主张（切换真值只在会话 jsonl 的 model_change + assistant.provider/model 上，ctx.ui.notify 不落盘）稳定且可当场复跑，故仍留注入集，但证据节需换证据：1) E2/E4 把命令与输出写实（`jq -r 'select(.type=="model_change")|"\(.timestamp)\t\(.provider)/\(.modelId)"' <file>` 与对 assistant 的 `.message.provider+"/"+.message.model | sort | uniq -c`），不要用被截断的 `... |` 与 `34/56/202` 这种不复现的裸数字；2) 删掉或明确标注过期快照：`18 条 stopReason=error`（现同一批会话为 39，且切片根本没这项）与 algommw 的 `202`（现 560）；3) E4 的 source 应指向 `--Users-zodyne-Dev-algommw-plus--/2026-09-18T13-10-21-079Z_...jsonl` 而不是条目 source 里的 01a0b4b1（同一台机、不同会话）；4) 收窄『此后 11 条』为『11 条 stop=toolUse（另有 2 条 stop=length）』；5) `safeNo
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 18 条 `stopReason=error`（`terminated`/`Connection error.`/`Request timed out.`）——切片无任何 stopReason 记录，且本机按同样三个会话复核为 39 条（会话已增长），18 无法复现
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

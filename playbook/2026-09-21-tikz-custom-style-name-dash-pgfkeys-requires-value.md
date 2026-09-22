@@ -47,3 +47,28 @@ pgfkeys 的 key 名是路径化的全局命名空间（`/tikz/...`）；自定�
 
 - xelatex 日志出现 `Package pgfkeys Error: The key '/tikz/<name>' requires a value`，而 `.tex` 能找到 `<name>/.style={...}`。
 - TikZ 样式重命名/新增后构建中断，报错里的 key 名正是刚起的短名。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+rm -rf /tmp/tk && mkdir -p /tmp/tk && cd /tmp/tk
+printf '\\documentclass{article}\n\\usepackage{tikz}\\usetikzlibrary{arrows.meta}\n\\tikzset{dash/.style={-{Stealth[length=2mm]}, semithick, dashed}}\n\\begin{document}\\begin{tikzpicture}\\draw[dash](0,0)--(1,1);\\end{tikzpicture}\\end{document}\n' > d.tex
+pdflatex -interaction=nonstopmode d.tex >/dev/null 2>&1; echo "d.tex exit=$?"; grep -m1 '^!' d.log
+#   实测：d.tex exit=1
+#         ! Package pgfkeys Error: The key '/tikz/dash' requires a value.   （报在 l.4 \draw[dash]，即使用处）
+#   旁证：把定义整条删掉只留 \draw[dash] 也报同一错 —— 证明 /tikz/dash 是 TikZ 既有 key，非「使用处漏传值」
+sed -e 's/{dash\//{aux\//' -e 's/\[dash\]/[aux]/' d.tex > a.tex   # 定义与使用处一并 dash->aux（避开 dashed 子串）
+pdflatex -interaction=nonstopmode a.tex >/dev/null 2>&1; echo "a.tex exit=$?"; grep -m1 '^!' a.log || echo "(no error)"
+#   实测：a.tex exit=0  / (no error)   —— 改名后报错消失
+```
+
+**审核给出的修改意见（要点）**：核心主张（命名为 dash 撞内置 key → 报 requires a value → 改名即消失）经本机最小复现逐字证实，真值稳定（TikZ/pgfkeys 语义），保留在注入集，但需两处收窄：(1) 边界/反例第 1 条改为只列 `dash` / `dash pattern`（取值类内置 key），删掉 `dashed`——实测 `dashed` 作自定义 style 名不报此错（自定义 .style 静默覆盖），仅样式体自引用时才 `TeX capacity exceeded` 递归超限，失败模式不同；并把「其他宏包（如 pgfplots 的 addplot）同理」降为指向 related 条目的待验引述，勿当已证。(2) 证据节把两条被截断、不可照抄重跑的命令（`s.replace('  dash/.style={-{S…`、`xelatex …adaptive_thres…`）替换为 minimalRepro 里的自包含最小复现（可逐字重跑、含期望输出）。主张措辞、证据三处引用的行号/报错文本/最终 `错误: 0` 小结均与切片对齐，无需改动。
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 「`dash` / `dashed` / `dash pattern` 是 TikZ key 名高发区」——把 `dashed` 并入同一失败族：切片里根本没有 `dashed`，且本机实测不成立（`\tikzset{dashed/.style={blue, very thick}}` + `\draw[dashed]` → exit 0、正常出 PDF，自定义 .style 静默覆盖、不报 requires-a-value；只有样式体自引用 `dashed` 时才 `! TeX capacity exceeded` 递归超限，失败模式与 `requires a value` 不同）。只有 `dash` / `dash pattern` 才复现该错。
+- 「其他宏包（如 pgfplots 的 `addplot`）同理」——切片无任何 pgfplots 观测（仅指向 related 条目），属未验证的跨包推广。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

@@ -48,3 +48,32 @@ related: [zero-include-header-still-has-includers, inline-constexpr-header-still
 
 - 影响面报告只给「谁直接 include 了这个头」或「这个头自己有 0 行 include」就写 N 个 TU 受影响。
 - 声称「缺 guard 会在多个 TU 炸」却说不出任何一个 TU 里这个头被包含了几次。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+D=$(mktemp -d); mkdir -p "$D/inc"
+printf 'struct Foo { int x; };\n'                 > "$D/inc/h.hpp"   # 无 guard 的叶子头
+printf '#include "h.hpp"\n'                        > "$D/inc/m.hpp"   # 拉到 h.hpp
+printf '#include "m.hpp"\n'                        > "$D/inc/a.hpp"
+printf '#include "m.hpp"\n'                        > "$D/inc/b.hpp"
+printf '#include "a.hpp"\n#include "b.hpp"\nint main(){return 0;}\n' > "$D/t.cpp"
+
+grep -rl '#include "h.hpp"' "$D/inc" | wc -l
+#   -> 1        （一跳入度：h.hpp 只被 m.hpp 直接 include 一次，看不出重复）
+clang++ -std=c++17 -E -I "$D/inc" "$D/t.cpp" | grep -c 'struct Foo'
+#   -> 2        （闭包多重性：该 TU 里 h.hpp 的体出现 2 次）
+clang++ -std=c++17 -fsyntax-only -I "$D/inc" "$D/t.cpp"; echo "rc=$?"
+#   -> error: redefinition of 'Foo'  @ …/inc/h.hpp:1:8 ; rc=1
+
+printf '#ifndef H_HPP\n#define H_HPP\nstruct Foo { int x; };\n#endif\n' > "$D/inc/h.hpp"
+clang++ -std=c++17 -fsyntax-only -I "$D/inc" "$D/t.cpp"; echo "rc=$?"
+#   -> rc=0      （只给这一个无 guard 头补 guard，编译即通过）
+```
+
+**审核给出的修改意见（要点）**：核心主张（按「每个 TU 的 include 闭包」多重性计数，而非一跳入度/出度）是 C++ 预处理器的稳定性质、通用且正确，值得留在注入集。但证据节的两条命令在切片里都被截断（python 的 root= 断在路径中；clang++ 断在被编译 TU 路径），且承载它们的 /tmp/…-include-guards 沙箱已消失 ⇒ 现证据无法照抄重跑。改法（换证据，非改主张）：(1) 把证据节主证据换成上面的自包含最小复现（本机可跑，已实测：入度=1 / 多重性=2 / rc=1→补 guard→rc=0）；(2) 把 25/24 降为「该仓库 2026-09-19 快照的示例数字」，明标不随主张走（条目边界已如此声明，保持即可）；(3) 可选收窄措辞：主张里「≥2 次 ⇒ 必然重定义路径」改为「⇒ 该 TU 里必然重复包含（是否报错取决于头内容，见边界节）」，与边界节「闭包命中 ≠ 一定报错」保持一致。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

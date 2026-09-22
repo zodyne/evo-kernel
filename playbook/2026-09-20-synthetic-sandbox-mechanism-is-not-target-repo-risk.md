@@ -42,3 +42,28 @@ related: [adversarial-review-repro-as-written, adversarial-review-separate-evide
 - 在目标仓库上验证时用 HEAD 副本（避免动被审仓库），收尾用 porcelain 自证只读，见 `readonly-verify-tmp-variant-git-status-proof`。
 
 **失败信号（未来命中即该想起本条）**：发现方贴出的 repro 文件路径在 /tmp 或它自己的沙箱目录里；目标仓库里搜不到同形态的上下文/调用点；报告只给机制演示，给不出该形态在仓库中的一次真实出现。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+$ T=$(mktemp -d) && cd "$T" \
+  && printf '#ifndef FP_H\n#define FP_H\n#if defined(__clang__)\n#pragma clang fp contract(off)\n#endif\n#endif\n' > fp.hpp \
+  && printf 'inline float g(float a,float b,float c){return a+b*c;}\n' > sensor_math.hpp \
+  && printf '#include "sensor_math.hpp"\n#include "fp.hpp"\nfloat h(float a,float b,float c){return g(a,b,c);}\n' > before.cpp \
+  && printf '#include "fp.hpp"\n#include "sensor_math.hpp"\nfloat h(float a,float b,float c){return g(a,b,c);}\n' > after.cpp \
+  && echo "before: $(clang -O2 -S -o - before.cpp | grep -oE 'fmadd|fmul')" \
+  && echo "after:  $(clang -O2 -S -o - after.cpp | grep -oE 'fmadd|fmul')"
+
+实测输出（Apple clang 17.0.0, arm64-apple-darwin24.6.0）：
+before: fmadd
+after:  fmul
+
+即：一段**自造**的、与任何真实仓库无关的手写 TU，就能把「include 顺序改变本次代码生成」的机制演出来 —— 这正是本条要说的「机制存在 ≠ 该仓有该风险」。原沙箱 /tmp/review-refute-include-free-headers-undefined-by-action4/order 今天仍在，重跑 clang -O2 -S 输出与切片逐字一致（alone/before_fp=fmadd, after_fp=fmul）。
+```
+
+**审核给出的修改意见（要点）**：证据节换血：把「机制侧」证据从依赖被截断切片命令（行 41/45 的 mkdir/printf 尾被截断，照抄跑不了）改为上面 minimalRepro 那段自包含命令——它今天在本机逐字复现（before=fmadd / after=fmul），且比原证据更强地证明了本条主张（自造文件即可演出机制）。同时给「目标仓库侧」证据补一句限定：33a58c0 是**被审时的 HEAD**（活仓现已 228f8ff），repo 副本与 git status/rg 结果都是那一刻的快照，作为历史取证保留即可，不要当作可复验的当下真值。主张本身（合成载体只证机制、不证仓内风险）不需要改——它是定义性区分，四则 citation 全部在切片中对上，故不降级。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

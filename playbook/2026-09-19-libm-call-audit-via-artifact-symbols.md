@@ -55,3 +55,25 @@ related: [cpp-mode-libm-symbol-diff-per-tu, verify-dylib-port-completeness-via-n
 - 本会话没有做「不同编译器 / 不同 `-O` 档是否都融合 sincos」的对照（只用了 Apple clang 17.0.0 + `-std=c++17`），所以「融合总是发生」不在本条主张内；换工具链要重跑一次 `nm -u`。
 - 产物符号表只覆盖真正被编译、链接进去的调用；未实例化的模板、未参与构建的 TU 不在其中。
 - 本条只说「哪一层是真值」，不判被漏掉的调用有没有实际影响面（实例数另计）。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+cd "$(mktemp -d)" && printf '#include <cmath>\ndouble f(double x){return std::sin(x)+std::cos(x);}\nfloat g(float y){return std::exp2(y);}\n' > p.cpp
+clang++ -std=c++17 -c -O2 p.cpp -o p.o && nm -u p.o | grep -E 'sincos|exp2'
+#  实测(Apple clang 17.0.0, arm64-apple-darwin24.6.0): ___sincos_stret  _exp2f
+clang++ -std=c++17 -c -O0 p.cpp -o p0.o && nm -u p0.o | grep -E 'sincos|exp2|_sin|_cos'
+#  实测 -O0: _sin  _cos  _exp2f  （无融合）
+grep -c sincos p.cpp
+#  实测: 0  （源码零命中，产物却引用 sincos → 真值层是符号表）
+```
+
+**审核给出的修改意见（要点）**：三处收窄/换证，核心不动：(1) 主张首句「编译器会把 sin()+cos() 融合成一次 sincos 调用」改为限定式——本机实测 Apple clang 17.0.0 / arm64-apple-darwin24.6.0 / -std=c++17 下 -O2 融合（产物出现 ___sincos_stret），-O0 不融合（仍是 _sin/_cos）；即『是否融合』依赖 -O 与工具链，不要写成恒成立（条目边界节虽已免责，但主张首句仍是无限定表述）。(2) 证据 1/2/3 的切片命令均在尾部被截断（for 循环体、grep -E 模式、C_PAT 定义全缺），不能照抄重跑——换成自包含最小复现（见 minimalRepro），并把『libcore.a 为 Sep 18 20:33 那次构建』『/tmp/review-refute-… 沙箱』明确标注为历史证据、非可复跑证据。(3) 核心主张（真值层=已构建产物的符号表 nm -u，源码 grep/正则是检出层）成立、本机可复跑，保留原样。
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 主张首句把它写成一般律：「编译器会把 sin() + cos() 融合成一次 sincos 调用，源码里 sincos 出现 0 次」。切片只证明『该构建的源码 sincos=0 而产物有 ___sincos_stret』，既没给出 sin+cos 的同参配对证据，也没做 -O/工具链对照；本机实测该融合只在 -O2 出现，-O0 仍是 _sin/_cos（无融合）。故作为通则超出证据。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

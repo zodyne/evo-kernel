@@ -37,3 +37,24 @@ related: [uniform-compile-error-count-input-file-missing]
 - `-ferror-limit=0` 会让日志显著变大，只在需要精确影响面时用；日常迭代看「是否为零」不受影响。
 
 **失败信号（未来命中即该想起本条）**：报告里的错误数恰好停在一个固定小整数（本会话为 20）并伴随 `too many errors emitted` 截断行；或同一批改动不同人复核报出的总数不一致。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+cd "$(mktemp -d)" && { printf 'int main(void){\n'; for i in $(seq 1 50); do printf '  undefined_symbol_%02d();\n' "$i"; done; printf '  return 0;\n}\n'; } > t.c && echo "default: $(clang -c t.c -o /dev/null 2>&1 | grep -c 'error:') error: lines; tail=$(clang -c t.c -o /dev/null 2>&1 | tail -2 | head -1)" && echo "ferror-limit=0: $(clang -ferror-limit=0 -c t.c -o /dev/null 2>&1 | grep -c 'error:') error: lines"
+
+本机实跑（Apple clang 17.0.0 / clang-1700.4.4.1, arm64-apple-darwin24.6.0）：
+  default: 20 error: lines; tail=fatal error: too many errors emitted, stopping now [-ferror-limit=]
+  ferror-limit=0: 50 error: lines
+即：默认被截在 20，fatal 截断行出现；-ferror-limit=0 解除上限（50 条全出）。主张为真且可当场重跑。
+```
+
+**审核给出的修改意见（要点）**：两处收窄/换证据，其余照留： (1) 证据节换证据——原引证全部绑在已消失的 /tmp/amw-* 沙箱与 algommw-plus 当时 HEAD（03xx/5fdbbd9 时期）的构建日志上，命令已不可重跑。把 minimalRepro 那条自包含命令作为主证据写进「证据」节（默认 20 条 + fatal 行；-ferror-limit=0 → 50 条），本会话的构建日志降为附注。 (2) 收窄 failure-signal——把「恰好停在一个固定小整数（本会话为 20）」改成「计数停住、且日志末尾出现 too many errors emitted 截断行（二者同时出现才是指标）」，因为同一切片里带截断行的计数还有 err=31/128/143，「固定小整数」会漏判。 其余（主张、为什么、边界/反例、对 136→176 归因的自我设限）站得住，保持原样。
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 失败信号：报告里的错误数恰好停在一个固定小整数（本会话为 20）并伴随 too many errors emitted 截断行 —— 同一切片里带截断行的计数还有 err=31、err=128、err=143，「固定小整数」并不成立，该信号会把 31/128 这类同样被截断的数漏掉。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

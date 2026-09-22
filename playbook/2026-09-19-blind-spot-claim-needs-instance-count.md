@@ -13,7 +13,7 @@ triggers:
   - "在某个目录/scope 上搜某种写法零命中，要判断这能否支撑『无影响』结论"
 created: 2026-09-19
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: none
 source: session:01a0b753-cd18-7475-af70-36cd8df466ea
 last_verified: 2026-09-19
 superseded_by: null
@@ -44,3 +44,22 @@ related: [single-segment-miss-is-not-a-gate-hole, dup-key-overwrite-severity-by-
 - 数实例必须用**独立于被指控模式**的更宽模式；用有洞的检查器去证明「没有实例」是循环论证。
 - 结论只对**已扫描范围**成立；换 scope（core → 全仓 / 生成物）必须重数。
 - 与 `dup-key-overwrite-severity-by-payload-identity` 同属「严重度看实际是否有害」：那条按被覆盖 payload 是否相同定级，本条按被漏形态的实例数定级。
+
+## 2026-09-22 独立复核增补（本条**没有**可给最小复现）
+
+复核判定 `keep-with-fix`，但**给不出自包含最小复现** —— 因为本条的证据绑在
+algommw-plus 的当时状态上，而该状态**已经翻转**：当时 `core` 里限定数学调用是 **0 命中**，
+复核时（HEAD 已到 `228f8ff`）用同一宽模式搜得 **22 命中**，全在 `core/include/base/libm.hpp`
+（该文件由会话之后约 40 分钟的提交 `5fdbbd9` 引入）。`c/` 目录也已不存在。
+
+- **`verified_by` 由 `command` 降为 `none`**：口径要求「可复执行的命令/确定性产物」，
+  而唯一被引命令在切片里被尾部截断、目标树已变、且无留存产物。
+- 复核另收窄两处超出证据的断言：删「但缺口本身仍要记录并修复」（该次会话的裁决是
+  `isReal = false`，并未要求修复）；「严重度/优先级按实例数定」降为
+  「实例数为 0 时按理论缺口而非实际漏报处理；是否定 hole 仍看闸门全段覆盖
+  （见 `single-segment-miss-is-not-a-gate-hole`）」。
+- **意外收获**：本次复核正好实证了本条自己的边界「零实例是**当下快照**」——
+  它从一句提醒升级为**已知反例**。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=false
+

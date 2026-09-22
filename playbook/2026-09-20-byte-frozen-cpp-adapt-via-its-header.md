@@ -48,3 +48,20 @@ related: [byte-freeze-exempts-include-path-lines, cpp-namespace-wrap-must-follow
 
 - 把「X 文件字节冻结」直接当成某变换的阻塞项上报，却没有先试等价路径（改配套头/包装层）。
 - 声称某文件未改动，却拿不出 `git hash-object` / 状态对照一类的机械证据。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+在 /private/tmp/claude-501/-Users-zodyne-Dev-evo-kernel/2a5c9cfe-7ff2-46f2-800e-c160ffe842a5/scratchpad/minrepro-bytesfreeze 实测（clang++ 16/17，本机稳定复现）：\n\nmkdir -p $D && cd $D\nprintf '#pragma once\\nnamespace amw { struct Cfg_t { int n; }; }\\n' > ns.hpp\nprintf '#pragma once\\n#include \"ns.hpp\"\\nusing namespace amw;\\n' > foo.hpp\nprintf '#include \"foo.hpp\"\\nint useCfg(const Cfg_t &c){return c.n;}\\n' > foo.cpp\nBEFORE=$(git hash-object foo.cpp); clang++ -std=c++17 -fsyntax-only foo.cpp; echo rc=$?; AFTER=$(git hash-object foo.cpp); echo $BEFORE $AFTER\n\n实测输出：rc=0；BEFORE=AFTER=1e818f193f1d702112856587f966d1a788e1a02a（cpp 字节未变仍通过语法编译）。\n对照（头里不加 using namespace）：bar.cpp:2:19: error: unknown type name 'Cfg_t'; did you mean 'amw::Cfg_t'? control_rc=1 —— 正是条目所述失败信号。\n=> 主张「冻结的是文件内容而非编译语义；把 using namespace 放配套头即可让 .cpp 字节不变继续编译」在本机通用工具链上可一条命令复现，与 algommw-plus 当时状态无关。
+```
+
+**审核给出的修改意见（要点）**：主张与边界声明可保留（正确且已用自包含最小复现验证），但必须换证据：(1) 现有证据全部绑死在 algommw-plus 的当时状态——tools/parity/frame_source.cpp 已从真实仓消失（HEAD 33a58c0 → 228f8ff，被 synth.cpp/main.cpp 取代），git hash-object 现报 No such file，/tmp/review-refute-... 只是一次性副本；把这些 hash/cmake/parity 命令换成 minimalRepro 里的自包含 C++ 最小复现（ns.hpp/foo.hpp/foo.cpp + -fsyntax-only + 前后 hash 相同 + 无 using 的对照报 unknown type name）。(2) 证据节第 4 条把 command24（独立 parity 跑）与 command26（闸门）两段输出并成一条，应拆开或注明。(3) 「为什么」段的编译期符号查找/头污染机制是通用 C++ 推理、非本切片产物，宜显式标注为推理而非观测。
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 符号查找发生在编译期：只要该 .cpp 的编译单元里这些名字仍可见（通过它包含的头），变换就不需要落在这个文件上。
+- using namespace 放在头里会把名字带进所有包含它的 TU
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

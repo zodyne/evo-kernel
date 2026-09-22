@@ -38,3 +38,20 @@ related: [mechanical-identifier-rename-cascades]
 - 用 `git checkout -- .` 不能撤销已 staged 的改动，需要先 `git reset`（本会话 clang-tidy 场景即如此）。
 
 **失败信号（未来命中即该想起本条）**：看到 `err=NNN`（数百）后开始写逐文件修补脚本或手工改；或同一棵树反复重跑自动改写工具，报错数不降。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+已在本机实跑（macOS clang，/private/tmp/.../scratchpad/repro3）：\n\nʼʼʼ\nd=$(mktemp -d); cd $d; git init -q; mkdir src\ngit config user.email t@t; git config user.name t\nprintf 'struct Node { int v; };\\n' > src/h.h\nfor i in 1 2 3 4 5 6; do printf '#include \"h.h\"\\nint f%s(void){ struct Node n; n.v = %s; return n.v; }\\n' \"$i\" \"$i\" > src/u$i.c; done\ngit add -A && git commit -qm base\n\n# 有 bug 的变换：只改头（typedef 形态），漏了 use site 的 struct 标签\nsed -i '' 's/struct Node { int v; };/typedef struct { int v; } Node;/' src/h.h\nerr=$(for f in src/*.c; do clang -c -std=c99 -Isrc \"$f\" -o /dev/null 2>&1; done | grep -c 'error:'); echo \"err=$err\"   # err=6（每个 use site 一处 incomplete type 'struct Node'）\n\n# 回滚子树 → 修脚本（头 + use site 一起改）→ 重跑\ngit checkout -- src\nsed -i '' -e 's/struct Node { int v; };/typedef struct { int v; } Node;/' -e 's/struct Node/Node/g' src/h.h\nsed -i '' 's/struct Node/Node/g' src/u*.c\nerr=$(for f in src/*.c; do clang -c -std=c99 -Isrc \"$f\" -o /dev/null 2>&1; done | grep -c 'error:'); echo \"err=$err\"   # err=0\n\n# staged 细节：checkout -- . 撤不掉已 staged 的改动\nsed -i '' 's/struct Node { int v; };/typedef struct { int v; } Node;/' src/h.h; git add -A; git checkout -- .\necho \"dirty=$(git status --short | wc -l | tr -d ' ')\"        # 7\ngit reset -q && git checkout -- .; echo \"dirty=$(git status --short | wc -l | tr -d ' ')\"   # 0\nʼʼʼ\n实测输出依次为 err=6 / err=0 / dirty=7 / dirty=0。
+```
+
+**审核给出的修改意见（要点）**：1) 换证据：四条引用全部绑在已消失的 algommw-plus 会话态（/tmp/amw-p1.0b 沙箱、algommw-plus 的 2026-09-19 HEAD）上，且两条关键命令在切片里被 heredoc 截断、不能照抄重跑。改成写进 minimalRepro 的自包含复现（本机 clang + 临时 git 仓，err=6 → 回滚 → 修脚本 → err=0；外加 staged 细节 dirty=7 → reset+checkout → dirty=0），这同样满足 verified_by: command。若想保留会话出处，最多留一句「源自 2026-09-19 algommw-plus 命名收口会话（err=413 → checkout -- core → err=0）」，但不要当作可复跑证据。2) 收窄机制：把「几百个错误绝大多数是同一个脚本缺陷的放大」改为「本会话所见是同一缺陷（typedef 形态改造漏 use site 的 struct 标签）在数百个 use site 上的放大——切片只有一条样本错误行，未见逐类统计」，明确标注为推断。3) 其余（主张、边界、失败信号）保留：回滚优先于脏树手修这条主张本身是本机可复验的稳定属性，不因证据来源而失效。
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 几百个错误绝大多数是同一个脚本缺陷的放大（例如 typedef 形态改造漏了 use site 的 struct 标签）
+- 逐条手修等于在错误的中间态上重复劳动，还会把「脚本产物」和「人工修补」混进同一个 diff，之后无法审计零行为
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

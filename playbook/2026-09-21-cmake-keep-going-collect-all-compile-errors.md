@@ -48,3 +48,41 @@ related: [clang-ferror-limit-caps-bulk-error-counts, bulk-edit-verification-must
 ## 失败信号（未来命中即该想起本条）
 
 批量改写后的影响面报告只引用了第一个失败目标的前几条报错；或修复循环连续多轮都只暴露一两个 TU 的错误——先问「构建有没有 keep-going / 有没有跑全目标」。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+自包含最小复现（本机实测：cmake 4.4.2 / Apple clang 17.0.0，macOS arm64，Unix Makefiles）：
+
+mkdir -p /tmp/kdemo/src && cd /tmp/kdemo && cat > CMakeLists.txt <<'EOF'
+cmake_minimum_required(VERSION 3.20)
+project(ktest CXX)
+add_library(t STATIC src/a.cpp src/b.cpp src/c.cpp)
+EOF
+for f in a b c; do printf 'int %s_fn(){ Real_t x=1; return (int)x; }\n' $f > src/$f.cpp; done
+cmake -S . -B b >/dev/null 2>&1
+cmake --build b -j1 > nok.log 2>&1; echo "no-k rc=$?"; echo -n "TUs compiled: "; grep -c 'Building CXX' nok.log; grep -E 'error:' nok.log | sed 's/.*error:/error:/' | sort | uniq -c
+cmake --build b -j1 -- -k > k.log 2>&1; echo "keep-going rc=$?"; echo -n "TUs compiled: "; grep -c 'Building CXX' k.log; grep -E 'error:' k.log | sed 's/.*error:/error:/' | sort | uniq -c
+
+实测期望输出：
+no-k rc=2
+TUs compiled: 1
+   1 error: unknown type name 'Real_t'
+keep-going rc=2
+TUs compiled: 3
+   3 error: unknown type name 'Real_t'
+
+即：不带 `-k` 时 make 在第一个失败目标后停止（只编 1 个 TU），带 `-- -k` 时继续编完全部 3 个 TU；两者 rc 仍为 2（收集与退出码解耦，与条目主张一致）。
+
+附带独立复验（-ferror-limit 边界）：
+python3 -c "open('/tmp/kdemo/big.cpp','w').write('int f(){'+''.join(' Bad_t a%d;'%i for i in range(40))+' return 0;}\n')"
+clang++ -std=c++17 -c /tmp/kdemo/big.cpp -o /dev/null 2>&1 | grep -c 'error:'   # → 20
+clang++ -std=c++17 -ferror-limit=0 -c /tmp/kdemo/big.cpp -o /dev/null 2>&1 | grep -c 'error:'   # → 40
+```
+
+**审核给出的修改意见（要点）**：主张真值是稳定的工具链属性（cmake/make 的 keep-going 语义），不绑在 /tmp/review-scan-core 沙箱或 algommw-plus HEAD 上，本机已用自包含最小复现复跑，故留注入集；但证据要换、对照要收窄：  1) 换证据：两条切片证据所在沙箱（/tmp/review-scan-core）已消失，且证据命令在切片里被截断（L114 直方图命令、L115 输出、L72 命令尾部均被切），不能照抄重跑。改引 minimalRepro 里的自包含复现，并把完整直方图命令（`grep -E 'error:' log | sed 's/.*error:/error:/' | sort | uniq -c`）写全 —— 现在条目只描述了「grep/awk | sort | uniq -c」而没给可执行命令。  2) 对照收窄/去混杂：现有对照是 build(-j1, pristine 树) vs build2(-k, repo2 树)，跨树且混杂源码差异，不能单凭它证明「-k 带来更多错误面」。切片里已有同树对照 build2_j1.log（repo2，无 -k）→ 14 条 `unknown type name 'Real_t'`，build2_keepgoing（repo2，-k）→ 57 条；应改引这一对，或至少注明原对照非同一棵树。  3) 边
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

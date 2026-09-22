@@ -45,3 +45,16 @@ macOS 自带的 BSD grep 在 `-E` 模式里遇到**空分支**（模式中多出
 - 本条只覆盖 macOS 自带 BSD grep（2.6.0-FreeBSD，切片与复验都在同一台机器）；换 GNU grep 或别的平台前，空分支行为需重新验证，不要直接外推。
 - 「模式里有空分支」是这条错误的唯一成因（grep 自己的报错文本说明了这点）；正常的 `a|b` 交替不受影响。
 - 即使过滤成功，也别用 `-c` 的联合计数去证明单个分支出现过（见 `grep-alternation-count-cannot-prove-single-pattern-present`）。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+echo x | /usr/bin/grep -E 'a|'; echo "rc=$?"\n# 期望:\n# grep: empty (sub)expression\n# rc=2\n# 对照: echo a | /usr/bin/grep -E 'a|b'  →  "a", rc=0\n# 陷阱: 裸 `grep` 在本 harness 是 ugrep 包装 → `echo x | grep -E 'a|'` 只返回 rc=1、无报错
+```
+
+**审核给出的修改意见（要点）**：主张正确、真值稳定（本机 BSD grep 2.6.0-FreeBSD 行为），应留在注入集。仅需加固证据：把第 3 条复现命令改成绝对路径 `/usr/bin/grep`（`echo x | /usr/bin/grep -E 'a|'; echo rc=$?` → `grep: empty (sub)expression`, rc=2），因为裸 `grep` 在本 harness 被包装成 ugrep、裸跑会静默返回 rc=1 从而看起来像反例；并在证据节注明第 1 条命令在切片中被截断、其模式不可复跑，同时补上被省略的第三个对象 p_ctrl。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

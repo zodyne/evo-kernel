@@ -50,3 +50,26 @@ related: [synthetic-sandbox-mechanism-is-not-target-repo-risk, readonly-verify-t
 
 - 复核报告把「按卡片动作手写复现出的机制」直接升级成当前阻塞项，或反过来直接判 refuted，却不查目标 HEAD 有没有这些文件。
 - 定级理由里出现「理论/前瞻」或「已是阻塞」的措辞，却拿不出文件存在性（ls / git status）证据。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+D=$(mktemp -d); mkdir -p $D/base $D/inc
+printf '#include <cmath>\nnamespace amw { inline double sin(double d){ return std::sin(d); } }\n' > $D/base/libm.hpp
+printf '#include "base/libm.hpp"\nnamespace amw { inline constexpr double dPi = 3.14159265358979323846; }\n' > $D/base/fp.hpp
+printf '#include "base/fp.hpp"\n' > $D/inc/a.hpp
+printf '#include "base/fp.hpp"\n' > $D/inc/b.hpp
+printf '#include "inc/a.hpp"\n#include "inc/b.hpp"\nint main(){return 0;}\n' > $D/tu.cpp
+clang++ -std=c++17 -fsyntax-only -I $D $D/tu.cpp; echo "rc=$?"
+# => rc=1, 报 error: redefinition of 'sin' + redefinition of 'dPi'（fp.hpp 未加守卫，被 a.hpp/b.hpp 双重包含）
+{ echo '#ifndef BASE_FP_H'; echo '#define BASE_FP_H'; cat $D/base/fp.hpp; echo '#endif'; } > $D/f && mv $D/f $D/base/fp.hpp
+clang++ -std=c++17 -fsyntax-only -I $D $D/tu.cpp; echo "rc=$?"
+# => rc=0（只给 fp.hpp 加守卫；libm.hpp 仍无守卫，但因只经 fp.hpp 可达，故不再重定义）
+```
+
+**审核给出的修改意见（要点）**：证据节三条命令（`cat > … <<'EOF' …`、`clang++ … -I core/src …`、加 guard 的 python heredoc）在切片里都被截断，且绑定当时的 /tmp 沙箱与 algommw-plus HEAD —— 该仓现 HEAD 已前移至 228f8ff，core/include/base/ 下已存在带守卫的 fp.hpp/libm.hpp，故『目标 HEAD 无此文件』这一前提只是过去快照、已不可复验。主张真值本身（复核定级方法）稳定，且机制可用本机 clang++ 自包含复现 ⇒ 留在注入集，但把证据换成 minimalRepro 那条命令（不依赖目标仓、不依赖沙箱）。另两处收窄：(1) `为什么` 给的定级理由（缺席证据＋路径证据 →『执行该卡时必然发生』）对应的末条 assistant 正文在切片里已截断，与本条 `边界` 首句「不复述未显示的理由」自相矛盾——把 `为什么` 明确标注为对可见裁决的合成，或只保留机制侧、定级理由压成一句；(2) 主张里的『前瞻』是条目加的限定词（切片只说『降为 risk』），建议保留但注明其依据是『HEAD 无该文件』这一事实。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

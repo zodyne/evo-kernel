@@ -40,3 +40,20 @@ mtime 精确到秒可以把「谁在什么时间改的」与其它事件（会�
 - 切片只完整展示了 1 份备份的内容；备份是谁/何时生成的（工具自动轮转还是人工复制）未验证。
 - 备份内容可能含 API key / 代理口令；打印前按 `mask-secrets-when-reading-config` 处理，别把明文写进 transcript。
 - 切片 `stat` 输出被截断，未能把所有备份与当前文件的先后顺序排全；mtime 排序本身可信，但「哪份对应哪次事件」仍需其它证据。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+命令（2026-09-22 15:16 CST 本机实跑）：\nstat -f '%Sm  %N' -t '%Y-%m-%d %H:%M:%S' ~/.claude/settings.json ~/.claude/settings.json.bak* 2>/dev/null\n期望输出（7 份备份 + 当前文件，mtime 升序可见）：\n2026-07-05 15:10:56  /Users/zodyne/.claude/settings.json.bak.20260705151056\n2026-08-12 09:31:40  /Users/zodyne/.claude/settings.json.bak.20260812093140\n2026-08-13 08:50:33  /Users/zodyne/.claude/settings.json.bak-20260813-085033\n2026-09-21 10:10:40  /Users/zodyne/.claude/settings.json.bak.mixdeepseek\n2026-09-21 10:54:03  /Users/zodyne/.claude/settings.json.bak.20260921105403\n2026-09-22 10:33:23  /Users/zodyne/.claude/settings.json.bak-20260922-103323-preclaudehooks\n2026-09-22 10:34:17  /Users/zodyne/.claude/settings.json\n（注：连字符形态 .bak-router / .bak-2026... 只有用 `.bak*` 通配才被纳入；`.bak.*` 会漏掉 3 份。内容取证：cd ~/.claude && for f in settings.json.bak*; do python3 -c \"import json,sys;print(sys.argv[1], json.load(open(sys.argv[1])).get('model'))\" \"$f\"; done → .bak-router=opus / .bak.mixdeepseek=sonnet / .bak.20260921105403=sonnet）
+```
+
+**审核给出的修改意见（要点）**：改后留，四处：(1) 【功能缺陷】把主张里推荐的 `~/.claude/settings.json.bak.*` 换成 `~/.claude/settings.json.bak*`（去点）——本机实测 `.bak.*` 静默漏掉连字符命名备份（`.bak-router`、`.bak-20260813-085033`、`.bak-20260922-103323-preclaudehooks`，7 份漏 3 份，含最新一份及 entry 自己点名的 `.bak-router`）；照原命令跑会得到不完整时间线。(2) 【换证据】证据第 1 条依赖切片里被截断的 for 循环（`-t ...` 与循环体缺失），不能照抄重跑；替换为可直接复跑的 `for f in ~/.claude/settings.json.bak*; do stat -f '%Sm %N' -t '%Y-%m-%d %H:%M:%S' "$f"; done` + 逐份打印 model/env，并用 minimalRepro 里 2026-09-22 的实跑输出作新证据。(3) 【收窄】「谁在什么时间改的」→「什么时候改的」：mtime 只给时间不给施动者；who 需配 `claude-file-history-snapshot-diff` / session jsonl 才能定。(4) 【收窄】删「唯一」：「旧基线」不
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- mtime 精确到秒可以把「谁在什么时间改的」与其它事件（会话切换、进程重启）对齐。
+- 备份文件是不同时间点的完整快照，是配置漂移事故里唯一的旧基线。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

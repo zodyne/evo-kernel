@@ -57,3 +57,35 @@ related: [c-probe-local-header-include-resolves-source-dir, c11-static-assert-wa
 ## 失败信号（未来命中即该想起本条）
 
 编译报 `error: redefinition of '<符号>'`，而被重复定义的符号明明是 `inline` / `inline constexpr` 且定义在头文件里 → 先查该头文件有没有 include guard。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+本机实测（Apple clang 17.0.0 / arm64-darwin24.6.0，与切片环境同族）：
+
+ʼʼʼ
+cd "$(mktemp -d)" && \
+printf 'namespace amw { inline constexpr double dPi = 3.14159265358979323846; }\n' > h.hpp && \
+printf '#include "h.hpp"\n#include "h.hpp"\nint main(){ return 0; }\n' > t.cpp && \
+clang++ -std=c++17 -c t.cpp -o /dev/null; echo "rc=$?"
+ʼʼʼ
+期望输出（与条目主张逐字对应）：
+ʼʼʼ
+In file included from t.cpp:2:
+./h.hpp:1:41: error: redefinition of 'dPi'
+    1 | namespace amw { inline constexpr double dPi = 3.14159265358979323846; }
+      |                                         ^
+t.cpp:2:10: note: './h.hpp' included multiple times, additional include site here
+./h.hpp:1:41: note: unguarded header; consider using #ifdef guards or #pragma once
+1 error generated.
+rc=1
+ʼʼʼ
+加守卫后（`printf '#ifndef H_H\n#define H_H\nnamespace amw { inline constexpr double dPi = 3.14159265358979323846; }\n#endif\n' > h.hpp` 重跑同命令）→ 静默、`rc=0`。即 rc=1/rc=0 两个分支本机均复现（列号 41、`error: redefinition of 'dPi'` 与切片完全一致）。
+```
+
+**审核给出的修改意见（要点）**：主张本身正确且稳定（C++ 语言性质，非绑定 algommw-plus 当时状态），故仍留注入集——只需换证据，不改主张强度。具体：(1) 证据节现引的命令源自已消失的 /tmp/review-refute-fp-hpp-include-guard-missing 沙箱，且 4 条 heredoc 在切片里全被截断 ⇒ 无法照抄重跑。用上面 minimalRepro 的自包含片段替换/补入证据节（一条 noguard.hpp 即可覆盖 `inline constexpr` 变量这一路，可另加一条 `inline` 函数路证内联函数同样中招）。(2) 把「加 guard 后 rc=0」在证据节里显式标注为「本机复现」而非仅引末条 assistant 自述——切片中该分支无 command↔result 记录，目前它是断言而非仪器输出。其余（为什么机制、边界、失败信号）保留：机制解释虽不在切片中，但属正确且通用的编译器语义，本机已验。(3) 可选：把边界里「本仓 core 一律用 #ifndef」的「本仓」写清指 algommw-plus（切片第 28 行 `pragma once == 0 / ifndef in core headers == 32` 是其来源），避免在 evo-kernel 语境下歧义。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

@@ -52,3 +52,38 @@ pi 的 provider/模型清单只以 `models.json`（外加 `/login` 写入的 `au
 - 本条只证明"注册表里没有 → 一定切不动"；反过来"在册"**不等于**能用——baseUrl / 协议 / 鉴权仍可能错，所以补回定义后还要用 `curl` 或 `pi -p --model <provider>/<id>` 端到端跑一次（本例两条都跑了）。
 - `pi --list-models` 是新进程读盘的结果；正在跑的会话按 pi 文档（`docs/models.md`：models.json "reloads each time you open /model"）要开一次 `/model` 或重启才会重载，别拿旧会话里的失败当"配置还没修好"。
 - 只针对 pi；其他 harness 的 provider 注册表位置和查找语义不同（hermes 有独立的 `providers`/`fallback_providers` 配置），不要外推。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+自包含、本机实跑通过（pi 0.86.1）：
+
+# (A) provider 不在 models.json → pi 根本看不见它（一次性 HOME，不碰真配置）
+T=$(mktemp -d); mkdir -p "$T/.pi/agent"
+echo '{"providers":{"deepseek-internal":{"baseUrl":"https://x/v1","api":"openai-completions","apiKey":"k","models":[{"id":"deepseek-v4-flash"}]}}}' > "$T/.pi/agent/models.json"
+HOME=$T pi --list-models glm
+# 实测 → No models matching "glm"
+echo '{"providers":{"deepseek-internal":{...同上...},"glm-coding":{"baseUrl":"https://open.bigmodel.cn/api/anthropic","api":"anthropic-messages","apiKey":"k","models":[{"id":"glm-5.3-flash"}]}}}' > "$T/.pi/agent/models.json"
+HOME=$T pi --list-models glm
+# 实测 → provider model ... / glm-coding  glm-5.3-flash ...
+
+# (B) 查表落空 = 静默 return（无通知、无 setModel）——源码即真值
+sed -n '213,217p' ~/.pi/agent/extensions/model-fallback/index.ts
+# 实测 → const model = ctx.modelRegistry.find(decision.to.provider, decision.to.id);
+#         if (!model) { trace(`early switch: ${key(decision.to)} 不在注册表`); return; }
+sed -n '24,26p' /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/dist/core/model-registry.js
+# 实测 → find(provider, modelId) { return this.runtime.getModel(provider, modelId); }
+```
+
+**审核给出的修改意见（要点）**：核心主张真值稳定（本机 pi 0.86.1 + 本地 model-fallback 源码即可复现），应留注入集，但证据节要换、数字要收窄：1) 把两段『坏的状态』历史命令（切片里已被截断，且 models.json 已修好、照抄重跑得到的是修后结果）换成 minimalRepro 的自包含复现（一次性 HOME 演示『不在册 → pi --list-models 看不到』+ 贴 index.ts:213-217 与 model-registry.js:24-26 两行源码证明『查表落空即静默 return』）。2) 『9/18 三个会话共 18 条模型错误』改为可复算口径，如『9/18 起 terminated 10 + Connection error. 6 + Request timed out. 2 共 18 条，全部来自 deepseek-internal，跨 4 个会话』；删掉对不上的『34/202』，或把 34 明确写成 01a0b4a3 的 error 计数、56 写成 01a0b4b1 的 assistant 计数。3) `auth.json`={} 在切片无对应命令，标注『本机复核』或补 `wc -c ~/.pi/agent/auth.json`（现为 2 字节）。4) 主张句『任何写死 provider 名的自动化（fallback 链、子代理模型、脚本）』超出
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- "9/18 三个会话共 18 条模型错误" —— 18 这个总数可复算，但『三个会话』不成立：错误实际分布在 ≥4 个会话文件里
+- "assistant 消息的 provider 计数 34/56/202" —— 56 可核，34 实为 01a0b4a3 的 error-stopReason 计数而非 assistant provider 计数，202 未复现
+- "9/15 17:19 重写 models.json 只留 deepseek-internal" —— 备份 mtime=Sep 15 17:19、894 字节可核，但『重写（即人为删掉）』是推断，切片无该动作的命令
+- "扩展源码没动、自测也一直绿" —— 历史性『一直』无法验证；selftest 现为 11/11，但切片无 git 记录证明源码未动
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

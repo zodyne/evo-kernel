@@ -58,3 +58,24 @@ session:01a0bca0（`/Users/zodyne/Dev/algommw` 审计会话），两条同型命
 - 本条只覆盖 macOS 自带 BSD grep 2.6.0-FreeBSD；换 GNU grep 或别的平台前需重新验证，不要直接外推。
 - 触发点是**同一管道里 ERE/BRE 混用 + 反斜杠转义 `+`**；全部带 `-E` 或全部用无转义 BRE 写法都能避开。
 - 别把 rc=2 与 `grep` 正常的「无命中 rc=1」混为一谈：rc=2 说明命令没在工作，此时空输出不能当结论。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+本机 /usr/bin/grep = BSD grep 2.6.0-FreeBSD，以下已实测：
+  printf 'a\n+b\n+b+++x\n' > /tmp/gt.txt
+  /usr/bin/grep --version            # → grep (BSD grep, GNU compatible) 2.6.0-FreeBSD
+  /usr/bin/grep -v '^\+\+\+' /tmp/gt.txt
+      # stderr: grep: repetition-operator operand invalid ; 零 stdout ; rc=2
+  /usr/bin/grep -vE '^\+\+\+' /tmp/gt.txt
+      # → a / +b / +b+++x ; rc=0（修复用 -E 即可）
+  /usr/bin/grep '^zzz' /tmp/gt.txt   # rc=1（无命中，与 rc=2 区分）
+机制旁证：`^\+\+` rc=0 命中、`^\+\+\+` 报错、`a\+\+` 报错——即前导原子后接两个及以上 `\+` 算子时解析失败。
+```
+
+**审核给出的修改意见（要点）**：无
+
+**判定**：keep · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

@@ -49,3 +49,24 @@ related: [grep-lint-gate-calibrate-before-enforce, cast-auto-rewrite-pollutes-co
 ## 失败信号（未来命中即该想起本条）
 
 审计/改写报告写「这些 token 只在注释里」「注释零改动」，依据却是 `grep token | grep 注释标记` 的命中/零命中清单；被追问时拿不出能区分列位置的解析结果。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+d=$(mktemp -d); cd "$d"; printf '/* block\nM_PI in a block comment\n*/\ndouble a = -2.0 * M_PI / 3.0; // uses M_PI\nconst char* s = "M_PI";\n' > t.cpp
+rg -n 'M_PI' t.cpp | rg '/\*|\*/|//|"' | rg 'M_PI'
+# 实测输出（rc=0）:
+#   4:double a = -2.0 * M_PI / 3.0; // uses M_PI
+#   5:const char* s = "M_PI";
+# 第4行 = 假阳性：M_PI 在除法表达式里(代码)，只因行尾 // 被选中；
+# 第5行 = 真阳性(字符串)；
+# 第2行 `M_PI in a block comment`(块注释内、该行无任何标记) 未被选中 = 假阴性。
+# 同一行级筛既漏又误，故『行内同现』既不证明也不排除成员关系——不依赖任何仓库环境。
+```
+
+**审核给出的修改意见（要点）**：主张成立且真值稳定（grep/行级工具 vs 词法解析的通用属性，非绑 algommw-plus HEAD），留在注入集。但证据节要换：现有一条『解析式检查 bad: (none)』被摆成可复跑的命令，实为截断的示意（python 实现不在切片），易被误当可复跑证据——应显式降级为『示意，不可复跑』。更好的做法：用 minimalRepro 那条自包含命令替换对 algommw-plus 现场的引用，它在一个临时文件上同时给出假阳性(第4行)与假阴性(第2行)，一条命令覆盖两个方向、零仓库依赖、可当场重跑。另补一句：切片里现场结果行被截断在 `( double )`，使行级筛命中它的标记不可见——引用原现场时要么补上能被看见的标记，要么干脆不引原现场。verified_by: command 保留（换证据后确有确定性可复跑命令）。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

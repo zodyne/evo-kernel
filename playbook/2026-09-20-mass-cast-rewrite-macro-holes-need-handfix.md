@@ -37,3 +37,34 @@ related: [cast-rewrite-must-absorb-function-call-parens, cast-auto-rewrite-pollu
 - 「未识别 101」包含工具无法判断的形态（函数指针、模板等），不全是宏。
 
 **失败信号（未来命中即该想起本条）**：报告声称「全树 old-style cast 已清零」但 `-Wold-style-cast` 仍在宏使用点报错；或脚本统计的转换数加上手改数仍对不上 `rg` 扫出的原始命中数。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+cd "$(mktemp -d)" && cat > cast.cpp <<'EOF'
+#define SCALE( x ) ( ( double ) ( x ) * 2.0 )
+int main( void ) { double a = ( double ) 5; double b = SCALE( 3 ); return ( int ) ( a + b ); }
+EOF
+cp cast.cpp orig.cpp
+export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+clang-tidy -checks='-*,google-readability-casting' --fix cast.cpp -- -std=c++17
+diff orig.cpp cast.cpp
+# 期望：只有第5、7行被改成 static_cast< double> / static_cast< int>；
+#       宏体内 ( double ) 零诊断、零改动（本机 clang-tidy 22.1.8 实测输出 "applied 3 of 3 suggested fixes"，宏体未被触碰）
+clang++ -std=c++17 -Wold-style-cast -Werror -c orig.cpp -o /dev/null
+# 期望：3 处 error —— 5:16、6:16（宏使用点，附 "note: expanded from macro 'SCALE'" 指向第1行）、7:12
+# 即：clang-tidy 的 google-readability-casting 覆盖不到宏体（连诊断都不报），而 -Wold-style-cast 能拦、但报在宏使用点
+```
+
+**审核给出的修改意见（要点）**：核心主张成立且可独立复验，留在注入集，但按下列 4 点改：(1) 收窄「为什么」——删去未经证据支持的机制描述「fix-it 作用在 AST 节点上 / 宏展开后的 cast 没有干净的源码位置可回填」（实测相反：clang 对宏内 cast 仍有位置，-Wold-style-cast 报在宏使用点并附 `note: expanded from macro`）；改为观察层事实「google-readability-casting 对宏展开产生的 cast 不产生任何诊断，也不产生 fix-it，所以 tidy rc=0 / 转换 N 处都不含宏内 cast」。(2) 改 trigger 第 4 条：「-Wold-style-cast 仍拦不住」是错的——它拦得住（在宏使用点报错）；应改为「clang-tidy 的 fix 覆盖不到宏体，-Wold-style-cast 会在宏使用点报错，二者要分开看」。(3) 证据节：把「本会话 194/13/101」降为旁证并注明是 algommw-plus 当时 HEAD 的会话数字、不可跨仓复跑；主证据换成 minimalRepro 里的自包含最小复现（本机已跑通）。(4) 边界第 3 条删掉/改写「（函数指针、模板等）」——切片里 101 只列到 `UNHANDLED core/include/base/libm.hpp ...`，看不出完
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- clang-tidy 的 fix-it 作用在 AST 节点上；宏展开后的 cast 没有干净的源码位置可回填，工具要么跳过要么不动
+- 宏体不是可改写的 AST 节点
+- 宏内的类型转换导致 -Wold-style-cast 在开 -Werror 后仍拦不住或报点飘
+- 「未识别 101」包含工具无法判断的形态（函数指针、模板等），不全是宏
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

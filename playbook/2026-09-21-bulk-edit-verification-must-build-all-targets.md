@@ -38,3 +38,30 @@ related: [scripted-tree-transform-explodes-revert-first, diff-scope-subdir-filte
 - 全量构建耗时大时，至少把「改动文件 → 哪些 target 编译它」枚举清楚再选择性构建；跳过哪个 target 必须有依据。
 
 **失败信号（未来命中即该想起本条）**：报告写「构建通过（core rc=0）」，但 diff 里有 `tools/`/`tests/` 的文件；或同一批改动在某个非主目标上才第一次报编译错误。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+Self-contained two-target CMake repro (run in an empty dir; no network, no Algommw repo needed):
+R=$(mktemp -d); mkdir -p "$R/core" "$R/tools/parity"
+printf 'cmake_minimum_required(VERSION 3.20)\nproject(mre CXX)\nadd_library(core core/main.cpp)\nadd_executable(parity tools/parity/main.cpp)\ntarget_link_libraries(parity PRIVATE core)\n' > "$R/CMakeLists.txt"
+printf '#pragma once\ninline int ok(){return 1;}\n' > "$R/core/ok.hpp"
+printf '#include "ok.hpp"\nint core_entry(){return ok();}\n' > "$R/core/main.cpp"
+printf '#pragma once\nnamespace amw;   // bulk-edit damage (was: using namespace amw;)\ninline int bad(){return 0;}\n' > "$R/tools/parity/broken.hpp"
+printf '#include "broken.hpp"\nint main(){return bad();}\n' > "$R/tools/parity/main.cpp"
+cd "$R" && cmake -S . -B build >/dev/null 2>&1
+cmake --build build --target core -j1 >core.log 2>&1; echo "core  rc=$? errors=$(grep -c 'error:' core.log)"
+cmake --build build --target parity -j1 >parity.log 2>&1; echo "parity rc=$? errors=$(grep -c 'error:' parity.log)"
+Ran 2026-09-22 on cmake 4.4.2 / clang++ (darwin). Expected + observed output:
+  core   rc=0 errors=0
+  parity rc=2 errors=1
+  .../tools/parity/broken.hpp:2:14: error: expected '{'
+i.e. building target `core` returns rc=0 while a broken header compiled only by target `parity` is caught only when that target (or the whole tree) is built.
+```
+
+**审核给出的修改意见（要点）**：主张本身站得住（我已在 2026-09-22 用自包含双目标 CMake 工程独立复现：core rc=0 / parity rc=2 于 core 闭包外的头文件报错），故留在注入集。但证据节必须换证据：三条命令都取自复核 agent 的 /tmp/review-scan-tests 诊断副本（非真仓、且被 apply_card.py 改写过的当时状态），切片中命令尾部被截断，照抄无法重跑。改法：(1) 用 minimalRepro 里那段自包含工程替换「证据」节三条命令——它不依赖任何外部仓/沙箱，直接演示「单目标 rc=0 掩盖另一目标闭包内文件的错误」；(2) 把「为什么」节保留（CMake target 依赖闭包不同这一机制正确且可复现），但删去对 algommw-plus 具体路径/文件的指涉，使其与证据一致；(3) 主张文字可原样保留，一般律成立。verified_by: command 维持。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

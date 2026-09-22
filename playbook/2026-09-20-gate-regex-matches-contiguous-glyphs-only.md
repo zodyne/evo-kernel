@@ -49,3 +49,33 @@ grep/正则匹配的是字符序列，不是语法：`std::sin(` 与 `std :: sin
 - 覆盖变体面 ≠ 覆盖全部语法：探针形态清单本身也可能不全（换行、行内注释、宏拼接、`using` 引入后的非限定调用）；形态矩阵只证明「测过的那些」被封住。
 - 修法方向有二：把闸门升级为语法/产物层判据，或在正则里显式容纳分隔（`std\s*::\s*sin\s*\(`）——两条路都要重新跑一遍形态矩阵复验。
 - 与 `libm-symbol-chosen-by-arg-type-not-call-syntax` 互补：那条讲「写法不改变 `nm -u` 符号」，本条讲「写法改变源码正则的覆盖面」，两件事不要混。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+cd /tmp && rm -rf gate_repro && mkdir -p gate_repro/core/src/zzforms && cd gate_repro
+printf 'void f(){ double x=0; std::sin( x ); }\n'     > core/src/zzforms/f1_std_contig.cpp
+printf 'void g(){ double y=0; ::sin( y ); }\n'       > core/src/zzforms/f2_global_contig.cpp
+printf 'void h(){ double z=0; std :: sin ( z ); }\n' > core/src/zzforms/f4_space_in_qualifier.cpp
+printf 'void k(){ double w=0; (std::sin)( w ); }\n'  > core/src/zzforms/f5_paren_qualifier.cpp
+C='(std::|::)(sin|cos|tan|asin|acos|atan|atan2|sqrt|exp|log|log2|log10|pow|fabs|floor|ceil|round|lround|fmod|hypot)\s*\('
+for f in core/src/zzforms/*.cpp; do rg -q "$C" "$f" && echo "CAUGHT $(basename $f)" || echo "MISSED $(basename $f)"; done
+
+# 实测输出（2026-09-22，/opt/homebrew/bin/rg）：
+# CAUGHT  f1_std_contig.cpp
+# CAUGHT  f2_global_contig.cpp
+# MISSED  f4_space_in_qualifier.cpp
+# MISSED  f5_paren_qualifier.cpp
+#
+# 对照：换成条目所写的缩写模式 `(std::|::)(sin|cos)`，f5 变 CAUGHT（证明条目引用的模式漏了 \\s*\\( 这一载荷）。
+```
+
+**审核给出的修改意见（要点）**：主张本身成立且可当场复现（正则按字符序列匹配，`std :: sin (` 与 `(std::sin)(` 都逃出真实卡正则 `(std::|::)(…)\s*\(`），所以该条有资格留在注入集，但证据/引文要修两处：(1) 把卡正则按原样补全为 `(std::|::)(sin|cos|…|hypot)\s*\(` 并点明『尾部 `\s*\(` 是 `(std::sin)(` 漏网的唯一原因』——现文写的 `(std::|::)(sin|cos|…)` 会命中 `(std::sin)(`，与同条括号例自相矛盾（切片截断把 `\s*\(` 切掉了，属照抄截断部分的连带错误）。(2) 证据 4 的 `PLAN.md:265` 引用已随产物改写（现 284 行，且已把空格形态纳入漏网口），改为标注『会话当时快照』或替换成可复核的产物，别让读者去当前 PLAN.md 找不存在的行。
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 形如 `(std::|::)(sin|cos|…)` 的模式**只匹配限定符与函数名之间没有任何分隔的写法** —— 条目把卡正则抄漏了尾部的 `\s*\(`：真实卡正则是 `(std::|::)(sin|cos|…|hypot)\s*\(`。正是这条尾部要求使 `(std::sin)(` 漏网；按条目现写的缩写模式，`(std::sin)(` 反而**会**被命中（实测 CAUGHT），条目自身主张与自身引用的模式互相矛盾。截断源：切片第 40 行对 `rg -n '(std::|::)(sin|cos|tan|asin|acos|atan|` 的命令截断，把 `\s*\(` 切掉了。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true

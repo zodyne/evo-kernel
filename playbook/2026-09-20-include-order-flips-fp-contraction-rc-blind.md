@@ -43,3 +43,29 @@ related: [fma-contraction-invalidates-bitwise-acceptance-gates, cpp-mode-libm-sy
 - 只对「有逐位/数值等价承诺」的验收有意义；统计容差级判据不必比汇编。
 
 **失败信号（未来命中即该想起本条）**：变体构建 rc 全 0 就被当成「无副作用」；或报告声称「只动了 include 顺序」却拿不出产物级（指令/符号）差异清单。
+
+## 2026-09-22 独立复核增补
+
+本条原证据绑在**已消失的 /tmp 沙箱**或**别的仓库当时 HEAD**上，引用命令在切片里被截断、不能照抄重跑。
+下列是复核时在本机跑过的**自包含最小复现**（可当场重跑），据此本条留在注入集：
+
+```
+在本机 Apple clang 17.0.0 (arm64-apple-darwin24.6.0) 上实测通过，自包含（不依赖 algommw-plus、不依赖任何 /tmp 沙箱）：
+
+D=$(mktemp -d); cd "$D"
+printf '#ifndef FP_H\n#define FP_H\n#pragma STDC FP_CONTRACT OFF\n#endif\n' > fp.h
+printf 'float f(float a,float b,float c){return a*b+c;}\n' > control.c
+printf '#include "fp.h"\nfloat f(float a,float b,float c){return a*b+c;}\n' > before.c
+printf 'float f(float a,float b,float c){return a*b+c;}\n#include "fp.h"\n' > after.c
+for v in control before after; do echo "=== $v ==="; clang -S -O2 -o - $v.c; echo "rc=$?"; clang -S -O2 -o - $v.c | grep -nE 'fmadd|fmul|fadd'; done
+
+实测输出：
+=== control === rc=0 →  8:\tfmadd\ts0, s0, s1, s2
+=== before  === rc=0 →  8:\tfmul\ts0, s0, s1  /  9:\tfadd\ts0, s0, s2
+=== after   === rc=0 →  8:\tfmadd\ts0, s0, s1, s2
+（注：三个变体 rc 全为 0，汇编却不同 —— 与条目主张吻合。此处\"before/after\"是按表达式相对 fp.h 的先后命名，方向与切片里的 before_fp/after_fp 相反，但\"include 位置翻转 fmadd↔fmul、rc 全 0\"这一现象一致。）
+```
+
+**审核给出的修改意见（要点）**：核心主张成立、机制正确、且本机可复现，故留在注入集；但证据记录需换：(1) 把\"证据\"节里那两条已消失的 /tmp 沙箱输出（命令原文被截断、沙箱不复存在）替换/补上上面 minimalRepro 这条自包含最小复现，并在证据里直接给出本机实测的三行汇编 + rc=0，让读者能照抄重跑；(2) 在\"为什么\"处标注这是本条作者从代码生成层推出的机制解释（切片未给出），非切片原话；(3) 保留现\"边界\"节的限定（仅 arm64+Apple clang 17 实测、未确认 pragma vs 宏、与 -ffp-contract=off 不同触发面）。\"主张\"与\"失败信号\"可原样保留。
+
+**判定**：keep-with-fix · 拟留 playbook · 原证据快照风险=low · 复核时本机可复跑=true
