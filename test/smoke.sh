@@ -689,23 +689,39 @@ git init -q --bare "$REMOTE" 2>/dev/null
 EVO_ROOT="$KROOT" "$SRC/bin/evo" index rebuild >/dev/null 2>&1
 # 接线文件指向 KROOT（决策③：路径匹配）
 mkdir -p "$KHOME/.claude" "$KHOME/.hermes/agent-hooks" "$KHOME/.hermes"
-# Claude hooks 已退役（pi 退役，挂载迁移至 Hermes hooks）：预期无挂载
+# Claude hooks：2026-09-22 起 Claude Code 重新接入（三件套挂 ~/.claude/settings.json）
+# 基线 = **无挂载**，用于验「未挂载须报 WARN」，挂载场景在 K6 单独铺
 printf '{}' > "$KHOME/.claude/settings.json"
 # skills 软链（evo link with HOME=KHOME）
 HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" link >/dev/null 2>&1
 # K1: 全绿 → exit 0 + 无 [FAIL]
 DOC=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1); DRC=$?
 { [ $DRC -eq 0 ] && ! echo "$DOC" | grep -q '\[FAIL\]'; } && ok "K: doctor 全绿（exit0 + 无 FAIL）" || bad "K: doctor 全绿" "(rc=$DRC; $(echo "$DOC" | grep '\[FAIL\]' | tr '\n' ';'))"
-# K5: Claude hooks 已退役确认（无挂载 → PASS；check 6 语义反转后不再误 FAIL）
-{ echo "$DOC" | grep -q '6. Claude hooks 已退役确认' && echo "$DOC" | grep -q '预期无挂载'; } \
-  && ok "K: doctor 含 Claude hooks 退役确认" || bad "K: 退役确认缺失" "(doctor 第 6 项语义未反转)"
-# K6: 残留旧挂载 → WARN（不 FAIL，但须报残留，防退役后悄悄残留）
+# K5: 未挂载 → WARN（不 FAIL：内核不依赖任何 harness 照样跑；但必须可见，
+#     否则「Claude 侧会话既不回流也不注入」是静默的——这正是 2026-08-12～09-22 的实际状态）
+{ echo "$DOC" | grep -q '6. Claude hooks 挂载确认' && echo "$DOC" | grep -q '未挂载'; } \
+  && ok "K: 未挂载 Claude hooks 报 WARN" || bad "K: 未挂载判定失效" "(doctor 第 6 项: $(echo "$DOC" | grep '6\. Claude'))"
+# K6: 挂齐三件套且 command 指向本仓库 → PASS
 cat > "$KHOME/.claude/settings.json" << JSON
 {"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"$KROOT/bin/evo hook-recall","timeout":8}]}],"SessionEnd":[{"hooks":[{"type":"command","command":"$KROOT/bin/evo hook-session-end","timeout":5}]}],"PreToolUse":[{"matcher":"Bash|Write|Edit","hooks":[{"type":"command","command":"$KROOT/bin/evo hook-guard","timeout":5}]}]}}
 JSON
 DOC5=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
-{ echo "$DOC5" | grep -q '残留旧挂载'; } \
-  && ok "K: 残留 Claude 挂载报 WARN" || bad "K: 残留检测失效" "(有残留未报)"
+{ echo "$DOC5" | grep -q '6. Claude hooks 挂载确认.*三件套已挂载'; } \
+  && ok "K: 三件套挂齐报 PASS" || bad "K: 挂载判定失效" "(实得: $(echo "$DOC5" | grep '6\. Claude'))"
+# K6b: 挂载指向别的仓库 → WARN（换仓库位置 / 多副本时最易踩的静默错：挂载还在，写的是另一份库）
+cat > "$KHOME/.claude/settings.json" << JSON
+{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"/nonexistent/other-evo/bin/evo hook-recall","timeout":8}]}],"SessionEnd":[{"hooks":[{"type":"command","command":"/nonexistent/other-evo/bin/evo hook-session-end","timeout":5}]}],"PreToolUse":[{"matcher":"Bash|Write|Edit","hooks":[{"type":"command","command":"/nonexistent/other-evo/bin/evo hook-guard","timeout":5}]}]}}
+JSON
+DOC5B=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+{ echo "$DOC5B" | grep -q '指向非本仓库路径'; } \
+  && ok "K: 挂载指向他处报 WARN" || bad "K: 路径漂移检测失效" "(实得: $(echo "$DOC5B" | grep '6\. Claude'))"
+# K6c: 缺一件 → WARN（部分挂载）
+cat > "$KHOME/.claude/settings.json" << JSON
+{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"$KROOT/bin/evo hook-recall","timeout":8}]}]}}
+JSON
+DOC5C=$(HOME="$KHOME" EVO_ROOT="$KROOT" "$SRC/bin/evo" doctor 2>&1)
+{ echo "$DOC5C" | grep -q '部分挂载，缺: SessionEnd, PreToolUse'; } \
+  && ok "K: 部分挂载报 WARN" || bad "K: 部分挂载判定失效" "(实得: $(echo "$DOC5C" | grep '6\. Claude'))"
 printf '{}' > "$KHOME/.claude/settings.json"
 # K7: 蒸馏驱动器装载检查 —— 未装载时覆盖率不再增长，而此前没有任何信号：
 # 2026-09 实测停了 20 天无人发现，覆盖率冻在 8% 还被归因为「纪律问题」。

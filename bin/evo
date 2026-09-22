@@ -1720,13 +1720,14 @@ const cmds = {
     }
     add(5, ab5, '本地领先/落后', `ahead ${ahead} / behind ${behind}`);
 
-    // 6. Claude hooks 已退役确认 —— pi harness 于 2026-08-12 退役，挂载一度迁移至 hermes、
-    //    而 hermes 又于 2026-09-18 与 evo 彻底脱钩（见下方编号 7 的说明）。
-    //    预期状态 = ~/.claude/settings.json 无 evo hooks；
-    //    发现残留旧挂载 → WARN 提醒清理（不再 FAIL：退役是设计使然，不是部署缺陷）。
-    const cliPath = path.join(ROOT, 'bin/evo');
+    // 6. Claude hooks 挂载确认 —— 2026-09-22 起 Claude Code 重新接入（此前 2026-08-12 pi 退役后
+    //    一度摘除、9-18 hermes 脱钩时也确认过无挂载）。
+    //    预期状态 = ~/.claude/settings.json 挂齐三件套，且 command 指向**本仓库**的 bin/evo。
+    //    缺挂载 → WARN（内核不依赖任何 harness 才能跑，未挂载是合法状态；但它会让 Claude 侧
+    //    会话既不回流经验也得不到注入，且是本机当前设计要避免的状态，故必须可见）。
+    //    指向别的路径 → WARN（换仓库位置/多副本时最容易踩：挂载还在，写的是另一份库）。
     const settingsPath = path.join(homeDir(), '.claude/settings.json');
-    let h6 = 'PASS', d6 = '已退役（预期无挂载）';
+    let h6 = 'WARN', d6 = '未挂载（Claude Code 未接入 evo）';
     if (has(settingsPath)) {
       try {
         const sj = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -1746,16 +1747,24 @@ const cmds = {
           visit(node);
           return cmds;
         };
-        const legacy = { UserPromptSubmit: 'hook-recall', SessionEnd: 'hook-session-end', PreToolUse: 'hook-guard' };
-        const residual = [];
-        for (const [evt, sub] of Object.entries(legacy)) {
-          const cmds = collectCommands(hooks[evt]);
-          if (cmds.find((c) => c.includes('evo') && c.includes(sub))) residual.push(evt);
+        const expected = { UserPromptSubmit: 'hook-recall', SessionEnd: 'hook-session-end', PreToolUse: 'hook-guard' };
+        const mounted = [], missing = [], foreign = [];
+        for (const [evt, sub] of Object.entries(expected)) {
+          const hit = collectCommands(hooks[evt]).find((c) => c.includes('evo') && c.includes(sub));
+          if (!hit) { missing.push(evt); continue; }
+          mounted.push(evt);
+          if (!hit.includes(ROOT)) foreign.push(`${evt}→${hit}`);
         }
-        if (residual.length > 0) { h6 = 'WARN'; d6 = `残留旧挂载（pi 已退役，建议清理）: ${residual.join(', ')}`; }
+        if (missing.length === 0 && foreign.length === 0) {
+          h6 = 'PASS'; d6 = `三件套已挂载（${mounted.join('/')}）`;
+        } else if (foreign.length > 0 && missing.length === 0) {
+          h6 = 'WARN'; d6 = `挂载指向非本仓库路径（库与挂载点不一致，写的是另一份 evo）: ${foreign.join(', ')}`;
+        } else if (mounted.length > 0) {
+          h6 = 'WARN'; d6 = `部分挂载，缺: ${missing.join(', ')}`;
+        }
       } catch (e) { h6 = 'WARN'; d6 = `settings.json 解析失败: ${e.message}`; }
     }
-    add(6, h6, 'Claude hooks 已退役确认', d6);
+    add(6, h6, 'Claude hooks 挂载确认', d6);
 
 
 
