@@ -11,7 +11,7 @@ triggers:
   - "在 \\detokenize 参数里写了 \\_ 结果打印出反斜杠"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: capture:inbox/capture-2026-09-21-02-50-31-391-qy1t
 last_verified: 2026-09-22
 superseded_by: null
@@ -26,20 +26,22 @@ related: [xelatex-section-math-hyperref-texorpdfstring, generated-tex-lint-gate-
 `\newcommand{\id}[1]{\texttt{\detokenize{#1}}}` 且参数内一律用**裸下划线**；
 章节标题里不要用该宏。
 
-## 为什么
+## 证据
 
-`\detokenize` 的作用是把参数变成 catcode-12 的字符序列再打印，于是 `_` 不是「下标」而是字面字符 ——
-在正文里正确，在**会被写进辅助文件再读回**的语境（`.toc`）里就成了裸 `_`，读回时按数学模式解析即报错。
-两遍编译的差异正是这个「写入→读回」的往返造成的。
-
-## 证据（本会话实测，含踩坑细节）
-
-- 第二遍报 `Missing $ inserted`，位置在目录/标题。
+- 第二遍编译报 `Missing $ inserted`，位置在目录/标题。
 - 参数内写 `\_` **会原样打印反斜杠**（应用裸 `_`，因为 detokenize 已令其 catcode=12）。
 - 参数内写 `\%` 会把整行注释掉 —— 除 `%` `&` `#` 外，`\%` 也是雷。
 
+三条都是「报了错 → 改写法 → 错误消失」的观测链。**成因（为什么裸 `_` 会在读回时炸）capture 未记录**
+——本条不解释机制，只记「什么写法会炸、什么写法不炸」。
+
+证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录。
+一次两遍 xelatex 编译即可复现，跑通后可升回 `command`。
+
 ## 边界 / 反例
 
-- 只针对「会进辅助文件再读回」的语境（标题/目录/交叉引用）；正文里的 `\detokenize` 不受影响。
-- 与 `xelatex-section-math-hyperref-texorpdfstring`（标题里夹数学）是**两个不同的成因**，
-  都用 `\texorpdfstring` 或换写法不等于互相同解，别互相套用。
+- 观测范围是**章节标题 + `.toc`**（`\section`/`\subsection`）。其它「会进辅助文件再读回」的语境
+  （如交叉引用）**本次未测**，不要替它们下结论。
+- 正文里的 `\detokenize`（不经辅助文件往返）不受影响——这一半是本次的对照观测。
+- 与 `xelatex-section-math-hyperref-texorpdfstring`（标题里夹数学）是**两条独立记录**，
+  本次没有比过两者的成因异同，也没有验证过修法能否互换。

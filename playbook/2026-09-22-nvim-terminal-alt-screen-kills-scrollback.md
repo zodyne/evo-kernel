@@ -12,7 +12,7 @@ triggers:
   - "CLI agent 在 nvim 终端里没有 scrollback，想找一个开关把它关掉"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: capture:inbox/capture-2026-09-18-09-18-59-865-vdx6
 last_verified: 2026-09-22
 superseded_by: null
@@ -25,23 +25,24 @@ related: [nvim-tty-probe-more-pager-blocks, nvim-terminal-tmux-env-poisons-osc52
 **主张**：nvim `:terminal` 里 CLI agent「到顶滚不动」的成因是程序进了**备用屏**（`CSI ?1049h`）：
 libvterm 只把主屏滚出顶部的行推进 scrollback，备用屏一行不留，于是 nvim buffer 行数恒等于窗口高度。
 同一 nvim 打 200 行验证：主屏 201 行 / 备用屏 28 行（= winheight）。
-开关：pi 在 `~/.pi/agent/settings.json` 的 `tuiMode`（默认 `fullscreen`，起时传 `--tui-mode regular` 覆盖）；
-Claude Code 2.1.x 默认进备用屏，`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` 关闭。
 
-## 为什么
+开关（本次记录的两条）：pi 在 `~/.pi/agent/settings.json` 的 `tuiMode` 起时传 `--tui-mode regular` 覆盖；
+Claude Code 2.1.x 进备用屏，`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` 关。
 
-scrollback 是「主屏滚出的行」这一事件的产物；备用屏按终端语义就是**不滚动**的全屏画布，
-libvterm 忠实实现了这一点。所以这不是 nvim 的 bug，也不是 agent 的 bug，而是两种终端模型的碰撞。
-`sidekick` 自带的 scrollback 模块只在 mux（tmux/zellij）能 dump pane 时才生效——它绕开了 libvterm。
+## 证据
 
-## 证据（本会话实测）
+- 同一 nvim 打 200 行的行数对照：主屏 **201** 行 / 备用屏 **28** 行（= winheight）。
+- python `pty.fork` 抓原始输出、数 `\x1b[?1049h` 可判断程序是否进备用屏。
+- 同一会话里 `script(1)` 起 claude 的两次失效：**拿不到字节**；以及在未信任目录会先出 trust 对话框、
+  根本不进备用屏。→ 这条只说明 **`script(1)` 这个探针**在本场景不可用，不等于一般性的「探针都会改变被测行为」。
 
-- python `pty.fork` 抓原始输出、数 `\x1b[?1049h` 可证程序是否进备用屏。
-- `script(1)` 起 claude **拿不到字节**；且在未信任目录会先出 trust 对话框、根本不进备用屏——
-  探针本身会改变被测行为，取证要用 pty 直连。
+证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录。
+`pty.fork` 数 `1049h` 的探针可当场重跑，跑通后可升回 `command`。
 
 ## 边界 / 反例
 
-- 只覆盖「备用屏 = 无 scrollback」这一机制；程序自己不进备用屏而输出被截断，是另一回事。
-- `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN` 的取值与是否稳定，随 Claude Code 版本变，用前核当前版本。
-- mux 场景下（tmux/zellij）另有 pane 级 scrollback，本条不覆盖那条路径。
+- 本条只覆盖「备用屏没有 scrollback」这一条机制。**其它**造成「终端输出回看不全」的成因不在范围内
+  （例如输出被截断）——本条没有对它们作任何断言。
+- `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN` 是本条记录到的那个环境变量；其取值与长期稳定性未核。
+- `sidekick` 自带 scrollback 模块的行为，本次只观测到「只在 mux（tmux/zellij）能 dump pane 时生效」这一条；
+  它内部怎么做到的不在本条范围内。

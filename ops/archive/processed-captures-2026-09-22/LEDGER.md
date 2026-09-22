@@ -9,7 +9,7 @@
 | `capture-2026-09-18-09-48-43-536-c65x` | playbook/`nvim-main-screen-cli-input-box-anchor-bottom` | a（新建） |
 | `capture-2026-09-19-04-56-38-921-yx9u` | playbook/`python-http-read-blocks-on-chunked-use-read1` | a（新建） |
 | `capture-2026-09-19-05-52-06-809-ku93` | **丢弃** → 已由既有 playbook/`bash-var-followed-by-fullwidth-punct-swallowed` 覆盖 | b（纯重复，零增量） |
-| `capture-2026-09-20-04-20-06-211-4uvl` | playbook/`claude-auto-classifier-blocks-three-action-classes` | a（新建） |
+| `capture-2026-09-20-04-20-06-211-4uvl` | playbook/`claude-auto-classifier-blocks-two-action-classes` | a（新建） |
 | `capture-2026-09-20-05-46-44-309-6prn` | playbook/`mcp-server-delegation-via-agent-sdk-headless` | a（新建） |
 | `capture-2026-09-20-09-07-03-800-2v9c` | playbook/`mcp-idle-window-reset-only-by-tool-response-or-progress` | a（新建） |
 | `capture-2026-09-20-09-07-03-836-xwzi` | playbook/`agent-sdk-allowedtools-grants-not-restricts` | a（新建） |

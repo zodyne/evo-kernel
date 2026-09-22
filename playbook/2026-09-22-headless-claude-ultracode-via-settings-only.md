@@ -11,7 +11,7 @@ triggers:
   - "开了 ultracode 但 Workflow 工具仍不可用"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: capture:inbox/capture-2026-09-20-09-50-30-335-wegs
 last_verified: 2026-09-22
 superseded_by: null
@@ -21,24 +21,25 @@ related: [claude-code-nanoradar-gateway-settings, deepseek-reasoning-effort-leve
 
 # 无头会话开 ultracode 只能靠 `--settings`，`-p` 提示里的关键字无效
 
-**主张**：`claude -p` / Agent SDK 会话经网关 + 非 Anthropic 模型（本例 nanoradar + deepseek-v4-flash）
-**能**开 ultracode，但只能靠设置：
+**主张**：2026-09-20 实测（Claude Code 2.1.277，经 nanoradar 网关 + deepseek-v4-flash）：
+`claude -p` 会话**能**开 ultracode，但只能靠设置——
 `--settings '{"ultracode":true,"enableWorkflows":true}'`。
 开启后：`init.tools` 含 `Workflow`、会话记录注入 `ultra_effort_enter` 提醒、
 assistant 消息 `effort=xhigh`（而 `modelUsage` 仍只有 deepseek）。
 **`-p` 提示里的 ultracode 关键字无效**；`Workflow` 还要进 `allowedTools`。
 
-## 为什么
-
-交互式的关键字触发通道在 `-p` 路径上不存在（无 UserPromptSubmit 那条链），
-所以开关只剩设置文件。而「设置开了」与「工具可用」是两件事：`enableWorkflows` 决定工具是否注册，
-`allowedTools` 决定它是自动放行还是要问。
-
 ## 证据（2026-09-20 实测，Claude Code 2.1.277）
 
-- 开前后同一句 `pong` 的输入 token：**19.4K → 23.6K**（代价可量化）。
+- 开前后同一句 `pong` 的输入 token：**19.4K → 23.6K**。
+
+证据等级：`verified_by: human` —— 来源是会话内的 prose 摘要（`capture:…`），无命令转录。
+本条的可复现部分很轻（开一次无头会话看 `init.tools` 里有没有 `Workflow`），跑通后可升回 `command`。
 
 ## 边界 / 反例
 
-- 代价是这个量级的**一次**测量；随系统提示与工具集变化会变。
-- 版本相关（2.1.277）；且经网关转发时 `modelUsage` 的模型名不反映 effort 档位。
+- **配置组合只有一组**：nanoradar 网关 + deepseek-v4-flash。换网关、换模型、或直连厂商时行为未测
+  —— 尤其不要把它读成「非 Anthropic 模型都能开」。
+- 版本相关（2.1.277）。
+- capture 只观察到「设置里 `enableWorkflows` 与 `allowedTools` 都要写」；这两个字段**各自负责什么**
+  （谁决定工具注册、谁决定放行）本条不作断言——那是推的，没有观测。
+- 代价（19.4K → 23.6K）是该次的一句 `pong` 的测量；换系统提示/工具集会变。
