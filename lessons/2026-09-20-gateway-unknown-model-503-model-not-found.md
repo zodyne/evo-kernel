@@ -36,3 +36,26 @@ related: [claude-code-nanoradar-gateway-settings, novasky-deepseek-max-tokens-pa
 - 本条只验证了「模型名不存在/未映射」这一种成因；不能反推「所有 503 都是模型名问题」——判据要连 body 的 `code: model_not_found` 一起看，只看状态码不够。
 - 响应的 message 在切片里被截断（`…for model claude-`），不要凭本条猜完整文案；以实际响应体为准。
 - 探测未知模型时，网关仍会正常建连并返回结构化错误，所以「有 JSON 错误体」不等于「请求格式对」——它恰恰证明了端点可达、鉴权没问题，剩下的变量就是模型名。
+
+## 2026-09-22 独立复核增补
+
+下列是复核时在本机跑过的**自包含最小复现**：
+
+```
+KEY=$(awk -F= '/^NOVASKY_API_KEY=/{print $2; exit}' ~/.hermes/.env)
+curl -sS -w '\nHTTP %{http_code}\n' -X POST https://nanoradar.tail7a2064.ts.net/v1/messages \
+  -H "x-api-key: $KEY" -H "anthropic-version: 2023-06-01" -H "content-type: application/json" \
+  -d '{"model":"claude-opus-5","max_tokens":16,"messages":[{"role":"user","content":"hi"}]}'
+# 实测 2026-09-22 -> HTTP 503
+# {"error":{"code":"model_not_found","message":"No available channel for model claude-opus-5 under group default (distributor) (request id: ...)","type":"new_api_error"}}
+# 对照 1（凭据错）：同 URL 把 x-api-key 换成 BADKEY -> HTTP 401 {"error":{"code":"","message":"Invalid token ..."}}
+# 对照 2（端点无关）：改打 https://nanoradar.tail7a2064.ts.net/v1/chat/completions（Bearer）-> 同样 HTTP 503 model_not_found
+```
+
+
+**审核给出的修改意见（要点）**：删去证据节第 2 条「同批请求走的是网关的 Anthropic 分流端点」这层论证——它既无切片支撑（产生 503 的命令被截断），也不是判据：2026-09-22 复核发现同一未知名在 /v1/chat/completions 上也返回同样的 503 model_not_found（端点无关）。把 message 换成已复现的完整文案并补上 `"type":"new_api_error"`（可见其确为 new-api 业务应答而非连接失败），并注明产生 503 的命令在切片里被截断、不能照抄重跑。主张本身、边界/反例节均维持原样。
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 同批请求走的是网关的 Anthropic 分流端点
+
+**判定**：keep-with-fix · 拟 keep-lessons · 原证据快照风险=high · 复核时本机可复跑=true

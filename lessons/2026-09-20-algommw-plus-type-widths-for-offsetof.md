@@ -42,3 +42,29 @@ related: [algommw-plus-core-headers-ifndef-guard-convention, algommw-real-t-swit
 **证据**：session `01a0bc91-2069-7002-b369-2444691b0f3f` 切片末条 assistant（首条 user 要求只读收集
 `ChainCfg_t` 及嵌套子结构体精确字段清单用于 offsetof 表）：
 > 以下按声明顺序，格式 `字段  类型`；数组标注长度。**标量别名**：Real_t=float(4B)；Deg_t/Rad_t/Log2_t/Db_t=struct{Real_t xV}(4B)；ComplexF_t={Real_t xRe,xIm}(8B)；uint8_t/uint16_t/uint32_t/int32_t。**枚举底层类型**：均 `: int32_t`(4B)——…
+
+## 2026-09-22 独立复核增补
+
+下列是复核时在本机跑过的**自包含最小复现**：
+
+```
+grep -nE "using Real_t|struct (Deg_t|ComplexF_t)|enum class (Status|DoaVariant|WindowType) :" /Users/zodyne/Dev/algommw-plus/core/include/base/types.hpp /Users/zodyne/Dev/algommw-plus/core/include/base/units.hpp /Users/zodyne/Dev/algommw-plus/core/include/chain/chain.hpp /Users/zodyne/Dev/algommw-plus/core/include/math/window.hpp
+
+期望输出（本机实跑）：
+units.hpp:20:struct Deg_t
+chain.hpp:48:enum class DoaVariant : int32_t
+types.hpp:22:using Real_t = float32_t; /* M:USE_FIXED_POINT 分支无使用者,P1.0c 删 */
+types.hpp:25:struct ComplexF_t
+types.hpp:31:enum class Status : int32_t
+window.hpp:18:enum class WindowType : int32_t
+（units.hpp:20-35 的 Deg_t/Rad_t/Log2_t/Db_t 均为 struct{Real_t xV}，且有 static_assert sizeof==sizeof(Real_t)）
+```
+
+
+**审核给出的修改意见（要点）**：主张本身站得住：我在原仓复核，Real_t=float32_t=float(4B)（base/types.hpp:22）、Deg_t/Rad_t/Log2_t/Db_t 均为 struct{Real_t xV}(4B，base/units.hpp:20-35，含 sizeof==sizeof(Real_t) static_assert)、ComplexF_t={Real_t xRe,xIm}(8B，types.hpp:25)。唯一要改的是枚举那句的作用域：  1) 把「枚举**统一**显式指定底层类型 `: int32_t`」收窄为「ChainCfg_t 及其嵌套配置结构体里的枚举（WindowType/DoaVariant/ClusterMode/Modulation/StaticPolicy/CfarNoiseMode/CfarPeakGroupScheme/Status 等）均为 `: int32_t`(4B)」。整仓并非统一——io/tables.hpp:263 有匿名 `enum : uint8_t`（CfgExtra_t::eType，1 字节）。该反例在 ChainCfg_t 作用域之外，但条目未写作用域、措辞为「统一/均」，读到的人在做整仓 ctypes 镜像时会踩到，应在边界里点名。  2) 边界里补一句佐证跨仓区分：base/types.hpp:22 注释「M:
+
+**复核指出、尚未逐条改写进正文的断言**（读正文时以本节为准）：
+- 与 `algommw-real-t-switchable-typedef` 是**不同仓库**：`algommw`（无 plus）的 `Real_t` 是定点/浮点两档条件别名
+- ② 枚举宽度不是"编译器默认 int"，而是显式钉死 `int32_t`——跨编译器/平台镜像时不能靠默认值对齐
+
+**判定**：keep-with-fix · 拟 keep-lessons · 原证据快照风险=high · 复核时本机可复跑=true
