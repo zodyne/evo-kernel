@@ -1,7 +1,7 @@
 ---
 id: libcxx-math-h-global-using-aliases
 type: fact
-status: candidate
+status: validated
 scope: global
 domain: cpp-toolchain
 tags: [macos, libc++, math.h, __math, overload, ambiguity]
@@ -41,3 +41,7 @@ related: [using-directive-vs-shim-namespace-ambiguity, libm-shim-include-demote-
 - 「候选集有多个」不等于「必然二义」：只有两个候选对同一调用难分优劣时才报错；本条只提供候选来源清单，不替代逐调用点的重载解析判断。
 
 **失败信号（未来命中即该想起本条）**：在 macOS 上排查未限定数学调用二义时只 grep 了 `/usr/include/math.h`，没查 `c++/v1/math.h` 的 `using std::__math::` 行；或把二义全归因给自己写的 shim 而说不清另一候选。
+
+> **同源（n 记账）**：本条与同一会话 `01a0b74a-5f94` 的另 3 条提案同源于D10/libm 遮蔽那一组变体实验——**一次观测被拆成多条**，别当独立经验计权。
+> 更大一层：2026-09-18 那批有 3 个会话在 **33 秒内**先后启动、切片里「首条 user」逐字相同（对同一份 PLAN.md 的并行符合性审计），所以 A/B 两簇 12 条的**有效独立来源 ≈2 次**，不是 12 次。
+> 另：`evo slice` 会**截断长命令**——凡依赖被截断部分的引用，只能算「当时跑过」。
