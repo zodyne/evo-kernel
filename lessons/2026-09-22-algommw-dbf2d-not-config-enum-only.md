@@ -13,7 +13,7 @@ triggers:
   - "在 chain.c 看到 `case eDoaVariantDbf2d` 却当成历史残留（失败信号）"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: session:01a0b3e8-3b01-7475-af70-36ab077aec46
 last_verified: 2026-09-22
 superseded_by: null
@@ -38,3 +38,12 @@ related: [algommw-sparse-3z-array-needs-dbf2d-full-grid, algommw-doavariant-init
 - 本条的否证对象是 PLAN.md:291 的措辞（「只在配置枚举里存在」），不是「dbf2d 该不该保留」；本会话最终只把该主张定为 `partial` / `minor`，未判 PLAN 整体错误。
 - 切片未展开 chain.c:345 case 的完整注释（`/* 同一估…` 截断），也未证明 plus 的目标 C++ core 会保留这些分支；不要把本条外推成「重写后 dbf2d 仍是独立路径」。
 - chain.c 的 case 命中来自 algommw-plus 仓内的 C core；dtypes.py/config.py 命中来自 `../algommw` 的 `python/core_bind`，两边不要混记成一个仓的同一层。
+
+## 独立复核与证据快照（2026-09-22）
+
+本条**不进注入集**（`lessons` 候选），原因是证据快照已变，不是主张被推翻。复核结论：
+
+- `verified_by` 由 `command` 降为 `human`：引用命令在切片里被截断、**不能照抄重跑**，
+  证据绑在别仓/临时环境的一次输出上，按本库口径只算「当时跑过」。
+- **快照漂移**：`core/src/chain/chain.c`、`route.c` **已在 commit `c0e51a5`（P1.0a C→C++ 搬迁）删除**（现 `rg` 报 No such file）；PLAN.md 已重写，全仓再无「只在配置枚举里存在」。
+- 范围：「为什么」节把单次审计升格成普适律（「必须回到执行层校验」「只读枚举会误判」）——删去普适措辞，改写为「本会话的做法/推断」，并**显式标注是从这一次外推的**（`type: fact` 的条目不该夹带未验证的一般律）。另：该结论事后**确被采纳进 PLAN.md**（现 :447 引 chain.c:98-103 等），但行号口径与切片不同，别把两个快照混记。
