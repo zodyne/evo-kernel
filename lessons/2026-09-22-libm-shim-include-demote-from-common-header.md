@@ -13,7 +13,7 @@ triggers:
   - "验证 shim 头不再进消费者路径后，float 实参是否仍会被 delete 守卫拦住"
 created: 2026-09-22
 evidence: {helpful: 0, harmful: 0}
-verified_by: command
+verified_by: human
 source: session:01a0b74a-5f94-7475-af70-36af963834d5
 last_verified: 2026-09-22
 superseded_by: null
@@ -42,3 +42,16 @@ related: [using-directive-vs-shim-namespace-ambiguity, include-closure-per-tu-im
 - 数字（ambiguous=5、行号）与目录布局是当次仓库 + 遮蔽实现的快照，换版本要重测。
 
 **失败信号（未来命中即该想起本条）**：报告把「消费者 TU 二义」归因成必须改测试/消费者代码；或 shim 头的 include 出现在被大量头包含的公共头里，而全库头文件的闭包里其实没人调用它。
+
+## 独立复核与证据快照（2026-09-22）
+
+本条**不进注入集**（`lessons` 候选），原因是证据快照已变，不是主张被推翻。复核结论：
+
+- `verified_by` 由 `command` 降为 `human`：引用命令在切片里被截断、**不能照抄重跑**，
+  证据绑在别仓/临时环境的一次输出上，按本库口径只算「当时跑过」。
+- **快照漂移**：`/tmp/review-blockB-lang`（易失沙箱）+ algommw-plus `33a58c0`；该仓 HEAD 现已到 `228f8ff`，沙箱仅侥幸存活。
+- 范围：整条主张目前只有**单仓单次观测**支撑；机制（include 闭包 / 名字查找）成立但未跨仓跨版本复验。标题里「可零测试改动」应读作「在此类 setup 内」。
+
+> **同源（n 记账）**：本条与同一会话 `01a0b74a-5f94` 的另 3 条提案同源于D10/libm 遮蔽那一组变体实验——**一次观测被拆成多条**，别当独立经验计权。
+> 更大一层：2026-09-18 那批有 3 个会话在 **33 秒内**先后启动、切片里「首条 user」逐字相同（对同一份 PLAN.md 的并行符合性审计），所以 A/B 两簇 12 条的**有效独立来源 ≈2 次**，不是 12 次。
+> 另：`evo slice` 会**截断长命令**——凡依赖被截断部分的引用，只能算「当时跑过」。
